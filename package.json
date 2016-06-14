@@ -1,0 +1,24 @@
+{
+  "name": "magix-combine",
+  "version": "1.0.2",
+  "description": "合并Magix View的html,js,css成一个js文件",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thx/magix-combine.git"
+  },
+  "keywords": [
+    "magix",
+    "view"
+  ],
+  "dependencies": {
+    "cssnano": "",
+    "html-minifier": ""
+  },
+  "author": "xinglie <xinglie.lkf@taobao.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/thx/magix-combine/issues"
+  },
+  "homepage": "https://github.com/thx/magix-combine#readme"
+}
