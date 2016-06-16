@@ -171,6 +171,9 @@ object 代码片断对象，在处理复杂html时有用
 ##compressCssNames
 boolean 是否压缩css名称，默认false
 
+##removeRequire
+boolean 是否移除require代码
+
 ##generateJSFile
 function 如何把html,js和css生成最终的js文件，需要开发者实现该方法
 

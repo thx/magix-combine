@@ -15,7 +15,13 @@ var configs = {
     cssnanoOptions: {
         safe: true
     },
-    htmlminifierOptions: {},
+    htmlminifierOptions: {
+        removeComments: true, //注释
+        collapseWhitespace: true, //空白
+        //removeAttributeQuotes: true, //属性引号
+        quoteCharacter: '"',
+        keepClosingSlash: true //
+    },
     excludeTmplFolders: [],
     snippets: {},
     compressCssNames: false,
@@ -622,13 +628,7 @@ Processor.add('tmpl:event', function() {
         }
     };
 });
-Processor.add('tmpl:autokeys', function() {
-    return {
-        run: function(fileContent) {
-            return fileContent;
-        }
-    };
-});
+
 Processor.add('tmpl', function() {
     var fileTmplReg = /(\btmpl\s*:\s*)?(['"])@([^'"]+)\.html(?:\2)/g; //对于tmpl:特殊分析
     var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -650,7 +650,7 @@ Processor.add('tmpl', function() {
                     fileContent = Processor.run('tmpl:cmd', 'compress', [fileContent]);
                     fileContent = Processor.run('tmpl:autokeys', 'run', [fileContent]);
                     fileContent = Processor.run('tmpl:snippet', 'expand', [fileContent]);
-                    if (key) fileContent = Processor.run('tmpl:cmd', 'store', [fileContent, refTmplCommands]); //模板命令移除，防止影响分析
+                    fileContent = Processor.run('tmpl:cmd', 'store', [fileContent, refTmplCommands]); //模板命令移除，防止影响分析
                     //var refTmplEvents = Processor.run('tmpl:event', 'extract', [fileContent]);
                     //console.log(refTmplEvents);
                     fileContent = Processor.run('tmpl:cmd', 'tidy', [fileContent]);
