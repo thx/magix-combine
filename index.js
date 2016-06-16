@@ -648,7 +648,6 @@ Processor.add('tmpl', function() {
                     var refGuidToKeys = {},
                         refTmplCommands = {};
                     fileContent = Processor.run('tmpl:cmd', 'compress', [fileContent]);
-                    fileContent = Processor.run('tmpl:autokeys', 'run', [fileContent]);
                     fileContent = Processor.run('tmpl:snippet', 'expand', [fileContent]);
                     fileContent = Processor.run('tmpl:cmd', 'store', [fileContent, refTmplCommands]); //模板命令移除，防止影响分析
                     //var refTmplEvents = Processor.run('tmpl:event', 'extract', [fileContent]);
@@ -713,18 +712,23 @@ Processor.add('require', function() {
         }
     };
 });
+
 Processor.add('comment', function() {
     var anchor = '~\u0011';
-    var comment = /(?:\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$)/mg;
+    var comment = /("([^\\"]*(\\.)?)*")|('([^\\']*(\\.)?)*')|(\/{2,}.*?(\r|\n))|(\/\*(\n|.)*?\*\/)/g;
+    var lineCommentStart = /^\/{2,}/;
+    var mlCommentStart = /^\/\*/;
     var key = /\~\u0011\d+/g;
     return {
         remove: function(content, store) {
             var idx = 0;
-            return content.replace(comment, function(m, prefix) {
-                var key = anchor + idx++;
-                store[key] = m;
-                prefix = prefix || '';
-                return prefix + key;
+            return content.replace(comment, function(m) {
+                if (lineCommentStart.test(m) || mlCommentStart.test(m)) {
+                    var key = anchor + idx++;
+                    store[key] = m;
+                    return key;
+                }
+                return m;
             });
         },
         restore: function(content, store) {
