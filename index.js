@@ -15,6 +15,7 @@ var configs = {
     cssnanoOptions: {
         safe: true
     },
+    prefix: '',
     htmlminifierOptions: {
         removeComments: true, //注释
         collapseWhitespace: true, //空白
