@@ -631,14 +631,14 @@ Processor.add('tmpl:event', function() {
 });
 
 Processor.add('tmpl', function() {
-    var fileTmplReg = /(\btmpl\s*:\s*)?(['"])@([^'"]+)\.html(?:\2)/g; //对于tmpl:特殊分析
+    var fileTmplReg = /(['"])@([^'"]+)\.html(:data)?(?:\1)/g;
     var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
     var processTmpl = function(e) {
         return new Promise(function(resolve) {
             var cssNamesMap = e.cssNamesMap,
                 from = e.from,
                 moduleId = e.moduleId;
-            e.content = e.content.replace(fileTmplReg, function(match, key, quote, name) {
+            e.content = e.content.replace(fileTmplReg, function(match, quote, name, isData) {
                 name = resolveAtName(name, moduleId);
                 var file = path.resolve(path.dirname(from) + sep + name + '.html');
                 var fileContent = name;
@@ -659,15 +659,11 @@ Processor.add('tmpl', function() {
 
                     //fileContent = Processor.run('tmpl:cmd', 'recover', [fileContent, refTmplCommands]);
                     var info = Processor.run('tmpl:partial', 'process', [fileContent, refGuidToKeys, refTmplCommands, cssNamesMap]);
-                    fileContent = JSON.stringify(info.tmpl);
-                    //fileContent = JSON.stringify(fileContent);
-                    if (key) {
-                        if (info.list.length)
-                            fileContent += ',\r\n' + 'tmplData:' + JSON.stringify(info.list);
-
-                        return key + fileContent;
+                    if (isData) {
+                        return JSON.stringify(info.list);
+                    } else {
+                        return JSON.stringify(info.tmpl);
                     }
-                    return fileContent;
                 }
                 return quote + 'unfound:' + name + quote;
             });
