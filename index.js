@@ -554,22 +554,25 @@ Processor.add('tmpl:partial', function() {
                 delete tmplInfo.tmpl;
                 delete tmplInfo.mask;
             } else {
-                if (tmplCommandAnchorRegTest.test(content)) {
+                if (tmplCommandAnchorRegTest.test(content)) {//内容中有模板
                     remain = match.replace(content, '@' + g + holder);
                     subs.push({
                         tmpl: content,
                         ownKeys: ownKeys,
                         tmplInfo: tmplInfo
                     });
-                } else {
+                } else {//只处理属性
                     remain = match;
                     content = '';
                     delete tmplInfo.tmpl;
                     delete tmplInfo.guid;
                 }
                 addAttrs(tag, remain, tmplInfo, keysReg, refTmplCommands);
-                if (!tmplInfo.attrs.length) {
+                if (!tmplInfo.attrs.length) {//没有属性
                     delete tmplInfo.attrs;
+                }
+                if (!tmplInfo.tmpl && !tmplInfo.attrs) {//即没模板也没属性，则删除
+                    list.pop();
                 }
             }
             return remain;
