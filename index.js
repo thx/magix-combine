@@ -426,10 +426,14 @@ Processor.add('tmpl:partial', function() {
     };
     var addAttrs = function(tag, tmpl, info, keysReg, refTmplCommands) {
         var attrsKeys = {},
-            tmplKeys = {};
+            tmplKeys = {},
+            viewContent;
         tmpl.replace(attrsNameValueReg, function(match, name, quote, content) {
             var hasKey = false,
                 aInfo;
+            if (name == 'mx-view') {
+                viewContent = content;
+            }
             if (tmplCommandAnchorRegTest.test(content)) {
                 content = content.replace(tmplCommandAnchorReg, function(match) {
                     var value = refTmplCommands[match];
@@ -468,9 +472,13 @@ Processor.add('tmpl:partial', function() {
                         });
                     }
                     if (name == 'mx-view') {
-                        info.view = aInfo.v;
-                    } else {
+                        viewContent = aInfo.v;
+                    }
+                    if (name != 'mx-view') {
                         info.attrs.push(aInfo);
+                    }
+                    if (viewContent) {
+                        info.view = viewContent;
                     }
                 }
             }
@@ -554,24 +562,24 @@ Processor.add('tmpl:partial', function() {
                 delete tmplInfo.tmpl;
                 delete tmplInfo.mask;
             } else {
-                if (tmplCommandAnchorRegTest.test(content)) {//内容中有模板
+                if (tmplCommandAnchorRegTest.test(content)) { //内容中有模板
                     remain = match.replace(content, '@' + g + holder);
                     subs.push({
                         tmpl: content,
                         ownKeys: ownKeys,
                         tmplInfo: tmplInfo
                     });
-                } else {//只处理属性
+                } else { //只处理属性
                     remain = match;
                     content = '';
                     delete tmplInfo.tmpl;
                     delete tmplInfo.guid;
                 }
                 addAttrs(tag, remain, tmplInfo, keysReg, refTmplCommands);
-                if (!tmplInfo.attrs.length) {//没有属性
+                if (!tmplInfo.attrs.length) { //没有属性
                     delete tmplInfo.attrs;
                 }
-                if (!tmplInfo.tmpl && !tmplInfo.attrs) {//即没模板也没属性，则删除
+                if (!tmpl.view && !tmplInfo.tmpl && !tmplInfo.attrs) { //即没模板也没属性，则删除
                     list.pop();
                 }
             }
