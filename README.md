@@ -1,6 +1,12 @@
 # magix-combine
 合并Magix View的html,js,css文件成一个js文件，需要配合其它工具使用。
 
+#功能
+1. 合并html,css,js成一个js文件。[为什么不在打包上线时合并？](https://github.com/thx/magix-combine/issues/5)
+2. css只在当前区块内生效。[关于style的scope](https://github.com/thx/magix-combine/issues/6) [css模块](http://www.75team.com/post/1049.html)
+3. 基于mx-keys的子模块离线分析
+4. 类node模块的写法，由工具加上web loader
+
 #gulp使用示例
 
 ##package.json
