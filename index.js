@@ -579,7 +579,7 @@ Processor.add('tmpl:partial', function() {
                 if (!tmplInfo.attrs.length) { //没有属性
                     delete tmplInfo.attrs;
                 }
-                if (!tmpl.view && !tmplInfo.tmpl && !tmplInfo.attrs) { //即没模板也没属性，则删除
+                if (!tmplInfo.view && !tmplInfo.tmpl && !tmplInfo.attrs) { //即没模板也没属性，则删除
                     list.pop();
                 }
             }
