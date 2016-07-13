@@ -34,6 +34,9 @@ var configs = {
     },
     compressTmplCommand: function(tmpl) {
         return tmpl;
+    },
+    processAttachedFile: function() {
+
     }
 };
 var copyFile = function(from, to, callback) {
@@ -1052,6 +1055,7 @@ Processor.add('file', function() {
                             if (inwatch) {
                                 processFile(jsf, aimFile, inwatch);
                             }
+                            configs.processAttachedFile(extname, from, to);
                             break;
                         }
                     }

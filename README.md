@@ -188,6 +188,8 @@ function
 
 ##compressTmplCommand
 function 如何压缩模板引擎的命令
+## processAttachedFile
+function 如何处理附属js的html和css文件，像css文件在某些情况下无法打包进js，需要发布到上线文件夹里
 
 ##walk
 function 遍历某个文件夹
