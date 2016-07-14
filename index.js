@@ -35,28 +35,26 @@ var configs = {
     compressTmplCommand: function(tmpl) {
         return tmpl;
     },
+
     processAttachedFile: function() {
 
     }
 };
-var copyFile = function(from, to, callback) {
+var writeFile = function(to, content) {
+    var folders = path.dirname(to).split(sep);
+    var p = '';
+    while (folders.length) {
+        p += folders.shift() + sep;
+        if (!fs.existsSync(p)) {
+            fs.mkdirSync(p);
+        }
+    }
+    fs.writeFileSync(to, content);
+};
+var copyFile = function(from, to) {
     if (fs.existsSync(from)) {
-        var folders = path.dirname(to).split(sep);
-        var p = '';
-        while (folders.length) {
-            p += folders.shift() + sep;
-            if (!fs.existsSync(p)) {
-                fs.mkdirSync(p);
-            }
-        }
         var content = readFile(from);
-        if (callback) {
-            callback(content).then(function(c) {
-                fs.writeFileSync(to, c);
-            });
-        } else {
-            fs.writeFileSync(to, content);
-        }
+        writeFile(to, content);
     }
 };
 var walk = function(folder, callback) {
@@ -158,6 +156,7 @@ var initFolder = function() {
         configs.srcHolder = '$1' + srcFolderName + sep;
         configs.srcReg = new RegExp('(' + sepRegTmpl + '?)' + srcFolderName + sepRegTmpl);
         configs.buildHolder = '$1' + buildFolderName + sep;
+        console.log(configs.moduleIdRemovedPath);
     }
 };
 var processorMap = {};
@@ -266,7 +265,7 @@ Processor.add('css', function() {
                     name = resolveAtName(name, e.moduleId);
                     var file = path.resolve(path.dirname(e.from) + sep + name + '.css');
                     if (fs.existsSync(file)) {
-                        addFileDepend(file, e.from, e.to);
+                        if (e.to) addFileDepend(file, e.from, e.to);
                         if (!cssContentCache[file]) {
                             var fileContent = readFile(file);
                             cssContentCache[file] = 1;
@@ -925,7 +924,7 @@ Processor.add('require:parser', function() {
 });
 Processor.add('require', function() {
     var depsReg = /(?:var\s+([^=]+)=\s*)?\brequire\s*\(([^\(\)]+)\);?/g;
-    var exportsReg = /module\.exports\s*=\s*/;
+    //var exportsReg = /module\.exports\s*=\s*/;
     var anchor = '\u0011';
     var anchorReg = /(['"])\u0011([^'"]+)\1/;
     return {
@@ -933,12 +932,12 @@ Processor.add('require', function() {
             var deps = [];
             var vars = [];
             var noKeyDeps = [];
-            var hasExports;
+            //var hasExports;
             var moduleId = extractModuleId(e.from);
-            if (exportsReg.test(e.content)) {
-                e.content = e.content.replace(exportsReg, 'return ');
-                hasExports = true;
-            }
+            // if (exportsReg.test(e.content)) {
+            //     e.content = e.content.replace(exportsReg, 'return ');
+            //     hasExports = true;
+            // }
             var depsInfo = Processor.run('require:parser', 'process', [e.content]);
             for (var i = 0, start; i < depsInfo.length; i++) {
                 start = depsInfo[i].start + i;
@@ -962,39 +961,37 @@ Processor.add('require', function() {
             e.deps = deps;
             e.vars = vars;
             e.requires = deps;
-            e.hasxports = hasExports;
+            //e.hasxports = hasExports;
             return Promise.resolve(e);
         }
     };
 });
-
-// Processor.add('comment', function() {
-//     var anchor = '~\u0011';
-//     var comment = /("(?:[^\\"]*(?:\\.)?)*")|('(?:[^\\']*(?:\\.)?)*')|(\/{2,}.*?[\r\n])|(\/\*(?:\n|\r|.)*?\*\/)/g;
-//     var lineCommentStart = /^\/{2,}/;
-//     var mlCommentStart = /^\/\*/;
-//     var key = /\~\u0011\d+/g;
-//     return {
-//         remove: function(content, store) {
-//             var idx = 0;
-//             return content.replace(comment, function(m) {
-//                 if (lineCommentStart.test(m) || mlCommentStart.test(m)) {
-//                     var key = anchor + idx++;
-//                     store[key] = m;
-//                     return key;
-//                 }
-//                 return m;
-//             });
-//         },
-//         restore: function(content, store) {
-//             return content.replace(key, function(m) {
-//                 return store[m];
-//             });
-//         }
-//     };
-// });
-Processor.add('file', function() {
+Processor.add('file:content', function() {
     var moduleIdReg = /(['"])(@moduleId)\1/g;
+    return {
+        process: function(from, to, content) {
+            if (!content) content = readFile(from);
+            return Processor.run('require', 'process', [{
+                from: from,
+                content: content
+                    }]).then(function(e) {
+                e.to = to;
+                return Processor.run('css', 'process', [e]);
+            }).then(function(e) {
+                return Processor.run('tmpl', 'process', [e]);
+            }).then(function(e) {
+                //e.content = Processor.run('comment', 'restore', [e.content, store]);
+                e.content = e.content.replace(moduleIdReg, '$1' + e.moduleId + '$1');
+                e.content = resolveAtPath(e.content, e.moduleId);
+                var tmpl = configs.generateJSFile(e);
+                return Promise.resolve(tmpl);
+            }).catch(function(e) {
+                console.log(e);
+            });
+        }
+    };
+});
+Processor.add('file', function() {
     var extnames = {
         '.html': 1,
         '.css': 1
@@ -1010,28 +1007,8 @@ Processor.add('file', function() {
             }
         }
         if (jsReg.test(from)) {
-            copyFile(from, to, function(content) {
-                //var store = {};
-                //content = Processor.run('comment', 'remove', [content, store]);
-                return new Promise(function(resolve) {
-                    Processor.run('require', 'process', [{
-                        from: from,
-                        content: content
-                    }]).then(function(e) {
-                        e.to = to;
-                        return Processor.run('css', 'process', [e]);
-                    }).then(function(e) {
-                        return Processor.run('tmpl', 'process', [e]);
-                    }).then(function(e) {
-                        //e.content = Processor.run('comment', 'restore', [e.content, store]);
-                        e.content = e.content.replace(moduleIdReg, '$1' + e.moduleId + '$1');
-                        e.content = resolveAtPath(e.content, e.moduleId);
-                        var tmpl = configs.generateJSFile(e);
-                        resolve(tmpl);
-                    }).catch(function(e) {
-                        console.log(e);
-                    });
-                });
+            Processor.run('file:content', 'process', [from, to]).then(function(content) {
+                writeFile(to, content);
             });
         } else {
             var extname = path.extname(from);
@@ -1102,6 +1079,10 @@ module.exports = {
         initFolder();
         var to = from.replace(configs.tmplReg, configs.srcHolder);
         Processor.run('file', 'process', [from, to, true]);
+    },
+    processContent: function(from, to, content) {
+        initFolder();
+        return Processor.run('file:content', 'process', [from, to, content]);
     },
     build: function() {
         initFolder();
