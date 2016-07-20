@@ -26,9 +26,6 @@ var configs = {
     excludeTmplFolders: [],
     snippets: {},
     compressCssNames: false,
-    generateJSFile: function(tmpl) {
-        return tmpl;
-    },
     atAttrProcessor: function(name, tmpl) {
         return tmpl;
     },
@@ -249,7 +246,7 @@ Processor.add('css', function() {
                             replacement = '';
                             tail = '';
                         } else if (key) {
-                            var c = key == '$prefix' ? cssNamesKey + '-' : cssNamesMap[key];
+                            var c = cssNamesMap[key];
                             replacement = q + c + q;
                         } else {
                             replacement = '\'' + cssNamesKey + '\',' + JSON.stringify(fileContent);
@@ -521,10 +518,11 @@ Processor.add('tmpl:partial', function() {
         });
     };
 
-    var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, list, parentOwnKeys) {
+    var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, list, parentOwnKeys, globalKeys) {
         if (!list) {
             list = [];
             g = 0;
+            globalKeys = {};
         }
         var subs = [];
         tmpl = tmpl.replace(subReg, function(match, tag, guid, content) { //清除子模板后
@@ -549,6 +547,7 @@ Processor.add('tmpl:partial', function() {
                 key = keys[i].trim();
                 tmplInfo.keys.push(key);
                 ownKeys[key] = 1;
+                globalKeys[key] = 1;
                 keysReg.push(new RegExp('\\b' + key + '\\b'));
             }
             list.push(tmplInfo);
@@ -610,14 +609,15 @@ Processor.add('tmpl:partial', function() {
         tmpl = expandAtAttr(tmpl, refTmplCommands);
         while (subs.length) {
             var sub = subs.shift();
-            var i = buildTmpl(sub.tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, list, sub.ownKeys);
+            var i = buildTmpl(sub.tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, list, sub.ownKeys, globalKeys);
             sub.tmplInfo.tmpl = i.tmpl;
         }
         tmpl = Processor.run('tmpl:class', 'process', [tmpl, cssNamesMap]);
         tmpl = commandAnchorRecover(tmpl, refTmplCommands);
         return {
             list: list,
-            tmpl: tmpl
+            tmpl: tmpl,
+            keys: globalKeys
         };
     };
     return {
@@ -644,14 +644,14 @@ Processor.add('tmpl:event', function() {
 });
 
 Processor.add('tmpl', function() {
-    var fileTmplReg = /(['"])@([^'"]+)\.html(:data)?(?:\1)/g;
+    var fileTmplReg = /(['"])@([^'"]+)\.html(:data|:keys)?(?:\1)/g;
     var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
     var processTmpl = function(e) {
         return new Promise(function(resolve) {
             var cssNamesMap = e.cssNamesMap,
                 from = e.from,
                 moduleId = e.moduleId;
-            e.content = e.content.replace(fileTmplReg, function(match, quote, name, isData) {
+            e.content = e.content.replace(fileTmplReg, function(match, quote, name, ext) {
                 name = resolveAtName(name, moduleId);
                 var file = path.resolve(path.dirname(from) + sep + name + '.html');
                 var fileContent = name;
@@ -672,8 +672,10 @@ Processor.add('tmpl', function() {
 
                     //fileContent = Processor.run('tmpl:cmd', 'recover', [fileContent, refTmplCommands]);
                     var info = Processor.run('tmpl:partial', 'process', [fileContent, refGuidToKeys, refTmplCommands, cssNamesMap]);
-                    if (isData) {
+                    if (ext == ':data') {
                         return JSON.stringify(info.list);
+                    } else if (ext == ':keys') {
+                        return JSON.stringify(info.keys);
                     } else {
                         return JSON.stringify(info.tmpl);
                     }
@@ -954,7 +956,7 @@ Processor.add('require', function() {
                 } else {
                     noKeyDeps.push(str);
                 }
-                return configs.removeRequire ? '' : match.replace(anchor, '');
+                return configs.loaderType == 'cmd' ? match.replace(anchor, '') : '';
             });
             deps = deps.concat(noKeyDeps);
             e.moduleId = moduleId;
@@ -963,6 +965,30 @@ Processor.add('require', function() {
             e.requires = deps;
             //e.hasxports = hasExports;
             return Promise.resolve(e);
+        }
+    };
+});
+Processor.add('file:loader', function() {
+    var tmpls = {
+        cmd: 'define(\'${moduleId}\',[${requires}],function(require,exports,module){\r\n/*${vars}*/\r\n${content}\r\n});',
+        cmd1: 'define(\'${moduleId}\',function(require,exports,module){\r\n${content}\r\n});',
+        amd: 'define(\'${moduleId}\',[${requires}],function(${vars}){${content}\r\n});',
+        amd1: 'define(\'${moduleId}\',[],function(){\r\n${content}\r\n});'
+    };
+    var moduleExportsReg = /\bmodule\.exports\s*=\s*/;
+    var amdDefineReg = /\bdefine\.amd\b/;
+    return {
+        process: function(e) {
+            var key = configs.loaderType + (e.requires.length ? '1' : '');
+            var tmpl = tmpls[key];
+            for (var p in e) {
+                var reg = new RegExp('\\$\\{' + p + '\\}', 'g');
+                tmpl = tmpl.replace(reg, (e[p] + '').replace(/\$/g, '$$$$'));
+            }
+            if (configs.loaderType == 'amd' && !amdDefineReg.test(tmpl)) {
+                tmpl = tmpl.replace(moduleExportsReg, 'return ');
+            }
+            return tmpl;
         }
     };
 });
@@ -983,7 +1009,7 @@ Processor.add('file:content', function() {
                 //e.content = Processor.run('comment', 'restore', [e.content, store]);
                 e.content = e.content.replace(moduleIdReg, '$1' + e.moduleId + '$1');
                 e.content = resolveAtPath(e.content, e.moduleId);
-                var tmpl = configs.generateJSFile(e);
+                var tmpl = Processor.run('file:loader', 'process', [e]);
                 return Promise.resolve(tmpl);
             }).catch(function(e) {
                 console.log(e);
@@ -1052,6 +1078,8 @@ Processor.add('file', function() {
 module.exports = {
     walk: walk,
     copyFile: copyFile,
+    removeFileCache: removeFileDepend,
+    addProcessor: Processor.add,
     removeFile: function(from) {
         removeFileDepend(from);
         var file = from.replace(configs.tmplReg, configs.srcHolder);
@@ -1059,7 +1087,6 @@ module.exports = {
             fs.unlinkSync(file);
         }
     },
-    removeFileCache: removeFileDepend,
     config: function(config) {
         for (var p in config) {
             configs[p] = config[p];
