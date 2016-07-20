@@ -4,7 +4,7 @@
 #功能
 1. 合并html,css,js成一个js文件。[为什么不在打包上线时合并？](https://github.com/thx/magix-combine/issues/5)
 2. css只在当前区块内生效。[关于style的scope](https://github.com/thx/magix-combine/issues/6) [css模块](http://www.75team.com/post/1049.html)
-3. 基于mx-keys的子模块离线分析
+3. 基于mx-keys的子模板离线数据提取及预处理
 4. 类node模块的写法，由工具加上web loader
 
 #gulp使用示例
@@ -202,7 +202,10 @@ function 遍历某个文件夹
 function 复制文件
 
 ##removeFile
-function 删除文件，同时移除相应的缓存信息
+function 删除文件，同时移除相应的缓存内容
+
+##removeFileCache
+function 删除文件的缓存内容，在文件未变动的情况下工具会缓存文件的内容，以增加速度，但有时候需要手动删除缓存内容
 
 ##config
 function 配置

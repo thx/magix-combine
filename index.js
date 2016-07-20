@@ -26,8 +26,8 @@ var configs = {
     excludeTmplFolders: [],
     snippets: {},
     compressCssNames: false,
-    generateJSFile: function() {
-        return '';
+    generateJSFile: function(tmpl) {
+        return tmpl;
     },
     atAttrProcessor: function(name, tmpl) {
         return tmpl;
@@ -1059,6 +1059,7 @@ module.exports = {
             fs.unlinkSync(file);
         }
     },
+    removeFileCache: removeFileDepend,
     config: function(config) {
         for (var p in config) {
             configs[p] = config[p];
