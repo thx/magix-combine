@@ -20,6 +20,7 @@ var configs = {
     lessOptions: {},
     sassOptions: {},
     prefix: '',
+    loaderType: 'cmd',
     htmlminifierOptions: {
         removeComments: true, //注释
         collapseWhitespace: true, //空白
@@ -36,7 +37,6 @@ var configs = {
     compressTmplCommand: function(tmpl) {
         return tmpl;
     },
-
     processAttachedFile: function() {
 
     }
@@ -87,13 +87,9 @@ var md5 = function(text) {
     md5Cache[md5ResultKey + rstr] = 1;
     return rstr;
 };
-var fileCaches = {};
 var readFile = function(file) {
-    if (fileCaches.hasOwnProperty(file)) {
-        return fileCaches[file];
-    }
     var c = fs.readFileSync(file) + '';
-    return (fileCaches[file] = c);
+    return c;
 };
 var relativePathReg = /(['"])@([^\/]+)([^\s;\{\}]+?)(?=\\?\1)/g;
 var resolveAtPath = function(content, from) {
@@ -131,7 +127,6 @@ var runFileDepend = function(file) {
     }
 };
 var removeFileDepend = function(file) {
-    delete fileCaches[file];
     delete fileDependencies[file];
 };
 var jsReg = /\.js$/i;
@@ -157,7 +152,6 @@ var initFolder = function() {
         configs.srcHolder = '$1' + srcFolderName + sep;
         configs.srcReg = new RegExp('(' + sepRegTmpl + '?)' + srcFolderName + sepRegTmpl);
         configs.buildHolder = '$1' + buildFolderName + sep;
-        console.log(configs.moduleIdRemovedPath);
     }
 };
 var processorMap = {};
@@ -206,7 +200,7 @@ Processor.add('css:read', function() {
     return {
         process: function(file) {
             return new Promise(function(resolve) {
-                fs.access(file, fs.constants.R_OK, function(err) {
+                fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), function(err) {
                     if (err) {
                         resolve({
                             exists: false
@@ -255,11 +249,12 @@ Processor.add('css', function() {
         var cssNamesMap = {};
         var gCSSNamesMap = {};
         var cssNamesKey;
-        var cssNameReg = /@?\.([\w\-]+)(?=[^\{\}]*?\{)/g;
+        var cssNameReg = /(?:@|global)?\.([\w\-]+)(?=[^\{\}]*?\{)/g;
         var addToGlobalCSS = true;
         var cssNamesCompress = {};
         var cssNamesCompressIdx = 0;
         var cssNameProcessor = function(m, name) {
+            if (m.indexOf('global') === 0) return m.slice(6);
             if (m.charAt(0) == '@') return m.slice(1); //@.rule
             var mappedName = name;
             if (configs.compressCssNames) {
@@ -1082,7 +1077,6 @@ Processor.add('file', function() {
         from = path.resolve(from);
         console.log('process:', from);
         to = path.resolve(to);
-        delete fileCaches[from];
         for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
             if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
                 return copyFile(from, to);
@@ -1134,7 +1128,6 @@ Processor.add('file', function() {
 module.exports = {
     walk: walk,
     copyFile: copyFile,
-    removeFileCache: removeFileDepend,
     addProcessor: Processor.add,
     removeFile: function(from) {
         removeFileDepend(from);

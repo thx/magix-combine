@@ -215,9 +215,6 @@ function 复制文件
 ### removeFile
 function 删除文件，同时移除相应的缓存内容
 
-### removeFileCache
-function 删除文件的缓存内容，在文件未变动的情况下工具会缓存文件的内容，以增加速度，但有时候需要手动删除缓存内容
-
 ### config
 function 配置
 
