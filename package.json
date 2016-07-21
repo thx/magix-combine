@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "合并Magix View的html,js,css成一个js文件",
   "main": "index.js",
   "repository": {
@@ -13,7 +13,9 @@
   ],
   "dependencies": {
     "cssnano": "",
-    "html-minifier": ""
+    "html-minifier": "",
+    "less": ">=2.5.0",
+    "node-sass": ">=3.8.0"
   },
   "author": "xinglie <xinglie.lkf@taobao.com>",
   "license": "MIT",

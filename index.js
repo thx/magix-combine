@@ -4,6 +4,8 @@ var fs = require('fs');
 var path = require('path');
 var cssnano = require('cssnano');
 var htmlminifier = require('html-minifier');
+var less = require('less');
+var sass = require('node-sass');
 var sep = path.sep;
 var sepRegTmpl = sep.replace(/\\/g, '\\\\');
 var sepReg = new RegExp(sepRegTmpl, 'g');
@@ -15,6 +17,8 @@ var configs = {
     cssnanoOptions: {
         safe: true
     },
+    lessOptions: {},
+    sassOptions: {},
     prefix: '',
     htmlminifierOptions: {
         removeComments: true, //注释
@@ -91,7 +95,7 @@ var readFile = function(file) {
     var c = fs.readFileSync(file) + '';
     return (fileCaches[file] = c);
 };
-var relativePathReg = /(['"])@([^\/]+)(\S+?)(?=\\?\1)/g;
+var relativePathReg = /(['"])@([^\/]+)([^\s;\{\}]+?)(?=\\?\1)/g;
 var resolveAtPath = function(content, from) {
     var folder = from.substring(0, from.lastIndexOf('/') + 1);
     var tp;
@@ -170,32 +174,83 @@ var Processor = {
         return Promise.reject('unfound:' + key + '.' + fn);
     }
 };
-Processor.add('css', function() {
-    var cssTmplReg = /(['"])(global|ref|names)?@([^'"]+)\.css(?:\[([^\[\]]+)\]|:([^'"]+))?(?:\1)(;)?/g;
-    var processAts = function(fileContent, cssNamesKey) {
-        var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
-        var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+([\w\-]+)/g;
-        var contents = [];
-        fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {
-            contents.push(name);
-            return head + keyframe + ' ' + cssNamesKey + '-' + name;
-        });
-        fileContent = fileContent.replace(cssAtNamesKeyReg, function(match, head, key, name, content) {
-            if (key == 'font-face') {
-                var m = content.match(/font-family\s*:\s*(['"])?([\w\-]+)\1/);
-                if (m) {
-                    contents.push(m[2]);
+Processor.add('css:atrule', function() {
+    return {
+        process: function(fileContent, cssNamesKey) {
+            var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
+            var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+([\w\-]+)/g;
+            var contents = [];
+            fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {
+                contents.push(name);
+                return head + keyframe + ' ' + cssNamesKey + '-' + name;
+            });
+            fileContent = fileContent.replace(cssAtNamesKeyReg, function(match, head, key, name, content) {
+                if (key == 'font-face') {
+                    var m = content.match(/font-family\s*:\s*(['"])?([\w\-]+)\1/);
+                    if (m) {
+                        contents.push(m[2]);
+                    }
                 }
+                return match;
+            });
+            while (contents.length) {
+                var t = contents.pop();
+                var reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
+                fileContent = fileContent.replace(reg, ':$1' + cssNamesKey + '-' + t + '$1');
             }
-            return match;
-        });
-        while (contents.length) {
-            var t = contents.pop();
-            var reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
-            fileContent = fileContent.replace(reg, ':$1' + cssNamesKey + '-' + t + '$1');
+            return fileContent;
         }
-        return fileContent;
     };
+});
+Processor.add('css:read', function() {
+    return {
+        process: function(file) {
+            return new Promise(function(resolve) {
+                fs.access(file, fs.constants.R_OK, function(err) {
+                    if (err) {
+                        resolve({
+                            exists: false
+                        });
+                    } else {
+                        var ext = path.extname(file);
+                        if (ext == '.scss') {
+                            configs.sassOptions.file = file;
+                            sass.render(configs.sassOptions, function(err, result) {
+                                if (err) {
+                                    console.log(err);
+                                }
+                                resolve({
+                                    exists: true,
+                                    content: err || result.css.toString()
+                                });
+                            });
+                        } else if (ext == '.less') {
+                            var fileContent = readFile(file);
+                            configs.lessOptions.paths = [path.dirname(file)];
+                            less.render(fileContent, configs.lessOptions, function(err, result) {
+                                if (err) {
+                                    console.log('less error:', err);
+                                }
+                                resolve({
+                                    exists: true,
+                                    content: err || result.css
+                                });
+                            });
+                        } else if (ext == '.css') {
+                            var fileContent = readFile(file);
+                            resolve({
+                                exists: true,
+                                content: fileContent
+                            });
+                        }
+                    }
+                });
+            });
+        }
+    };
+});
+Processor.add('css', function() {
+    var cssTmplReg = /(['"])(global|ref|names)?@([^'"]+)(\.css|\.less|\.scss)(?:\[([^\[\]]+)\]|:([^'"]+))?(?:\1)(;)?/g;
     var processCSS = function(e) {
         var cssNamesMap = {};
         var gCSSNamesMap = {};
@@ -222,10 +277,11 @@ Processor.add('css', function() {
             if (cssTmplReg.test(e.content)) {
                 var count = 0;
                 var resume = function() {
-                    e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, keys, key, tail) {
+                    e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext, keys, key, tail) {
                         name = resolveAtName(name, e.moduleId);
-                        var file = path.resolve(path.dirname(e.from) + sep + name + '.css');
+                        var file = path.resolve(path.dirname(e.from) + sep + name + ext);
                         var r = cssContentCache[file];
+                        if (!r.exists) return '\'unfound:' + name + ext;
                         var fileContent = r.css;
                         var cssId = extractModuleId(file);
                         cssNamesKey = configs.prefix + md5(cssId);
@@ -233,7 +289,7 @@ Processor.add('css', function() {
                             addToGlobalCSS = prefix != 'names';
                             cssNamesMap = {};
                             fileContent = fileContent.replace(cssNameReg, cssNameProcessor);
-                            fileContent = processAts(fileContent, cssNamesKey);
+                            fileContent = Processor.run('css:atrule', 'process', [fileContent, cssNamesKey]);
                         }
                         var replacement;
                         if (prefix == 'names') {
@@ -257,40 +313,40 @@ Processor.add('css', function() {
                     e.cssNamesMap = gCSSNamesMap;
                     resolve(e);
                 };
-                e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name) {
+                var go = function() {
+                    count--;
+                    if (!count) {
+                        resume();
+                    }
+                };
+                e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext) {
                     count++;
                     name = resolveAtName(name, e.moduleId);
-                    var file = path.resolve(path.dirname(e.from) + sep + name + '.css');
-                    if (fs.existsSync(file)) {
-                        if (e.to) addFileDepend(file, e.from, e.to);
-                        if (!cssContentCache[file]) {
-                            var fileContent = readFile(file);
-                            cssContentCache[file] = 1;
-                            cssnano.process(fileContent, configs.nanoOptions).then(function(r) {
-                                cssContentCache[file] = r;
-                                count--;
-                                if (!count) {
-                                    resume();
-                                }
-                            }, function(error) {
-                                console.log(file, error);
-                                count--;
-                                if (!count) {
-                                    resume();
-                                }
-                            });
-                        } else {
-                            count--;
-                        }
-                        return m;
+                    var file = path.resolve(path.dirname(e.from) + sep + name + ext);
+                    if (!cssContentCache[file]) {
+                        cssContentCache[file] = 1;
+                        Processor.run('css:read', 'process', [file]).then(function(info) {
+                            cssContentCache[file] = {
+                                exists: info.exists,
+                                css: ''
+                            };
+                            if (info.exists && info.content) {
+                                cssnano.process(info.content, configs.nanoOptions).then(function(r) {
+                                    cssContentCache[file].css = r.css;
+                                    go();
+                                }, function(error) {
+                                    console.log(file, error);
+                                    go();
+                                });
+                            } else {
+                                go();
+                            }
+                        });
                     } else {
-                        count--;
-                        return '\'unfound:' + name + '.css\'';
+                        go();
                     }
+                    return m;
                 });
-                if (!count) {
-                    resume();
-                }
             } else {
                 resolve(e);
             }

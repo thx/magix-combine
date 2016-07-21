@@ -169,6 +169,11 @@ object css压缩选项，更多信息请参考https://www.npmjs.com/package/cssn
 ### htmlminifierOptions
 object html压缩选项，更多信息请参考https://www.npmjs.com/package/html-minifier
 
+### lessOptions
+
+### sassOptions
+object https://www.npmjs.com/package/node-sass
+
 ### excludeTmplFolders
 array 在处理tmplFolder目录时，跳过某些目录或文件的处理
 
