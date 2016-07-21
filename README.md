@@ -121,23 +121,23 @@ gulp.task('build', ['cleanBuild'], function() {
 ### @filename.html
 把filename.html文件的内容输出在当前位置
 
-### @filename.css
-把filename.css文件的内容输出在当前位置，同时修改css的类名，确保在当前项目唯一，请配合Magix.applyStyle方法使用
+### @filename.[css,less,scss]
+把filename.[css,less,scss]文件的内容输出在当前位置，同时修改css的类名，确保在当前项目唯一，请配合Magix.applyStyle方法使用
 
-### names@filename.css
-把filename.css文件中的类名映射到新类名的对象，因为编译工具会修改类名，所以通过该对象访问修改后的类名
+### names@filename.[css,less,scss]
+把filename.[css,less,scss]文件中的类名映射到新类名的对象，因为编译工具会修改类名，所以通过该对象访问修改后的类名
 
-### names@filename.css[s1,s2,s3]
-把filename.css文件中的类名映射到新类名的对象，该对象仅包含指定的s1,s2和s3，比names@filename.css更节省资源，但书写略不方便
+### names@filename.[css,less,scss][s1,s2,s3]
+把filename.[css,less,scss]文件中的类名映射到新类名的对象，该对象仅包含指定的s1,s2和s3，比names@filename.[css,less,scss]更节省资源，但书写略不方便
 
-### global@filename.css
-把filename.css文件的内容输出在当前位置，但不会对css的类名做任何变动
+### global@filename.[css,less,scss]
+把filename.[css,less,scss]文件的内容输出在当前位置，但不会对css的类名做任何变动
 
-### ref@filename.css
-引用filename.css文件的内容，但不输出在当前位置，仅使用编译后的类名替换掉模板中的类名，如果你需要访问编译后的类名，请参考names@filename.css。
+### ref@filename.[css,less,scss]
+引用filename.[css,less,scss]文件的内容，但不输出在当前位置，仅使用编译后的类名替换掉模板中的类名，如果你需要访问编译后的类名，请参考names@filename.[css,less,scss]。
 
-### @filename.css:className
-把filename.css中经工具编译转换后的className字符串输出在当前位置
+### @filename.[css,less,scss]:className
+把filename.[css,less,scss]中经工具编译转换后的className字符串输出在当前位置
 
 ### @filename.css:$prefix
 **[DELETE] 从1.1.0版本开始删除，与compressCssNames冲突故删除**

@@ -244,7 +244,9 @@ Processor.add('css:read', function() {
     };
 });
 Processor.add('css', function() {
-    var cssTmplReg = /(['"])(global|ref|names)?@([^'"]+)(\.css|\.less|\.scss)(?:\[([^\[\]]+)\]|:([^'"]+))?(?:\1)(;)?/g;
+    //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
+    //https://github.com/Automattic/xgettext-js
+    var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.-]+?)(\.css|\.less|\.scss)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
     var processCSS = function(e) {
         var cssNamesMap = {};
         var gCSSNamesMap = {};
@@ -297,7 +299,7 @@ Processor.add('css', function() {
                             replacement = '';
                             tail = '';
                         } else if (key) {
-                            var c = cssNamesMap[key];
+                            var c = cssNamesMap[key] || key;
                             replacement = q + c + q;
                         } else {
                             replacement = '\'' + cssNamesKey + '\',' + JSON.stringify(fileContent);
