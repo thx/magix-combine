@@ -328,7 +328,7 @@ Processor.add('css', function() {
                                 css: ''
                             };
                             if (info.exists && info.content) {
-                                cssnano.process(info.content, configs.nanoOptions).then(function(r) {
+                                cssnano.process(info.content, configs.cssnanoOptions).then(function(r) {
                                     cssContentCache[file].css = r.css;
                                     go();
                                 }, function(error) {
@@ -1073,7 +1073,9 @@ Processor.add('file:content', function() {
 Processor.add('file', function() {
     var extnames = {
         '.html': 1,
-        '.css': 1
+        '.css': 1,
+        '.less': 1,
+        '.scss': 1
     };
     var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
         from = path.resolve(from);
@@ -1090,7 +1092,7 @@ Processor.add('file', function() {
             });
         } else {
             var extname = path.extname(from);
-            if (configs.onlyAllows[extname]) {
+            if (!configs.onlyAllows || configs.onlyAllows[extname]) {
                 if (inwatch && fileDependencies[from]) { //只更新依赖项
                     runFileDepend(from);
                     return;
