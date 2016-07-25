@@ -246,7 +246,7 @@ Processor.add('css:read', function() {
 Processor.add('css', function() {
     //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
     //https://github.com/Automattic/xgettext-js
-    var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.-]+?)(\.css|\.less|\.scss)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
+    var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.\-\/\\]+?)(\.css|\.less|\.scss)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
     var processCSS = function(e) {
         var cssNamesMap = {};
         var gCSSNamesMap = {};
@@ -278,7 +278,7 @@ Processor.add('css', function() {
                         name = resolveAtName(name, e.moduleId);
                         var file = path.resolve(path.dirname(e.from) + sep + name + ext);
                         var r = cssContentCache[file];
-                        if (!r.exists) return '\'unfound:' + name + ext;
+                        if (!r.exists) return q + 'unfound:' + name + ext + q;
                         var fileContent = r.css;
                         var cssId = extractModuleId(file);
                         cssNamesKey = configs.prefix + md5(cssId);
@@ -478,13 +478,12 @@ Processor.add('tmpl:partial', function() {
     };
     var addAttrs = function(tag, tmpl, info, keysReg, refTmplCommands) {
         var attrsKeys = {},
-            tmplKeys = {},
-            viewContent;
+            tmplKeys = {};
         tmpl.replace(attrsNameValueReg, function(match, name, quote, content) {
             var hasKey = false,
                 aInfo;
             if (name == 'mx-view') {
-                viewContent = content;
+                info.view = commandAnchorRecover(content, refTmplCommands);
             }
             if (tmplCommandAnchorRegTest.test(content)) {
                 content = content.replace(tmplCommandAnchorReg, function(match) {
@@ -523,14 +522,8 @@ Processor.add('tmpl:partial', function() {
                             partial: true
                         });
                     }
-                    if (name == 'mx-view') {
-                        viewContent = aInfo.v;
-                    }
                     if (name != 'mx-view') {
                         info.attrs.push(aInfo);
-                    }
-                    if (viewContent) {
-                        info.view = viewContent;
                     }
                 }
             }
@@ -1032,7 +1025,7 @@ Processor.add('file:loader', function() {
     var amdDefineReg = /\bdefine\.amd\b/;
     return {
         process: function(e) {
-            var key = configs.loaderType + (e.requires.length ? '1' : '');
+            var key = configs.loaderType + (e.requires.length ? '' : '1');
             var tmpl = tmpls[key];
             for (var p in e) {
                 var reg = new RegExp('\\$\\{' + p + '\\}', 'g');
