@@ -31,27 +31,20 @@
 ## gulpfile.js
 
 ```js
-var wrapTMPL = 'define("${moduleId}",[${requires}],function(require){\r\n/*${vars}*/\r\n${content}\r\n});';
-var wrapNoDepsTMPL = 'define("${moduleId}",function(){\r\n${content}\r\n});';
-var wrapNoExports = 'seajs.use([${requires}],function(${vars}){${content}});';
 
 var tmplFolder = 'tmpl'; //template folder
 var srcFolder = 'src'; //source folder
 var buildFolder = 'build'; //build folder
 
-var excludeTmplFolders = [
-    'tmpl/boot.js',
-    'tmpl/magix.js',
-    'tmpl/sea.js',
-    'tmpl/zepto.js',
-    'tmpl/tmpl.js',
-    'tmpl/com/scroller.js',
-    'tmpl/config.js',
-    'tmpl/fastclick.js'
+var excludeTmplFolders = [//忽略哪些文件夹或文件的处理
+    'tmpl/boot.js'
 ];
-var onlyAllows = {
+var onlyAllows = {//只处理哪些文件
     '.html': 1,
-    '.css': 1
+    '.css': 1,
+    '.json': 1,
+    '.sass': 1,
+    '.less': 1
 };
 
 var gulp = require('gulp');
@@ -67,15 +60,7 @@ combineTool.config({
     buildFolder: buildFolder,
     excludeTmplFolders: excludeTmplFolders,
     onlyAllows: onlyAllows,
-    generateJSFile: function(o) {
-        var tmpl = wrapNoExports;
-        tmpl = o.requires.length ? wrapTMPL : wrapNoDepsTMPL;
-        for (var p in o) {
-            var reg = new RegExp('\\$\\{' + p + '\\}', 'g');
-            tmpl = tmpl.replace(reg, (o[p] + '').replace(/\$/g, '$$$$'));
-        }
-        return tmpl;
-    }
+    loaderType:'cmd' //or amd
 });
 
 gulp.task('cleanSrc', function() {

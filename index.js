@@ -54,7 +54,7 @@ var writeFile = function(to, content) {
 };
 var copyFile = function(from, to) {
     if (fs.existsSync(from)) {
-        var content = readFile(from);
+        var content = readFile(from, true);
         writeFile(to, content);
     }
 };
@@ -87,8 +87,9 @@ var md5 = function(text) {
     md5Cache[md5ResultKey + rstr] = 1;
     return rstr;
 };
-var readFile = function(file) {
-    var c = fs.readFileSync(file) + '';
+var readFile = function(file, original) {
+    var c = fs.readFileSync(file);
+    if (!original) c = c + '';
     return c;
 };
 var relativePathReg = /(['"])@([^\/]+)([^\s;\{\}]+?)(?=\\?\1)/g;
