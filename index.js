@@ -674,7 +674,7 @@ Processor.add('tmpl:partial', function() {
 Processor.add('tmpl:event', function() {
     var pureTagReg = /<\w+[^>]*>/g;
     var attrsNameValueReg = /([^\s]+)=(["'])[\s\S]+?\2/ig;
-    var eventReg = /mx-(?!view|vframe)[a-zA-Z]+/;
+    var eventReg = /mx-(?!view|vframe|keys|options)[a-zA-Z]+/;
     return {
         extract: function(tmpl) {
             var map = {};
@@ -691,7 +691,7 @@ Processor.add('tmpl:event', function() {
 });
 
 Processor.add('tmpl', function() {
-    var fileTmplReg = /(['"])@([^'"]+)\.html(:data|:keys)?(?:\1)/g;
+    var fileTmplReg = /(['"])@([^'"]+)\.html(:data|:keys|:events)?(?:\1)/g;
     var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
     var processTmpl = function(e) {
         return new Promise(function(resolve) {
@@ -705,13 +705,17 @@ Processor.add('tmpl', function() {
                 if (fs.existsSync(file)) {
                     fileContent = readFile(file);
                     fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
+                    if (ext == ':events') {
+                        var refTmplEvents = Processor.run('tmpl:event', 'extract', [fileContent]);
+                        return JSON.stringify(refTmplEvents);
+                    }
                     var guid = md5(from);
                     var refGuidToKeys = {},
                         refTmplCommands = {};
                     fileContent = Processor.run('tmpl:cmd', 'compress', [fileContent]);
                     fileContent = Processor.run('tmpl:snippet', 'expand', [fileContent]);
                     fileContent = Processor.run('tmpl:cmd', 'store', [fileContent, refTmplCommands]); //模板命令移除，防止影响分析
-                    //var refTmplEvents = Processor.run('tmpl:event', 'extract', [fileContent]);
+
                     //console.log(refTmplEvents);
                     fileContent = Processor.run('tmpl:cmd', 'tidy', [fileContent]);
                     fileContent = Processor.run('tmpl:guid', 'add', [fileContent, guid, refGuidToKeys]);
