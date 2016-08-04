@@ -1,4 +1,4 @@
-# magix-combine
+# magix-combine [![Version Number](https://img.shields.io/npm/v/magix-combine.svg)](https://github.com/thx/magix-combine/ "Version Number") [![THX Team](https://img.shields.io/badge/team-THX-green.svg)](https://thx.github.io/ "THX Team") [![License](https://img.shields.io/badge/license-MIT-orange.svg)](https://opensource.org/licenses/MIT "License")
 合并Magix View的html,js,css文件成一个js文件，需要配合其它工具使用。
 
 # 功能
@@ -105,6 +105,15 @@ gulp.task('build', ['cleanBuild'], function() {
 
 ### @filename.html
 把filename.html文件的内容输出在当前位置
+
+### @filename.html:data
+把filename.html文件的子模板对象内容输出在当前位置，需要配合mx-updater
+
+### @filename.html:keys
+把filename.html文件的mx-keys所有keys输出在当前位置
+
+### @filename.html:events
+把filename.html文件的mx-event事件对象以数组对象输出在当前位置
 
 ### @filename.[css,less,scss]
 把filename.[css,less,scss]文件的内容输出在当前位置，同时修改css的类名，确保在当前项目唯一，请配合Magix.applyStyle方法使用
