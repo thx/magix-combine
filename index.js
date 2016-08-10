@@ -11,37 +11,38 @@ var sepRegTmpl = sep.replace(/\\/g, '\\\\');
 var sepReg = new RegExp(sepRegTmpl, 'g');
 
 var configs = {
-    tmplFolder: 'tmpl',
-    srcFolder: 'src',
-    buildFolder: 'build',
-    cssnanoOptions: {
+    tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
+    srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
+    buildFolder: 'build', //压缩上线文件夹
+    cssnanoOptions: { //css压缩选项
         safe: true
     },
-    lessOptions: {},
-    sassOptions: {},
-    prefix: '',
-    loaderType: 'cmd',
-    htmlminifierOptions: {
+    lessOptions: {}, //less编译选项
+    sassOptions: {}, //sass编译选项
+    cssSelectorPrefix: 'mx-', //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
+    loaderType: 'cmd', //加载器类型
+    htmlminifierOptions: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
         collapseWhitespace: true, //空白
         //removeAttributeQuotes: true, //属性引号
         quoteCharacter: '"',
         keepClosingSlash: true //
     },
-    excludeTmplFolders: [],
-    snippets: {},
-    compressCssNames: false,
-    atAttrProcessor: function(name, tmpl) {
+    outputTmplObject: false, //输出模板字符串为一个对象
+    excludeTmplFolders: [], //不让该工具处理的文件夹或文件
+    snippets: {}, //代码片断，对于在项目中重复使用且可能修改的html代码片断有用
+    compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
+    atAttrProcessor: function(name, tmpl) { //对于html字符串中带@属性的特殊处理器，扩展用
         return tmpl;
     },
-    compressTmplCommand: function(tmpl) {
+    compressTmplCommand: function(tmpl) { //压缩模板命令，扩展用
         return tmpl;
     },
-    processAttachedFile: function() {
+    processAttachedFile: function() { //让外部决定如何处理同名的html或css文件，默认magix一个区块由html,css,js组成，如index.html index.css index.js 。打包时默认这3个文件打包成一个js文件，但有时候像css一些项目并不希望打包到js中，所以可以实现该方法来决定自己的方案
 
     }
 };
-var writeFile = function(to, content) {
+var writeFile = function(to, content) { //文件写入
     var folders = path.dirname(to).split(sep);
     var p = '';
     while (folders.length) {
@@ -52,13 +53,13 @@ var writeFile = function(to, content) {
     }
     fs.writeFileSync(to, content);
 };
-var copyFile = function(from, to) {
+var copyFile = function(from, to) { //复制文件
     if (fs.existsSync(from)) {
         var content = readFile(from, true);
         writeFile(to, content);
     }
 };
-var walk = function(folder, callback) {
+var walk = function(folder, callback) { //遍历文件夹及子、孙文件夹下的文件
     var files = fs.readdirSync(folder);
     files.forEach(function(file) {
         var p = folder + sep + file;
@@ -70,15 +71,15 @@ var walk = function(folder, callback) {
         }
     });
 };
-var md5Cache = {};
-var md5ResultKey = '_$%';
+var md5Cache = {}; //md5 cache对象
+var md5ResultKey = '_$%'; //一个特殊前缀，因为要把源字符串结果及生成的3位md5存放在同一个对象里，加一个前缀以示区别
 var md5 = function(text) {
     if (md5Cache[text]) return md5Cache[text];
     var buf = new Buffer(text);
     var str = buf.toString('binary');
     str = crypto.createHash('md5').update(str).digest('hex');
     var c = 0;
-    var rstr = str.substring(c, c + 3);
+    var rstr = str.substring(c, c + 3); //从md5字符串中截取3个，md5太长了，3位足够，不使用随机数是因为我们要针对同一个文件每次生成的结果要相同
     while (md5Cache[md5ResultKey + rstr] == 1) { //不同的文件，但生成了相同的key
         c++;
         rstr = str.substring(c, c + 3);
@@ -87,17 +88,19 @@ var md5 = function(text) {
     md5Cache[md5ResultKey + rstr] = 1;
     return rstr;
 };
-var readFile = function(file, original) {
+var readFile = function(file, original) { //读取文件
     var c = fs.readFileSync(file);
     if (!original) c = c + '';
     return c;
 };
+//以@开头的路径转换
 var relativePathReg = /(['"])@([^\/]+)([^\s;\{\}]+?)(?=\\?\1)/g;
+//处理@开头的路径，如果是如'@coms/dragdrop/index'则转换成相对当前模块的相对路径，如果是如 mx-view="@./list" 则转换成 mx-view="app/views/reports/list"完整的模块路径
 var resolveAtPath = function(content, from) {
     var folder = from.substring(0, from.lastIndexOf('/') + 1);
     var tp;
     return content.replace(relativePathReg, function(m, q, l, p) {
-        if (l.charAt(0) == '.')
+        if (l.charAt(0) == '.') //以.开头我们认为是相对路径，则转完整模块路径
             tp = q + path.normalize(folder + l + p);
         else
             tp = q + path.relative(folder, l + p);
@@ -105,13 +108,16 @@ var resolveAtPath = function(content, from) {
         return tp;
     });
 };
+//处理@名称，如'@../default.css'
 var resolveAtName = function(name, moduleId) {
     if (name.indexOf('/') >= 0 && name.charAt(0) != '.') {
         name = resolveAtPath('"@' + name + '"', moduleId).slice(1, -1);
     }
     return name;
 };
+//文件依赖信息对象，如index.js中@了index.css，则index.css被修改时，我们要编译index.js，即被依赖的模块变化要让有依赖的模块编译一次
 var fileDependencies = {};
+//添加文件依赖关系
 var addFileDepend = function(file, dependFrom, dependTo) {
     var list = fileDependencies[file];
     if (!list) {
@@ -119,6 +125,7 @@ var addFileDepend = function(file, dependFrom, dependTo) {
     }
     list[dependFrom] = dependTo;
 };
+//运行依赖列表
 var runFileDepend = function(file) {
     var list = fileDependencies[file];
     if (list) {
@@ -127,17 +134,21 @@ var runFileDepend = function(file) {
         }
     }
 };
+//移除文件依赖
 var removeFileDepend = function(file) {
     delete fileDependencies[file];
 };
 var jsReg = /\.js$/i;
 var startSlashReg = /^\//;
+//抽取模块id,如文件物理路径为'/users/xiglie/afp/tmpl/app/views/default.js'
+//则抽取出来的模块id是 app/vies/default
 var extractModuleId = function(file) {
     return file.replace(configs.moduleIdRemovedPath, '')
         .replace(jsReg, '')
         .replace(sepReg, '/')
         .replace(startSlashReg, '');
 };
+//初始化各种文件夹的配置项，相对转成完整的物理路径，方便后续的使用处理
 var initFolder = function() {
     if (!configs.initedFolder) {
         configs.initedFolder = 1;
@@ -148,7 +159,7 @@ var initFolder = function() {
         var tmplFolderName = path.basename(configs.tmplFolder);
         var srcFolderName = path.basename(configs.srcFolder);
         var buildFolderName = path.basename(configs.buildFolder);
-        configs.moduleIdRemovedPath = path.resolve(configs.tmplFolder);
+        configs.moduleIdRemovedPath = path.resolve(configs.tmplFolder); //把路径中开始到模板目录移除就基本上是模块路径了
         configs.tmplReg = new RegExp('(' + sepRegTmpl + '?)' + tmplFolderName + sepRegTmpl);
         configs.srcHolder = '$1' + srcFolderName + sep;
         configs.srcReg = new RegExp('(' + sepRegTmpl + '?)' + srcFolderName + sepRegTmpl);
@@ -156,6 +167,7 @@ var initFolder = function() {
     }
 };
 var processorMap = {};
+//工具模块处理器
 var Processor = {
     add: function(key, factory) {
         processorMap[key] = factory();
@@ -169,20 +181,29 @@ var Processor = {
         return Promise.reject('unfound:' + key + '.' + fn);
     }
 };
+//css @规则的处理
 Processor.add('css:atrule', function() {
     return {
         process: function(fileContent, cssNamesKey) {
+            //以@开始的名称，如@font-face
             var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
+            //keyframes，如@-webkit-keyframes xx
             var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+([\w\-]+)/g;
             var contents = [];
+            //先处理keyframes
             fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {
+                //把名称保存下来，因为还要修改使用的地方
                 contents.push(name);
+                //增加前缀
                 return head + keyframe + ' ' + cssNamesKey + '-' + name;
             });
+            //处理其它@规则，这里只处理了font-face
             fileContent = fileContent.replace(cssAtNamesKeyReg, function(match, head, key, name, content) {
                 if (key == 'font-face') {
+                    //font-face只处理font-family
                     var m = content.match(/font-family\s*:\s*(['"])?([\w\-]+)\1/);
                     if (m) {
+                        //同样保存下来，要修改使用的地方
                         contents.push(m[2]);
                     }
                 }
@@ -190,6 +211,7 @@ Processor.add('css:atrule', function() {
             });
             while (contents.length) {
                 var t = contents.pop();
+                //修改使用到的地方
                 var reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
                 fileContent = fileContent.replace(reg, ':$1' + cssNamesKey + '-' + t + '$1');
             }
@@ -197,6 +219,7 @@ Processor.add('css:atrule', function() {
         }
     };
 });
+//css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
 Processor.add('css:read', function() {
     return {
         process: function(file) {
@@ -212,7 +235,7 @@ Processor.add('css:read', function() {
                             configs.sassOptions.file = file;
                             sass.render(configs.sassOptions, function(err, result) {
                                 if (err) {
-                                    console.log(err);
+                                    console.log('scss error:', err);
                                 }
                                 resolve({
                                     exists: true,
@@ -244,9 +267,11 @@ Processor.add('css:read', function() {
         }
     };
 });
+//处理css文件
 Processor.add('css', function() {
     //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
     //https://github.com/Automattic/xgettext-js
+    //处理js文件中如 'global@x.less' '@x.less:selector' 'ref@../x.scss' 等各种情况
     var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.\-\/\\]+?)(\.css|\.less|\.scss)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
     var processCSS = function(e) {
         var cssNamesMap = {};
@@ -256,53 +281,60 @@ Processor.add('css', function() {
         var addToGlobalCSS = true;
         var cssNamesCompress = {};
         var cssNamesCompressIdx = 0;
+        //处理css类名
         var cssNameProcessor = function(m, name) {
             if (m.indexOf('global') === 0) return m.slice(6);
             if (m.charAt(0) == '@') return m.slice(1); //@.rule
             var mappedName = name;
-            if (configs.compressCssNames) {
+            if (configs.compressCssSelectorNames) { //压缩，我们采用数字递增处理
                 if (cssNamesCompress[name]) mappedName = cssNamesCompress[name];
                 else mappedName = cssNamesCompress[name] = (cssNamesCompressIdx++).toString(32);
             }
+            //只在原来的css类名前面加前缀
             var result = '.' + (cssNamesMap[name] = cssNamesKey + '-' + mappedName);
-            if (addToGlobalCSS) {
+            if (addToGlobalCSS) { //是否增加到当前模块的全局css里，因为一个view.js可以依赖多个css文件
                 gCSSNamesMap[name] = cssNamesMap[name];
             }
             return result;
         };
         var cssContentCache = {};
         return new Promise(function(resolve) {
-            if (cssTmplReg.test(e.content)) {
+            if (cssTmplReg.test(e.content)) { //有需要处理的@规则
                 var count = 0;
                 var resume = function() {
                     e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext, keys, key, tail) {
                         name = resolveAtName(name, e.moduleId);
                         var file = path.resolve(path.dirname(e.from) + sep + name + ext);
                         var r = cssContentCache[file];
+                        //从缓存中获取当前文件的信息
+                        //如果不存在就返回一个不存在的提示
                         if (!r.exists) return q + 'unfound:' + name + ext + q;
                         var fileContent = r.css;
+                        //获取模块的id
                         var cssId = extractModuleId(file);
-                        cssNamesKey = configs.prefix + md5(cssId);
-                        if (prefix != 'global') {
-                            addToGlobalCSS = prefix != 'names';
+                        //css前缀是配置项中的前缀加上模块的md5信息
+                        cssNamesKey = configs.cssSelectorPrefix + md5(cssId);
+                        if (prefix != 'global') { //如果不是项目中全局使用的
+                            addToGlobalCSS = prefix != 'names'; //不是读取css名称对象的
                             cssNamesMap = {};
-                            fileContent = fileContent.replace(cssNameReg, cssNameProcessor);
+                            fileContent = fileContent.replace(cssNameReg, cssNameProcessor); //前缀处理
+                            //@规则处理
                             fileContent = Processor.run('css:atrule', 'process', [fileContent, cssNamesKey]);
                         }
                         var replacement;
-                        if (prefix == 'names') {
-                            if (keys) {
+                        if (prefix == 'names') { //如果是读取css选择器名称对象
+                            if (keys) { //从对象中只挑取某几个key
                                 replacement = JSON.stringify(cssNamesMap, keys.split(','));
-                            } else {
+                            } else { //全部名称对象
                                 replacement = JSON.stringify(cssNamesMap);
                             }
-                        } else if (prefix == 'ref') {
+                        } else if (prefix == 'ref') { //如果是引用css则什么都不用做
                             replacement = '';
                             tail = '';
-                        } else if (key) {
+                        } else if (key) { //仅读取文件中的某个名称
                             var c = cssNamesMap[key] || key;
                             replacement = q + c + q;
-                        } else {
+                        } else { //输出整个css文件内容
                             replacement = '\'' + cssNamesKey + '\',' + JSON.stringify(fileContent);
                         }
                         tail = tail ? tail : '';
@@ -313,22 +345,25 @@ Processor.add('css', function() {
                 };
                 var go = function() {
                     count--;
-                    if (!count) {
+                    if (!count) { //依赖的文件全部读取完毕
                         resume();
                     }
                 };
                 e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext) {
-                    count++;
-                    name = resolveAtName(name, e.moduleId);
+                    count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
+                    name = resolveAtName(name, e.moduleId); //先处理名称
                     var file = path.resolve(path.dirname(e.from) + sep + name + ext);
-                    if (!cssContentCache[file]) {
+                    if (!cssContentCache[file]) { //文件尚未读取
                         cssContentCache[file] = 1;
+                        //调用 css 文件读取模块
                         Processor.run('css:read', 'process', [file]).then(function(info) {
+                            //写入缓存，因为同一个view.js中可能对同一个css文件多次引用
                             cssContentCache[file] = {
                                 exists: info.exists,
                                 css: ''
                             };
                             if (info.exists && info.content) {
+                                //css压缩
                                 cssnano.process(info.content, configs.cssnanoOptions).then(function(r) {
                                     cssContentCache[file].css = r.css;
                                     go();
@@ -354,16 +389,17 @@ Processor.add('css', function() {
         process: processCSS
     };
 });
+//模板文件，模板引擎命令处理，因为我们用的是字符串模板，常见的模板命令如<%=output%> {{output}}，这种通常会影响我们的分析，我们先把它们做替换处理
 Processor.add('tmpl:cmd', function() {
     var anchor = '-\u001e';
     var tmplCommandAnchorCompressReg = /(\&\d+\-\u001e)\s+(?=[<>])/g;
     var tmplCommandAnchorCompressReg2 = /([<>])\s+(\&\d+\-\u001e)/g;
     var tmplCommandAnchorReg = /\&\d+\-\u001e/g;
     return {
-        compress: function(content) {
+        compress: function(content) { //对模板引擎命令的压缩，如<%if(){%><%}else{%><%}%>这种完全可以压缩成<%if(){}else{}%>，因为项目中模板引擎不固定，所以这个需要外部实现
             return configs.compressTmplCommand(content);
         },
-        store: function(tmpl, store) {
+        store: function(tmpl, store) { //保存模板引擎命令
             var idx = 0;
             return tmpl.replace(configs.tmplCommand, function(match) {
                 if (!store[match]) {
@@ -374,13 +410,13 @@ Processor.add('tmpl:cmd', function() {
                 return store[match];
             });
         },
-        tidy: function(tmpl) {
+        tidy: function(tmpl) { //简单压缩
             tmpl = htmlminifier.minify(tmpl, configs.htmlminifierOptions);
             tmpl = tmpl.replace(tmplCommandAnchorCompressReg, '$1');
             tmpl = tmpl.replace(tmplCommandAnchorCompressReg2, '$1$2');
             return tmpl;
         },
-        recover: function(tmpl, refTmplCommands) {
+        recover: function(tmpl, refTmplCommands) { //恢复替换的命令
             return tmpl.replace(tmplCommandAnchorReg, function(match) {
                 var value = refTmplCommands[match];
                 return value;
@@ -388,6 +424,7 @@ Processor.add('tmpl:cmd', function() {
         }
     };
 });
+//模板代码片断的处理，较少用
 Processor.add('tmpl:snippet', function() {
     var snippetReg = /<snippet-(\w+)([^>]+)\/?>(?:<\/snippet-\1>)?/g;
     var attrsNameValueReg = /([^\s]+)=(["'])([\s\S]+?)\2/ig;
@@ -409,6 +446,7 @@ Processor.add('tmpl:snippet', function() {
         }
     };
 });
+//模板，增加guid标识，仅针对magix-updater使用：https://github.com/thx/magix-updater
 Processor.add('tmpl:guid', function() {
     var tagReg = /<([\w]+)([^>]*?)mx-keys\s*=\s*"([^"]+)"([^>]*?)>/g;
     var holder = '-\u001f';
@@ -425,6 +463,7 @@ Processor.add('tmpl:guid', function() {
         add: addGuid
     };
 });
+//模板，处理class名称，前面我们把css文件处理完后，再自动处理掉模板文件中的class属性中的名称，不需要开发者界入处理
 Processor.add('tmpl:class', function() {
     var classReg = /class=(['"])([^'"]+)(?:\1)/g;
     var classNameReg = /(\s|^|\b)([\w\-]+)(?=\s|$|\b)/g;
@@ -432,8 +471,9 @@ Processor.add('tmpl:class', function() {
     return {
         process: function(tmpl, cssNamesMap) {
             if (cssNamesMap) {
-                tmpl = tmpl.replace(pureTagReg, function(match) {
-                    return match.replace(classReg, function(m, q, c) {
+                //为了保证安全，我们一层层进入
+                tmpl = tmpl.replace(pureTagReg, function(match) { //保证是标签
+                    return match.replace(classReg, function(m, q, c) { //保证是class属性
                         return 'class=' + q + c.replace(classNameReg, function(m, h, n) {
                             return h + (cssNamesMap[n] ? cssNamesMap[n] : n);
                         }) + q;
@@ -444,10 +484,12 @@ Processor.add('tmpl:class', function() {
         }
     };
 });
+//模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 Processor.add('tmpl:partial', function() {
+    //生成子模板匹配正则
     var subReg = (function() {
         var temp = '<([\\w]+)[^>]*?(mx-guid="x[^"]+")[^>]*?>(#)</\\1>';
-        var start = 12;
+        var start = 12; //嵌套12层在同一个view中也足够了
         while (start--) {
             temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
         }
@@ -455,11 +497,16 @@ Processor.add('tmpl:partial', function() {
         return new RegExp(temp, 'ig');
     }());
     var holder = '-\u001f';
+    //属性正则
     var attrsNameValueReg = /([^\s]+)=(["'])([\s\S]+?)\2/ig;
+    //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
     var selfCloseTag = /<(\w+)\s+[^>]*?(mx-guid="x[^"]+")[^>]*?\/>/g;
+    //标签
     var pureTagReg = /<(\w+)[^>]*>/g;
+    //模板引擎命令被替换的占位符
     var tmplCommandAnchorReg = /\&\d+\-\u001e/g;
     var tmplCommandAnchorRegTest = /\&\d+\-\u001e/;
+    //属性处理
     var attrProps = {
         'class': 'className',
         'value': 'value',
@@ -468,37 +515,54 @@ Processor.add('tmpl:partial', function() {
         '@checked': 'checked',
         '@readonly': 'readonly'
     };
+    //哪些标签需要修复属性，如div上写上readonly是不需要做处理的
     var fixedAttrPropsTags = {
         'input': 1,
         'select': 1,
         'textarea': 1
     };
-
+    //恢复被替换的模板引擎命令
     var commandAnchorRecover = function(tmpl, refTmplCommands) {
         return Processor.run('tmpl:cmd', 'recover', [tmpl, refTmplCommands]);
     };
+    //添加属性信息
     var addAttrs = function(tag, tmpl, info, keysReg, refTmplCommands) {
         var attrsKeys = {},
             tmplKeys = {};
+        //处理属性
         tmpl.replace(attrsNameValueReg, function(match, name, quote, content) {
-            var hasKey = false,
+            var findUserMxKey = false,
                 aInfo;
+            //如果是mx-view属性
             if (name == 'mx-view') {
+                //设置view信息
                 info.view = commandAnchorRecover(content, refTmplCommands);
             }
             if (tmplCommandAnchorRegTest.test(content)) {
+                //有模板引擎命令
+                /*
+                    <div mx-keys="a,b,c" data-a="<%=a%>">
+                        <%=b%>-<%=c%>
+                    </div>
+                    考虑这样的结构，当a变化时，我们只需要更新属性，b或c有变化时更新div的内容
+                    也有这样的情况
+                    <div mx-keys="a,b,c" data-a="<%=a%>">
+                        <%=b%>-<%=c%>-<%=a%>
+                    </div>
+                    a变化时即要更新属性也要更新内容，下面的代码就是精确识别这种情形以达到最优的更新性能
+                 */
                 content = content.replace(tmplCommandAnchorReg, function(match) {
-                    var value = refTmplCommands[match];
-                    if (!hasKey) {
-                        for (var i = 0; i < keysReg.length; i++) {
+                    var value = refTmplCommands[match]; //获取原始命令
+                    if (!findUserMxKey) {
+                        for (var i = 0; i < keysReg.length; i++) { //查找用户给出的mx-keys是否在模板命令里，这块是性能优化用的
                             if (keysReg[i].test(value)) {
-                                hasKey = true;
+                                findUserMxKey = true;
                                 break;
                             }
                         }
                     }
-                    if (hasKey) {
-                        var words = value.match(/\w+/g);
+                    if (findUserMxKey) {
+                        var words = value.match(/\w+/g); //获取模板命令中的单词
                         if (words) {
                             for (var i = words.length - 1; i >= 0; i--) {
                                 attrsKeys[words[i]] = 1;
@@ -507,15 +571,17 @@ Processor.add('tmpl:partial', function() {
                     }
                     return value;
                 });
-                if (hasKey) {
-                    var key = attrProps[name];
+                if (findUserMxKey) {
+                    var key = attrProps[name]; //属性
                     aInfo = {
                         n: key || name,
                         v: content
                     };
+                    //需要特殊处理的
                     if (key && fixedAttrPropsTags[tag] == 1 || name == 'class') {
                         aInfo.p = 1;
                     }
+                    //如果属性是以@开头的，我们调用外部的处理器处理
                     if (name.charAt(0) == '@') { //添加到tmplData中，对原有的模板不修改
                         aInfo.v = configs.atAttrProcessor(name.slice(1), aInfo.v, {
                             tag: tag,
@@ -523,13 +589,14 @@ Processor.add('tmpl:partial', function() {
                             partial: true
                         });
                     }
-                    if (name != 'mx-view') {
+                    if (name != 'mx-view') { //如果不是mx-view属性则加入到属性列表中，mx-view会特殊处理
                         info.attrs.push(aInfo);
                     }
                 }
             }
         });
-        if (info.tmpl && info.attrs.length) {
+        if (info.tmpl && info.attrs.length) { //有模板及属性
+            //接下来我们处理前面的属性和内容更新问题
             info.tmpl.replace(tmplCommandAnchorReg, function(match) {
                 var value = refTmplCommands[match];
                 var words = value.match(/\w+/g);
@@ -542,14 +609,24 @@ Processor.add('tmpl:partial', function() {
             var mask = '';
             for (var i = 0, m; i < info.keys.length; i++) {
                 m = 0;
+                //如果key存在内容模板中，则m为1
                 if (tmplKeys[info.keys[i]]) m = 1;
+                //如果key存在属性中,则m为2或者或上1
                 if (attrsKeys[info.keys[i]]) m = m ? m | 2 : 2;
                 mask += m + '';
             }
+            //最后产出的结果可能如：
+            /*
+                {
+                    keys:['a','b','c'],
+                    mask:'211' //a对应2,b,c对应1，则表示a变化时，只更新属性,b,c变化时只更新节点内容
+                }
+             */
             if (/[12]/.test(mask))
                 info.mask = mask;
         }
     };
+    //展开@属性，主要是模板命令恢复及调用外部处理器
     var expandAtAttr = function(tmpl, refTmplCommands) {
         return tmpl.replace(pureTagReg, function(match, tag) {
             return match.replace(attrsNameValueReg, function(match, name, quote, content) {
@@ -564,7 +641,7 @@ Processor.add('tmpl:partial', function() {
             });
         });
     };
-
+    //递归构建子模板
     var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, list, parentOwnKeys, globalKeys) {
         if (!list) {
             list = [];
@@ -572,6 +649,7 @@ Processor.add('tmpl:partial', function() {
             globalKeys = {};
         }
         var subs = [];
+        //子模板
         tmpl = tmpl.replace(subReg, function(match, tag, guid, content) { //清除子模板后
             var ownKeys = {};
             for (var p in parentOwnKeys) {
@@ -599,7 +677,7 @@ Processor.add('tmpl:partial', function() {
             }
             list.push(tmplInfo);
             var remain;
-            if (tag == 'textarea') {
+            if (tag == 'textarea') { //textarea特殊处理，因为textarea可以有节点内容
                 addAttrs(tag, remain = match, tmplInfo, keysReg, refTmplCommands);
                 tmplInfo.attrs.push({
                     n: 'value',
@@ -633,6 +711,7 @@ Processor.add('tmpl:partial', function() {
             }
             return remain;
         });
+        //自闭合
         tmpl.replace(selfCloseTag, function(match, tag, guid) {
             var tmplInfo = {
                 keys: [],
@@ -671,10 +750,11 @@ Processor.add('tmpl:partial', function() {
         process: buildTmpl
     };
 });
+//模板中事件的提取，主要为brix-event模块提供：https://github.com/thx/brix-event/blob/master/src/brix/event.js#L15
 Processor.add('tmpl:event', function() {
     var pureTagReg = /<\w+[^>]*>/g;
     var attrsNameValueReg = /([^\s]+)=(["'])[\s\S]+?\2/ig;
-    var eventReg = /mx-(?!view|vframe|keys|options)[a-zA-Z]+/;
+    var eventReg = /mx-(?!view|vframe|keys|options|data)[a-zA-Z]+/;
     return {
         extract: function(tmpl) {
             var map = {};
@@ -689,7 +769,7 @@ Processor.add('tmpl:event', function() {
         }
     };
 });
-
+//模板处理，即处理view.html文件
 Processor.add('tmpl', function() {
     var fileTmplReg = /(['"])@([^'"]+)\.html(:data|:keys|:events)?(?:\1)/g;
     var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -698,6 +778,7 @@ Processor.add('tmpl', function() {
             var cssNamesMap = e.cssNamesMap,
                 from = e.from,
                 moduleId = e.moduleId;
+            //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
             e.content = e.content.replace(fileTmplReg, function(match, quote, name, ext) {
                 name = resolveAtName(name, moduleId);
                 var file = path.resolve(path.dirname(from) + sep + name + '.html');
@@ -705,7 +786,7 @@ Processor.add('tmpl', function() {
                 if (fs.existsSync(file)) {
                     fileContent = readFile(file);
                     fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
-                    if (ext == ':events') {
+                    if (ext == ':events') { //事件
                         var refTmplEvents = Processor.run('tmpl:event', 'extract', [fileContent]);
                         return JSON.stringify(refTmplEvents);
                     }
@@ -728,6 +809,12 @@ Processor.add('tmpl', function() {
                     } else if (ext == ':keys') {
                         return JSON.stringify(info.keys);
                     } else {
+                        if (configs.outputTmplObject) {
+                            return JSON.stringify({
+                                html: info.tmpl,
+                                subs: info.list
+                            });
+                        }
                         return JSON.stringify(info.tmpl);
                     }
                 }
@@ -740,6 +827,7 @@ Processor.add('tmpl', function() {
         process: processTmpl
     };
 });
+//用的seajs的
 Processor.add('require:parser', function() {
     /**
      * util-deps.js - The parser for dependencies
@@ -975,6 +1063,7 @@ Processor.add('require:parser', function() {
         process: parseDependencies
     };
 });
+//分析js中的require命令
 Processor.add('require', function() {
     var depsReg = /(?:var\s+([^=]+)=\s*)?\brequire\s*\(([^\(\)]+)\);?/g;
     //var exportsReg = /module\.exports\s*=\s*/;
@@ -1019,6 +1108,7 @@ Processor.add('require', function() {
         }
     };
 });
+//增加loader
 Processor.add('file:loader', function() {
     var tmpls = {
         cmd: 'define(\'${moduleId}\',[${requires}],function(require,exports,module){\r\n/*${vars}*/\r\n${content}\r\n});',
@@ -1043,6 +1133,7 @@ Processor.add('file:loader', function() {
         }
     };
 });
+//文件内容处理，主要是把各个处理模块串起来
 Processor.add('file:content', function() {
     var moduleIdReg = /(['"])(@moduleId)\1/g;
     return {
@@ -1068,6 +1159,7 @@ Processor.add('file:content', function() {
         }
     };
 });
+//文件处理
 Processor.add('file', function() {
     var extnames = {
         '.html': 1,
