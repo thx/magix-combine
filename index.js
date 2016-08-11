@@ -94,7 +94,7 @@ var readFile = function(file, original) { //读取文件
     return c;
 };
 //以@开头的路径转换
-var relativePathReg = /(['"])@([^\/]+)([^\s;\{\}]+?)(?=\\?\1)/g;
+var relativePathReg = /(['"])@([^\/]+)([^\s;]+?)(?=\\?\1)/g;
 //处理@开头的路径，如果是如'@coms/dragdrop/index'则转换成相对当前模块的相对路径，如果是如 mx-view="@./list" 则转换成 mx-view="app/views/reports/list"完整的模块路径
 var resolveAtPath = function(content, from) {
     var folder = from.substring(0, from.lastIndexOf('/') + 1);
