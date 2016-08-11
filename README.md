@@ -174,7 +174,7 @@ array 在处理tmplFolder目录时，跳过某些目录或文件的处理
 ### snippets
 object 代码片断对象，在处理复杂html时有用
 
-### compressCssNames
+### compressCssSelectorNames
 boolean 是否压缩css名称，默认false
 
 ### removeRequire

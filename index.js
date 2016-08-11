@@ -771,7 +771,7 @@ Processor.add('tmpl:event', function() {
 });
 //模板处理，即处理view.html文件
 Processor.add('tmpl', function() {
-    var fileTmplReg = /(['"])@([^'"]+)\.html(:data|:keys|:events)?(?:\1)/g;
+    var fileTmplReg = /(\btmpl\s*:\s*)??(['"])@([^'"]+)\.html(:data|:keys|:events)?(?:\2)/g;
     var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
     var processTmpl = function(e) {
         return new Promise(function(resolve) {
@@ -779,7 +779,7 @@ Processor.add('tmpl', function() {
                 from = e.from,
                 moduleId = e.moduleId;
             //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
-            e.content = e.content.replace(fileTmplReg, function(match, quote, name, ext) {
+            e.content = e.content.replace(fileTmplReg, function(match, prefix, quote, name, ext) {
                 name = resolveAtName(name, moduleId);
                 var file = path.resolve(path.dirname(from) + sep + name + '.html');
                 var fileContent = name;
@@ -809,8 +809,8 @@ Processor.add('tmpl', function() {
                     } else if (ext == ':keys') {
                         return JSON.stringify(info.keys);
                     } else {
-                        if (configs.outputTmplObject) {
-                            return JSON.stringify({
+                        if (prefix && configs.outputTmplObject) {
+                            return prefix + JSON.stringify({
                                 html: info.tmpl,
                                 subs: info.list
                             });
