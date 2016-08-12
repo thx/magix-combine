@@ -1,4 +1,4 @@
-# magix-combine [![Version Number](https://img.shields.io/npm/v/magix-combine.svg)](https://github.com/thx/magix-combine/ "Version Number") [![THX Team](https://img.shields.io/badge/team-THX-green.svg)](https://thx.github.io/ "THX Team") [![License](https://img.shields.io/badge/license-MIT-orange.svg)](https://opensource.org/licenses/MIT "License")
+# magix-combine [![Version Number](https://img.shields.io/npm/v/magix-combine.svg)](https://github.com/thx/magix-combine/ "Version Number") [![THX Team](https://img.shields.io/badge/team-THX-green.svg)](https://thx.github.io/ "THX Team") [![License](https://img.shields.io/badge/license-MIT-orange.svg)](https://opensource.org/licenses/MIT "License") [![download](https://img.shields.io/npm/dm/magix-combine.svg)](https://www.npmjs.com/package/magix-combine)
 合并Magix View的html,js,css文件成一个js文件，需要配合其它工具使用。
 
 # 功能

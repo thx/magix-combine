@@ -401,14 +401,17 @@ Processor.add('tmpl:cmd', function() {
         },
         store: function(tmpl, store) { //保存模板引擎命令
             var idx = 0;
-            return tmpl.replace(configs.tmplCommand, function(match) {
-                if (!store[match]) {
-                    store[match] = '&' + idx + anchor;
-                    store['&' + idx + anchor] = match;
-                    idx++;
-                }
-                return store[match];
-            });
+            if (configs.tmplCommand) {
+                return tmpl.replace(configs.tmplCommand, function(match) {
+                    if (!store[match]) {
+                        store[match] = '&' + idx + anchor;
+                        store['&' + idx + anchor] = match;
+                        idx++;
+                    }
+                    return store[match];
+                });
+            }
+            return tmpl;
         },
         tidy: function(tmpl) { //简单压缩
             tmpl = htmlminifier.minify(tmpl, configs.htmlminifierOptions);
