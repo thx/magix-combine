@@ -818,7 +818,7 @@ Processor.add('tmpl', function() {
                                 subs: info.list
                             });
                         }
-                        return JSON.stringify(info.tmpl);
+                        return (prefix ? prefix : '') + JSON.stringify(info.tmpl);
                     }
                 }
                 return quote + 'unfound:' + name + quote;
