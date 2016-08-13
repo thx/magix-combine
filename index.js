@@ -32,6 +32,7 @@ var configs = {
     excludeTmplFolders: [], //不让该工具处理的文件夹或文件
     snippets: {}, //代码片断，对于在项目中重复使用且可能修改的html代码片断有用
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
+    useMagixTmplAndUpdater: false,
     atAttrProcessor: function(name, tmpl) { //对于html字符串中带@属性的特殊处理器，扩展用
         return tmpl;
     },
@@ -164,6 +165,52 @@ var initFolder = function() {
         configs.srcHolder = '$1' + srcFolderName + sep;
         configs.srcReg = new RegExp('(' + sepRegTmpl + '?)' + srcFolderName + sepRegTmpl);
         configs.buildHolder = '$1' + buildFolderName + sep;
+        if (configs.useMagixTmplAndUpdater) {
+            configs.tmplCommand = /<%[\s\S]+?%>/g;
+            configs.atAttrProcessor = function(name, tmpl, info) {
+                var cond = tmpl.replace(/<%=([\s\S]+?)%>/g, '$1');
+                if (name == 'mx-view') {
+                    return '<%if(' + cond + '){%>mx-view="<%=' + cond + '%>"<%}%>';
+                }
+                if (info.prop) {
+                    return '<%if(' + cond + '){%>' + name + '<%}%>';
+                }
+                if (info.partial) {
+                    return '<%if(' + cond + '){%>' + tmpl + '<%}%>';
+                }
+                return '<%if(' + cond + '){%>' + name + '="' + tmpl + '"<%}%>';
+            };
+            configs.compressTmplCommand = function(tmpl) {
+                var stores = {},
+                    idx = 1,
+                    key = '&\u001e';
+                //下面这行是把压缩模板命令，删除可能存在的空格
+                tmpl = tmpl.replace(/<%(=)?([\s\S]*?)%>/g, function(m, oper, content) {
+                    return '<%' + (oper ? '=' : '') + content.trim().replace(/\s*([,\(\)\{\}])\s*/g, '$1') + '%>';
+                });
+                //存储非输出命令(控制命令)
+                tmpl = tmpl.replace(/<%[^=][\s\S]*?%>\s*/g, function(m, k) {
+                    k = key + (idx++) + key; //占位符
+                    stores[k] = m; //存储
+                    return k;
+                });
+                //把多个连续存控制命令做压缩
+                tmpl = tmpl.replace(/(?:&\u001e\d+&\u001e){2,}/g, function(m) {
+                    m = m.replace(/&\u001e\d+&\u001e/g, function(n) {
+                        return stores[n];
+                    }); //命令还原
+                    return m.replace(/%>\s*<%/g, ';').replace(/([\{\}]);/g, '$1'); //删除中间的%><%及分号
+                });
+                //console.log(tmpl);
+                tmpl = tmpl.replace(/&\u001e\d+&\u001e/g, function(n) { //其它命令还原
+                    //console.log(n,stores[n]);
+                    return stores[n];
+                });
+                //console.log(tmpl);
+                return tmpl;
+            };
+
+        }
     }
 };
 var processorMap = {};
@@ -514,9 +561,8 @@ Processor.add('tmpl:partial', function() {
         'class': 'className',
         'value': 'value',
         'checked': 'checked',
-        '@disabled': 'disabled',
-        '@checked': 'checked',
-        '@readonly': 'readonly'
+        'disabled': 'disabled',
+        'readonly': 'readonly'
     };
     //哪些标签需要修复属性，如div上写上readonly是不需要做处理的
     var fixedAttrPropsTags = {
@@ -535,7 +581,11 @@ Processor.add('tmpl:partial', function() {
         //处理属性
         tmpl.replace(attrsNameValueReg, function(match, name, quote, content) {
             var findUserMxKey = false,
-                aInfo;
+                aInfo,
+                nameStartWidthAt = name.charAt(0) == '@';
+            if (nameStartWidthAt) {
+                name = name.slice(1);
+            }
             //如果是mx-view属性
             if (name == 'mx-view') {
                 //设置view信息
@@ -585,12 +635,15 @@ Processor.add('tmpl:partial', function() {
                         aInfo.p = 1;
                     }
                     //如果属性是以@开头的，我们调用外部的处理器处理
-                    if (name.charAt(0) == '@') { //添加到tmplData中，对原有的模板不修改
-                        aInfo.v = configs.atAttrProcessor(name.slice(1), aInfo.v, {
+                    if (nameStartWidthAt) { //添加到tmplData中，对原有的模板不修改
+                        aInfo.v = configs.atAttrProcessor(name, aInfo.v, {
                             tag: tag,
                             prop: aInfo.p,
                             partial: true
                         });
+                        if (!aInfo.p) {
+                            aInfo.a = 1;
+                        }
                     }
                     if (name != 'mx-view') { //如果不是mx-view属性则加入到属性列表中，mx-view会特殊处理
                         info.attrs.push(aInfo);
