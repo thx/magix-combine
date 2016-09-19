@@ -11,6 +11,7 @@ var sepRegTmpl = sep.replace(/\\/g, '\\\\');
 var sepReg = new RegExp(sepRegTmpl, 'g');
 
 var configs = {
+    md5KeyLen: 3,
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
     buildFolder: 'build', //压缩上线文件夹
@@ -80,10 +81,11 @@ var md5 = function(text) {
     var str = buf.toString('binary');
     str = crypto.createHash('md5').update(str).digest('hex');
     var c = 0;
-    var rstr = str.substring(c, c + 3); //从md5字符串中截取3个，md5太长了，3位足够，不使用随机数是因为我们要针对同一个文件每次生成的结果要相同
+    var len = configs.md5KeyLen;
+    var rstr = str.substring(c, c + len); //从md5字符串中截取len个，md5太长了，len位足够，不使用随机数是因为我们要针对同一个文件每次生成的结果要相同
     while (md5Cache[md5ResultKey + rstr] == 1) { //不同的文件，但生成了相同的key
         c++;
-        rstr = str.substring(c, c + 3);
+        rstr = str.substring(c, c + len);
     }
     md5Cache[text] = rstr;
     md5Cache[md5ResultKey + rstr] = 1;
