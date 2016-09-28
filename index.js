@@ -141,13 +141,14 @@ var runFileDepend = function(file) {
 var removeFileDepend = function(file) {
     delete fileDependencies[file];
 };
-var jsReg = /\.js$/i;
+var jsOrMxTailReg = /\.(?:js|mx)$/i;
+var mxTailReg = /\.mx$/;
 var startSlashReg = /^\//;
 //抽取模块id,如文件物理路径为'/users/xiglie/afp/tmpl/app/views/default.js'
 //则抽取出来的模块id是 app/vies/default
 var extractModuleId = function(file) {
     return file.replace(configs.moduleIdRemovedPath, '')
-        .replace(jsReg, '')
+        .replace(jsOrMxTailReg, '')
         .replace(sepReg, '/')
         .replace(startSlashReg, '');
 };
@@ -271,8 +272,15 @@ Processor.add('css:atrule', function() {
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
 Processor.add('css:read', function() {
     return {
-        process: function(file) {
+        process: function(file, name, e) {
             return new Promise(function(resolve) {
+                if (e.contentInfo && name == 'style') {
+                    resolve({
+                        exists: true,
+                        content: e.contentInfo.style
+                    });
+                    return;
+                }
                 fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), function(err) {
                     if (err) {
                         resolve({
@@ -405,7 +413,7 @@ Processor.add('css', function() {
                     if (!cssContentCache[file]) { //文件尚未读取
                         cssContentCache[file] = 1;
                         //调用 css 文件读取模块
-                        Processor.run('css:read', 'process', [file]).then(function(info) {
+                        Processor.run('css:read', 'process', [file, name, e]).then(function(info) {
                             //写入缓存，因为同一个view.js中可能对同一个css文件多次引用
                             cssContentCache[file] = {
                                 exists: info.exists,
@@ -841,8 +849,9 @@ Processor.add('tmpl', function() {
                 name = resolveAtName(name, moduleId);
                 var file = path.resolve(path.dirname(from) + sep + name + '.html');
                 var fileContent = name;
-                if (fs.existsSync(file)) {
-                    fileContent = readFile(file);
+                var singleFile = (name == 'template' && e.contentInfo);
+                if (singleFile || fs.existsSync(file)) {
+                    fileContent = singleFile ? e.contentInfo.template : readFile(file);
                     fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
                     if (ext == ':events') { //事件
                         var refTmplEvents = Processor.run('tmpl:event', 'extract', [fileContent]);
@@ -1191,17 +1200,51 @@ Processor.add('file:loader', function() {
         }
     };
 });
+//处理mx后缀的文件
+Processor.add('file:mx', function() {
+    var templateReg = /<template[^>]*>([\s\S]+?)<\/template>/i;
+    var styleReg = /<style[^>]*>([\s\S]+?)<\/style>/i;
+    var scriptReg = /<script[^>]*>([\s\S]+?)<\/script>/i;
+    return {
+        process: function(content) {
+            var template, style, script;
+            var temp = content.match(templateReg);
+            if (temp) {
+                template = temp[1];
+            }
+            temp = content.match(styleReg);
+            if (temp) {
+                style = temp[1];
+            }
+            temp = content.match(scriptReg);
+            if (temp) {
+                script = temp[1];
+            }
+            return {
+                template: template,
+                style: style,
+                script: script
+            };
+        }
+    };
+});
 //文件内容处理，主要是把各个处理模块串起来
 Processor.add('file:content', function() {
     var moduleIdReg = /(['"])(@moduleId)\1/g;
     return {
         process: function(from, to, content) {
             if (!content) content = readFile(from);
+            var contentInfo;
+            if (mxTailReg.test(from)) {
+                contentInfo = Processor.run('file:mx', 'process', [content]);
+                content = contentInfo.script;
+            }
             return Processor.run('require', 'process', [{
                 from: from,
                 content: content
                     }]).then(function(e) {
                 e.to = to;
+                if (contentInfo) e.contentInfo = contentInfo;
                 return Processor.run('css', 'process', [e]);
             }).then(function(e) {
                 return Processor.run('tmpl', 'process', [e]);
@@ -1234,8 +1277,9 @@ Processor.add('file', function() {
                 return copyFile(from, to);
             }
         }
-        if (jsReg.test(from)) {
+        if (jsOrMxTailReg.test(from)) {
             Processor.run('file:content', 'process', [from, to]).then(function(content) {
+                to = to.replace(mxTailReg, '.js');
                 writeFile(to, content);
             });
         } else {

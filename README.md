@@ -86,17 +86,19 @@ gulp.task('cleanBuild', function() {
     return del(buildFolder);
 });
 gulp.task('build', ['cleanBuild'], function() {
-    combineTool.build();
-    gulp.src(buildFolder + '/**/*.js')
+    gulp.src(srcFolder + '/**/*.js')
         .pipe(uglify({
             compress: {
-                drop_console: true
+                drop_console: true,
+                drop_debugger: true
             }
         }))
         .pipe(gulp.dest(buildFolder));
 
-    gulp.src(buildFolder + '/**/*.css')
-        .pipe(cssnano())
+    gulp.src(srcFolder + '/**/*.css')
+        .pipe(cssnano({
+            safe:true
+        }))
         .pipe(gulp.dest(buildFolder));
 });
 ```
