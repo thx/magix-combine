@@ -425,6 +425,9 @@ Processor.add('css', function() {
                                     cssContentCache[file].css = r.css;
                                     go();
                                 }, function(error) {
+                                    if (e.contentInfo) {
+                                        file += '@' + e.contentInfo.fileName;
+                                    }
                                     console.log(file, error);
                                     go();
                                 });
@@ -1202,25 +1205,33 @@ Processor.add('file:loader', function() {
 });
 //处理mx后缀的文件
 Processor.add('file:mx', function() {
-    var templateReg = /<template[^>]*>([\s\S]+?)<\/template>/i;
+    var templateReg = /<template>([\s\S]+?)<\/template>/i;
     var styleReg = /<style[^>]*>([\s\S]+?)<\/style>/i;
     var scriptReg = /<script[^>]*>([\s\S]+?)<\/script>/i;
     return {
-        process: function(content) {
+        process: function(content, from) {
             var template, style, script;
             var temp = content.match(templateReg);
+            var fileName = path.basename(from);
             if (temp) {
                 template = temp[1];
+            } else {
+                template = 'unfound inline ' + fileName + ' template';
             }
             temp = content.match(styleReg);
             if (temp) {
                 style = temp[1];
+            } else {
+                style = '.unfound-inline-style{}';
             }
             temp = content.match(scriptReg);
             if (temp) {
                 script = temp[1];
+            } else {
+                script = 'unfound script';
             }
             return {
+                fileName: fileName,
                 template: template,
                 style: style,
                 script: script
@@ -1236,7 +1247,7 @@ Processor.add('file:content', function() {
             if (!content) content = readFile(from);
             var contentInfo;
             if (mxTailReg.test(from)) {
-                contentInfo = Processor.run('file:mx', 'process', [content]);
+                contentInfo = Processor.run('file:mx', 'process', [content, from]);
                 content = contentInfo.script;
             }
             return Processor.run('require', 'process', [{
