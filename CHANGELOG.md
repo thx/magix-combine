@@ -1,3 +1,6 @@
+## 1.1.15
+1. 删除onlyAllows配置项
+2. combine及processFile promise化
 ## 1.1.14
 1. 增加`.mx`后缀的支持
 2. 增加`md5KeyLen`配置项

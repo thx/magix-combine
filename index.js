@@ -131,11 +131,13 @@ var addFileDepend = function(file, dependFrom, dependTo) {
 //运行依赖列表
 var runFileDepend = function(file) {
     var list = fileDependencies[file];
+    var promises = [];
     if (list) {
         for (var p in list) {
-            Processor.run('file', 'process', [p, list[p], true]);
+            promises.push(Processor.run('file', 'process', [p, list[p], true]));
         }
     }
+    return Promise.all(promises);
 };
 //移除文件依赖
 var removeFileDepend = function(file) {
@@ -512,12 +514,11 @@ Processor.add('tmpl:snippet', function() {
 //模板，增加guid标识，仅针对magix-updater使用：https://github.com/thx/magix-updater
 Processor.add('tmpl:guid', function() {
     var tagReg = /<([\w]+)([^>]*?)mx-keys\s*=\s*"([^"]+)"([^>]*?)>/g;
-    var holder = '-\u001f';
     var addGuid = function(tmpl, key, refGuidToKeys) {
         var g = 0;
         return tmpl.replace(tagReg, function(match, tag, preAttrs, keys, attrs, tKey) {
             g++;
-            tKey = 'mx-guid="x' + key + g + holder + '"';
+            tKey = 'mx-guid="x' + key + g + '"';
             refGuidToKeys[tKey] = keys;
             return '<' + tag + preAttrs + tKey + attrs + '>';
         });
@@ -1280,24 +1281,29 @@ Processor.add('file', function() {
         '.scss': 1
     };
     var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
-        from = path.resolve(from);
-        console.log('process:', from);
-        to = path.resolve(to);
-        for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
-            if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
-                return copyFile(from, to);
+        return new Promise(function(resolve) {
+            from = path.resolve(from);
+            console.log('process:', from);
+            to = path.resolve(to);
+            for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
+                if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
+                    copyFile(from, to);
+                    resolve();
+                    return;
+                }
             }
-        }
-        if (jsOrMxTailReg.test(from)) {
-            Processor.run('file:content', 'process', [from, to]).then(function(content) {
-                to = to.replace(mxTailReg, '.js');
-                writeFile(to, content);
-            });
-        } else {
-            var extname = path.extname(from);
-            if (!configs.onlyAllows || configs.onlyAllows[extname]) {
+            if (jsOrMxTailReg.test(from)) {
+                Processor.run('file:content', 'process', [from, to]).then(function(content) {
+                    to = to.replace(mxTailReg, '.js');
+                    writeFile(to, content);
+                    //console.log(to, 'resolve');
+                    resolve();
+                });
+            } else {
+                var extname = path.extname(from);
+                //if (!configs.onlyAllows || configs.onlyAllows[extname]) {
                 if (inwatch && fileDependencies[from]) { //只更新依赖项
-                    runFileDepend(from);
+                    runFileDepend(from).then(resolve);
                     return;
                 }
                 if (extnames[extname] === 1) {
@@ -1313,20 +1319,25 @@ Processor.add('file', function() {
                             var aimFile = path.dirname(to) + sep + path.basename(jsf);
                             addFileDepend(from, jsf, aimFile);
                             if (inwatch) {
-                                processFile(jsf, aimFile, inwatch);
+                                processFile(jsf, aimFile, inwatch).then(resolve);
+                            } else {
+                                resolve();
                             }
                             configs.processAttachedFile(extname, from, to);
                             break;
                         }
                     }
-                    if (!found) {
-                        copyFile(from, to);
-                    }
+                    resolve();
+                    //if (!found) {
+                    //copyFile(from, to);
+                    //}
                 } else {
-                    copyFile(from, to);
+                    resolve();
+                    //copyFile(from, to);
                 }
+                //}
             }
-        }
+        });
     };
     return {
         process: processFile
@@ -1352,26 +1363,31 @@ module.exports = {
         });
     },
     combine: function() {
-        initFolder();
-        walk(configs.tmplFolder, function(filepath) {
-            var from = filepath;
-            var to = from.replace(configs.tmplReg, configs.srcHolder);
-            Processor.run('file', 'process', [from, to]);
+        return new Promise(function(resolve) {
+            initFolder();
+            var ps = [];
+            walk(configs.tmplFolder, function(filepath) {
+                var from = filepath;
+                var to = from.replace(configs.tmplReg, configs.srcHolder);
+                ps.push(Processor.run('file', 'process', [from, to]));
+            });
+            Promise.all(ps).then(resolve);
         });
     },
     processFile: function(from) {
         initFolder();
         var to = from.replace(configs.tmplReg, configs.srcHolder);
-        Processor.run('file', 'process', [from, to, true]);
+        return Processor.run('file', 'process', [from, to, true]);
     },
     processContent: function(from, to, content) {
-        initFolder();
-        return Processor.run('file:content', 'process', [from, to, content]);
-    },
-    build: function() {
-        initFolder();
-        walk(configs.srcFolder, function(p) {
-            copyFile(p, p.replace(configs.srcReg, configs.buildHolder));
-        });
-    }
+            initFolder();
+            return Processor.run('file:content', 'process', [from, to, content]);
+        }
+        /*,
+            build: function() {
+                initFolder();
+                walk(configs.srcFolder, function(p) {
+                    copyFile(p, p.replace(configs.srcReg, configs.buildHolder));
+                });
+            }*/
 };
