@@ -39,13 +39,6 @@ var buildFolder = 'build'; //build folder
 var excludeTmplFolders = [//忽略哪些文件夹或文件的处理
     'tmpl/boot.js'
 ];
-var onlyAllows = {//只处理哪些文件
-    '.html': 1,
-    '.css': 1,
-    '.json': 1,
-    '.sass': 1,
-    '.less': 1
-};
 
 var gulp = require('gulp');
 var watch = require('gulp-watch');
@@ -59,7 +52,6 @@ combineTool.config({
     srcFolder: srcFolder,
     buildFolder: buildFolder,
     excludeTmplFolders: excludeTmplFolders,
-    onlyAllows: onlyAllows,
     loaderType:'cmd' //or amd
 });
 
@@ -173,8 +165,6 @@ object https://www.npmjs.com/package/node-sass
 ### excludeTmplFolders
 array 在处理tmplFolder目录时，跳过某些目录或文件的处理
 
-### snippets
-object 代码片断对象，在处理复杂html时有用
 
 ### compressCssSelectorNames
 boolean 是否压缩css名称，默认false
@@ -186,9 +176,6 @@ boolean 是否移除require代码
 ### generateJSFile
 **[DELETE] 从1.1.0版本开始删除，由loaderType和内置的file:loader处理器代替**
 function 如何把html,js和css生成最终的js文件，需要开发者实现该方法
-
-### addProcessor
-function 添加或重写内容处理器的实现
 
 ### atAttrProcessor
 function
