@@ -12,7 +12,7 @@ var subReg = (function() {
     temp = temp.replace('#', '(?:[\\s\\S]*?)');
     return new RegExp(temp, 'ig');
 }());
-var holder = '-\u001f';
+var holder = '\u001f';
 //属性正则
 var attrsNameValueReg = /([^\s]+)=(["'])([\s\S]+?)\2/ig;
 //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
@@ -211,7 +211,7 @@ var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, l
             delete tmplInfo.mask;
         } else {
             if (tmplCommandAnchorRegTest.test(content)) { //内容中有模板
-                remain = match.replace(content, '@' + g + holder);
+                remain = match.replace('>' + content, '>' + holder + g + holder);
                 subs.push({
                     tmpl: content,
                     ownKeys: ownKeys,

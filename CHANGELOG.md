@@ -1,3 +1,7 @@
+## 1.2.1
+1. 针对requirejs修改amd打包方式
+2. 修复标签内replace bug https://github.com/thx/magix-combine/issues/14
+
 ## 1.2.0
 1. 代码重构，拆分子模块
 2. 移除snippets

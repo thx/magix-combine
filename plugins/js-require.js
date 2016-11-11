@@ -29,7 +29,7 @@ module.exports = {
             } else {
                 noKeyDeps.push(str);
             }
-            return configs.loaderType == 'cmd' ? match.replace(anchor, '') : '';
+            return match.replace(anchor, '');
         });
         deps = deps.concat(noKeyDeps);
         e.moduleId = moduleId;
