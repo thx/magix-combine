@@ -2,7 +2,7 @@ module.exports = {
     md5KeyLen: 3,
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
-    buildFolder: 'build', //压缩上线文件夹
+    //buildFolder: 'build', //压缩上线文件夹
     cssnanoOptions: { //css压缩选项
         safe: true
     },

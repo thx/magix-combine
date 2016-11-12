@@ -14,7 +14,6 @@ var extnames = {
 var jsOrMxTailReg = /\.(?:js|mx)$/i;
 var mxTailReg = /\.mx$/;
 var sep = path.sep;
-
 var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
     return new Promise(function(resolve) {
         from = path.resolve(from);
@@ -67,6 +66,6 @@ var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
         }
     });
 };
-module.exports = {
+module.exports = deps.setContext({
     process: processFile
-};
+});

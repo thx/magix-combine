@@ -1,3 +1,8 @@
+## 1.2.2
+1. 移除buildFolder，放在外部处理
+2. 修改内置模板的压缩
+3. 加入acorn分析模板代码
+
 ## 1.2.1
 1. 针对requirejs修改amd打包方式
 2. 修复标签内replace bug https://github.com/thx/magix-combine/issues/14

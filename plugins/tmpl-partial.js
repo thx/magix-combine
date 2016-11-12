@@ -181,7 +181,7 @@ var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, l
             guid: ++g,
             keys: [],
             tmpl: content,
-            selector: tag + '[' + guid + ']',
+            path: tag + '[' + guid + ']',
             attrs: []
         };
         var keysReg = [];
@@ -237,7 +237,7 @@ var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, l
     tmpl.replace(selfCloseTag, function(match, tag, guid) {
         var tmplInfo = {
             keys: [],
-            selector: tag + '[' + guid + ']',
+            path: tag + '[' + guid + ']',
             attrs: []
         };
         var keysReg = [];

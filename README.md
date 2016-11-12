@@ -148,8 +148,6 @@ string 包含html,css,js的模板目录，默认tmpl
 ### srcFolder
 string 把html,css,js合并后的目录，默认src
 
-### buildFolder
-string 上线压缩的目录，默认build
 
 ### cssnanoOptions
 object css压缩选项，更多信息请参考https://www.npmjs.com/package/cssnano

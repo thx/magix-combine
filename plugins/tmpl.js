@@ -9,6 +9,7 @@ var tmplCmd = require('./tmpl-cmd');
 var tmplMxTag = require('./tmpl-mxtag');
 var tmplGuid = require('./tmpl-guid');
 var tmplPartial = require('./tmpl-partial');
+var tmplMxTmpl = require('./tmpl-mxtmpl');
 //模板处理，即处理view.html文件
 var fileTmplReg = /(\btmpl\s*:\s*)??(['"])@([^'"]+)\.html(:data|:keys|:events)?(?:\2)/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -26,6 +27,9 @@ var processTmpl = function(from, fileContent, cache, cssNamesMap) {
         var refGuidToKeys = {},
             refTmplCommands = {};
         fileContent = tmplMxTag.process(fileContent);
+        if (configs.useMagixTmplAndUpdater) {
+            fileContent = tmplMxTmpl.process(fileContent);
+        }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
 
