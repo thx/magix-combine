@@ -1,7 +1,6 @@
 var util = require('./util');
 var atpath = require('./util-atpath');
 var jsRequireParser = require('./js-require-parser');
-var configs = require('./util-config');
 //分析js中的require命令
 var depsReg = /(?:var\s+([^=]+)=\s*)?\brequire\s*\(([^\(\)]+)\);?/g;
 //var exportsReg = /module\.exports\s*=\s*/;

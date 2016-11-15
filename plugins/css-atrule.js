@@ -1,9 +1,9 @@
+//以@开始的名称，如@font-face
+var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
+//keyframes，如@-webkit-keyframes xx
+var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+([\w\-]+)/g;
 //css @规则的处理
 module.exports = function(fileContent, cssNamesKey) {
-    //以@开始的名称，如@font-face
-    var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
-    //keyframes，如@-webkit-keyframes xx
-    var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+([\w\-]+)/g;
     var contents = [];
     //先处理keyframes
     fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {

@@ -20,10 +20,11 @@ var selfCloseTag = /<(\w+)\s+[^>]*?(mx-guid="x[^"]+")[^>]*?\/>/g;
 //标签
 var pureTagReg = /<(\w+)[^>]*>/g;
 //模板引擎命令被替换的占位符
-var tmplCommandAnchorReg = /\&\d+\-\u001e/g;
-var tmplCommandAnchorRegTest = /\&\d+\-\u001e/;
+var tmplCommandAnchorReg = /\u001e\d+\u001e/g;
+var tmplCommandAnchorRegTest = /\u001e\d+\u001e/;
 //属性处理
 var attrProps = {
+    'id': 'id',
     'class': 'className',
     'value': 'value',
     'checked': 'checked',
