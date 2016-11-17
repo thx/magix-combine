@@ -24,7 +24,6 @@ var tmplCommandAnchorReg = /\u001e\d+\u001e/g;
 var tmplCommandAnchorRegTest = /\u001e\d+\u001e/;
 //属性处理
 var attrProps = {
-    'id': 'id',
     'class': 'className',
     'value': 'value',
     'checked': 'checked',
@@ -179,7 +178,7 @@ var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, l
             ownKeys[p] = parentOwnKeys[p];
         }
         var tmplInfo = {
-            guid: ++g,
+            s: ++g,
             keys: [],
             tmpl: content,
             path: tag + '[' + guid + ']',

@@ -4,6 +4,7 @@
 var acorn = require('./util-acorn');
 var walker = require('./util-acorn-walk');
 var tmplCmd = require('./tmpl-cmd');
+var configs = require('./util-config');
 var Tmpl_Mathcer = /<%([@=!:*])?([\s\S]+?)%>|$/g;
 var TagReg = /<(\w+)([^>]*)>/g;
 var BindReg = /[\w-]+\s*=\s*"<%([:*])([\s\S]+)%>\s*"/g;
@@ -35,6 +36,9 @@ module.exports = {
         var globalOffset = 0;
         var globalExists = {};
         var globalTracker = {};
+        for (var key in configs.tmplGlobalVars) {
+            globalExists[key] = 1;
+        }
         walker.simple(ast, {
             Identifier: function(node) {
                 if (globalExists[node.name] !== 1) {
@@ -74,7 +78,6 @@ module.exports = {
             for (var i = 1; i < result.length; i++) {
                 result[i] = result[i].replace(NumGetReg, '$1');
             }
-            console.log(result);
             result = result.join('.');
             result = result.replace(/\[/g, '<%!').replace(/\]/g, '%>');
             return result;
@@ -95,7 +98,6 @@ module.exports = {
                 } else {
                     m = '';
                 }
-                console.log(flag, m);
                 return m + expr;
             });
             return '<' + tag + attrs + '>';

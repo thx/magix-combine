@@ -6,6 +6,7 @@ var util = require('./util');
 var md5 = require('./util-md5');
 var cssAtRule = require('./css-atrule');
 var cssFileRead = require('./css-read');
+var cssUrl = require('./css-url');
 //处理css文件
 //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
 //https://github.com/Automattic/xgettext-js
@@ -74,7 +75,9 @@ module.exports = function(e) {
                         var c = cssNamesMap[key] || key;
                         replacement = q + c + q;
                     } else { //输出整个css文件内容
-                        replacement = '\'' + cssNamesKey + '\',' + JSON.stringify(fileContent);
+                        var css = JSON.stringify(fileContent);
+                        css = cssUrl(css);
+                        replacement = '"' + cssNamesKey + '",' + css;
                     }
                     tail = tail ? tail : '';
                     return replacement + tail;

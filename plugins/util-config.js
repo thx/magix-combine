@@ -17,6 +17,7 @@ module.exports = {
         quoteCharacter: '"',
         keepClosingSlash: true //
     },
+    tmplGlobalVars: {}, //模板中全局变量
     outputTmplObject: false, //输出模板字符串为一个对象
     excludeTmplFolders: [], //不让该工具处理的文件夹或文件
     snippets: {}, //代码片断，对于在项目中重复使用且可能修改的html代码片断有用
