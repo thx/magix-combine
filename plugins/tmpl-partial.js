@@ -206,7 +206,7 @@ var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, l
                 v: commandAnchorRecover(tmplInfo.tmpl, refTmplCommands),
                 p: 1
             });
-            delete tmplInfo.guid;
+            delete tmplInfo.s;
             delete tmplInfo.tmpl;
             delete tmplInfo.mask;
         } else {
@@ -221,7 +221,7 @@ var buildTmpl = function(tmpl, refGuidToKeys, refTmplCommands, cssNamesMap, g, l
                 remain = match;
                 content = '';
                 delete tmplInfo.tmpl;
-                delete tmplInfo.guid;
+                delete tmplInfo.s;
             }
             addAttrs(tag, remain, tmplInfo, keysReg, refTmplCommands);
             if (!tmplInfo.attrs.length) { //没有属性
