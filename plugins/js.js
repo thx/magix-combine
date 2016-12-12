@@ -19,13 +19,6 @@ var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
         from = path.resolve(from);
         console.log('process:', from);
         to = path.resolve(to);
-        for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
-            if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
-                fd.copy(from, to);
-                resolve();
-                return;
-            }
-        }
         if (jsOrMxTailReg.test(from)) {
             jsContent.process(from, to).then(function(content) {
                 to = to.replace(mxTailReg, '.js');

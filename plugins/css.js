@@ -44,7 +44,11 @@ module.exports = function(e) {
             var resume = function() {
                 e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext, keys, key, tail) {
                     name = atpath.resolveName(name, e.moduleId);
-                    var file = path.resolve(path.dirname(e.from) + sep + name + ext);
+                    var mapName = name;
+                    if (e.contentInfo && name == 'style') {
+                        mapName = e.moduleId.replace(/\//g, '-');
+                    }
+                    var file = path.resolve(path.dirname(e.from) + sep + mapName + ext);
                     var r = cssContentCache[file];
                     //从缓存中获取当前文件的信息
                     //如果不存在就返回一个不存在的提示
@@ -94,7 +98,11 @@ module.exports = function(e) {
             e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext) {
                 count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
                 name = atpath.resolveName(name, e.moduleId); //先处理名称
-                var file = path.resolve(path.dirname(e.from) + sep + name + ext);
+                var mapName = name;
+                if (e.contentInfo && name == 'style') {
+                    mapName = e.moduleId.replace(/\//g, '-');
+                }
+                var file = path.resolve(path.dirname(e.from) + sep + mapName + ext);
                 if (!cssContentCache[file]) { //文件尚未读取
                     cssContentCache[file] = 1;
                     //调用 css 文件读取模块

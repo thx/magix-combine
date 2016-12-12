@@ -7,11 +7,23 @@ var tmplCmd = require('./tmpl-cmd');
 var configs = require('./util-config');
 var Tmpl_Mathcer = /<%([@=!:*])?([\s\S]+?)%>|$/g;
 var TagReg = /<(\w+)([^>]*)>/g;
-var BindReg = /[\w-]+\s*=\s*"<%([:*])([\s\S]+)%>\s*"/g;
+var BindReg = /([@\w-]+)\s*=\s*"<%([:*])([\s\S]+?)%>\s*"/g;
+var ComparePattern = /==|>=|<=|>|</;
 var SplitExprReg = /\[[^\[\]]+\]|[^.\[\]]+/g;
 var MxChangeReg = /\s+mx-change\s*=\s*"([^\(]+)\(([\s\S]*)?\)"/g;
 var Anchor = '\u0000';
 var NumGetReg = /^\[(\d+)\]$/;
+var IsRadio = /\stype\s*=\s*(['"])radio\1/i;
+var AtAttrNames = {
+    '@disabled': 'disabled',
+    '@checked': 'checked',
+    '@readonly': 'readonly'
+};
+var Tags = {
+    'textarea': 1,
+    'input': 1,
+    'select': 1
+};
 module.exports = {
     process: function(tmpl) {
         var fn = [];
@@ -62,11 +74,13 @@ module.exports = {
         fn = fn.replace(/\u0000/g, '`');
         var cmdStore = {};
         var analyseExpr = function(expr) {
-            var ps = expr.match(SplitExprReg);
+            var s = expr.split(ComparePattern);
+            var left = s[0];
+            var ps = left.match(SplitExprReg);
             var start = ps.shift();
             var result = [];
             if (start != '$') {
-                var b = start;
+                var b = start.trim();
                 while (globalTracker[b] != '$') {
                     b = globalTracker[b];
                 }
@@ -75,8 +89,8 @@ module.exports = {
             } else {
                 result = ps;
             }
-            for (var i = 1; i < result.length; i++) {
-                result[i] = result[i].replace(NumGetReg, '$1');
+            for (var i = 0; i < result.length; i++) {
+                result[i] = result[i].replace(NumGetReg, '$1').trim();
             }
             result = result.join('.');
             result = result.replace(/\[/g, '<%!').replace(/\]/g, '%>');
@@ -85,13 +99,23 @@ module.exports = {
         fn = tmplCmd.store(fn, cmdStore);
         fn = fn.replace(TagReg, function(match, tag, attrs) {
             var ext = '';
+            var mxChangeAttr = '';
             attrs = attrs.replace(MxChangeReg, function(m, name, params) {
-                ext = ',m:\'' + name + '\',a:' + params;
-                return '';
+                ext = ',m:\'' + name + '\',a:' + (params || '{}');
+                return (mxChangeAttr = m);
             });
             attrs = tmplCmd.recover(attrs, cmdStore);
-            attrs = attrs.replace(BindReg, function(m, flag, expr) {
+            var hasBound = false;
+            attrs = attrs.replace(BindReg, function(m, name, flag, expr) {
+                if (hasBound) {
+                    console.error('unsupport multi bind', expr, attrs);
+                    return '';
+                }
+                hasBound = true;
                 expr = analyseExpr(expr);
+                if (Tags[tag] && AtAttrNames[name] && !IsRadio.test(attrs)) {
+                    ext += ',x:\'' + AtAttrNames[name] + '\'';
+                }
                 expr = ' mx-change="s\u0011e\u0011t({p:\'' + expr + '\'' + ext + '})"';
                 if (flag == ':') {
                     m = m.replace('<%:', '<%=');
@@ -100,6 +124,9 @@ module.exports = {
                 }
                 return m + expr;
             });
+            if (hasBound) {
+                attrs = attrs.replace(mxChangeAttr, '');
+            }
             return '<' + tag + attrs + '>';
         });
         fn = tmplCmd.recover(fn, cmdStore);

@@ -5,6 +5,7 @@ var cssProcessor = require('./css');
 var tmplProcessor = require('./tmpl');
 var atpath = require('./util-atpath');
 var jsLoader = require('./js-loader');
+var configs = require('./util-config');
 
 var mxTailReg = /\.mx$/;
 //文件内容处理，主要是把各个处理模块串起来
@@ -12,6 +13,11 @@ var moduleIdReg = /(['"])(@moduleId)\1/g;
 module.exports = {
     process: function(from, to, content) {
         if (!content) content = fd.read(from);
+        for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
+            if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
+                return Promise.resolve(content);
+            }
+        }
         var contentInfo;
         if (mxTailReg.test(from)) {
             contentInfo = jsMx.process(content, from);

@@ -12,7 +12,7 @@ var tmplPartial = require('./tmpl-partial');
 var tmplMxTmpl = require('./tmpl-mxtmpl');
 var tmplImg = require('./tmpl-img');
 //模板处理，即处理view.html文件
-var fileTmplReg = /(\btmpl\s*:\s*)??(['"])@([^'"]+)\.html(:data|:keys|:events)?(?:\2)/g;
+var fileTmplReg = /(\btmpl\s*:\s*)?(['"])@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 var sep = path.sep;
 var processTmpl = function(from, fileContent, cache, cssNamesMap) {
