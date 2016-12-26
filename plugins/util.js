@@ -9,10 +9,12 @@ var sep = path.sep;
 var sepRegTmpl = sep.replace(/\\/g, '\\\\');
 var sepReg = new RegExp(sepRegTmpl, 'g');
 var jsOrMxTailReg = /\.(?:js|mx)$/i;
+var cssTailReg = /\.(?:css|less|scss)/i;
 var startSlashReg = /^\//;
 var extractModuleId = function(file) {
     return file.replace(configs.moduleIdRemovedPath, '')
         .replace(jsOrMxTailReg, '')
+        .replace(cssTailReg, '')
         .replace(sepReg, '/')
         .replace(startSlashReg, '');
 };

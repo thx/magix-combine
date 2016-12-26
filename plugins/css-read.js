@@ -6,6 +6,8 @@ var sass = require('node-sass');
 
 var configs = require('./util-config');
 var fd = require('./util-fd');
+
+var jsMx = require('./js-mx');
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
 module.exports = function(file, name, e) {
     return new Promise(function(resolve) {
@@ -53,8 +55,15 @@ module.exports = function(file, name, e) {
                         exists: true,
                         content: fileContent
                     });
+                } else if (ext == '.mx') {
+                    fileContent = fd.read(file);
+                    var info = jsMx.process(fileContent, file);
+                    resolve({
+                        exists: true,
+                        content: info.style
+                    });
                 }
             }
         });
     });
-}
+};

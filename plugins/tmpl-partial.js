@@ -56,6 +56,7 @@ var addAttrs = function(tag, tmpl, info, keysReg, refTmplCommands) {
         if (name == 'mx-view') {
             //设置view信息
             info.view = commandAnchorRecover(content, refTmplCommands);
+            return;
         }
         if (tmplCommandAnchorRegTest.test(content)) {
             //有模板引擎命令
@@ -111,9 +112,9 @@ var addAttrs = function(tag, tmpl, info, keysReg, refTmplCommands) {
                         aInfo.a = 1;
                     }
                 }
-                if (name != 'mx-view') { //如果不是mx-view属性则加入到属性列表中，mx-view会特殊处理
-                    info.attrs.push(aInfo);
-                }
+                //if (name != 'mx-view') { //如果不是mx-view属性则加入到属性列表中，mx-view会特殊处理
+                info.attrs.push(aInfo);
+                //}
             }
         }
     });
@@ -153,8 +154,9 @@ var expandAtAttr = function(tmpl, refTmplCommands) {
     return tmpl.replace(pureTagReg, function(match, tag) {
         return match.replace(attrsNameValueReg, function(match, name, quote, content) {
             if (name.charAt(0) == '@') {
+                name = name.slice(1);
                 content = commandAnchorRecover(content, refTmplCommands);
-                match = configs.atAttrProcessor(name.slice(1), content, {
+                match = configs.atAttrProcessor(name, content, {
                     tag: tag,
                     prop: attrProps[name] && fixedAttrPropsTags[tag]
                 });

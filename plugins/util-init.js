@@ -20,18 +20,16 @@ module.exports = function() {
         //configs.buildHolder = '$1' + buildFolderName + sep;
         if (configs.useMagixTmplAndUpdater) {
             configs.tmplCommand = /<%[\s\S]+?%>/g;
-            configs.atAttrProcessor = function(name, tmpl, info) {
-                var cond = tmpl.replace(/<%[!=]([\s\S]+?)%>/g, '$1');
-                if (name == 'mx-view') {
-                    return '<%if(' + cond + '){%>mx-view="<%=' + cond + '%>"<%}%>';
+            configs.atAttrProcessor = function(name, value, info) {
+                var cond = value.replace(/<%[!=]([\s\S]+?)%>/g, '$1');
+                if (info.partial) { //子模板中根据条件判断是否有值
+                    return '<%if(' + cond + '){%>' + value + '<%}%>';
                 }
-                if (info.prop) {
+                if (info.prop) {//特殊属性，根据条件只输出name即可
                     return '<%if(' + cond + '){%>' + name + '<%}%>';
                 }
-                if (info.partial) {
-                    return '<%if(' + cond + '){%>' + tmpl + '<%}%>';
-                }
-                return '<%if(' + cond + '){%>' + name + '="' + tmpl + '"<%}%>';
+                //其它情况，根据条件输出name=value
+                return '<%if(' + cond + '){%>' + name + '="' + value + '"<%}%>';
             };
             configs.compressTmplCommand = function(tmpl) {
                 var stores = {},
@@ -52,7 +50,7 @@ module.exports = function() {
                     m = m.replace(/&\u001e\d+&\u001e/g, function(n) {
                         return stores[n];
                     }); //命令还原
-                    return m.replace(/%>\s*<%/g, ';').replace(/([\{\}]);/g, '$1').replace(/;+/g,';'); //删除中间的%><%及分号
+                    return m.replace(/%>\s*<%/g, ';').replace(/([\{\}]);/g, '$1').replace(/;+/g, ';'); //删除中间的%><%及分号
                 });
                 //console.log(tmpl);
                 tmpl = tmpl.replace(/&\u001e\d+&\u001e/g, function(n) { //其它命令还原

@@ -17,7 +17,7 @@ module.exports = {
         if (temp) {
             style = temp[1];
         } else {
-            style = '.unfound-inline-style{}';
+            style = '';
         }
         temp = content.match(scriptReg);
         if (temp) {

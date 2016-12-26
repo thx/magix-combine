@@ -48,7 +48,7 @@ var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
                         } else {
                             resolve();
                         }
-                        configs.processAttachedFile(extname, from, to);
+                        //configs.processAttachedFile(extname, from, to);
                         break;
                     }
                 }

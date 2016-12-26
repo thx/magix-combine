@@ -1,3 +1,5 @@
+var configs = require('./util-config');
+var md5 = require('./util-md5');
 //以@开始的名称，如@font-face
 var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
 //keyframes，如@-webkit-keyframes xx
@@ -9,6 +11,11 @@ module.exports = function(fileContent, cssNamesKey) {
     fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {
         //把名称保存下来，因为还要修改使用的地方
         contents.push(name);
+        if (configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+            if (name.length > configs.md5KeyLen) {
+                name = md5(name);
+            }
+        }
         //增加前缀
         return head + keyframe + ' ' + cssNamesKey + '-' + name;
     });
@@ -28,6 +35,11 @@ module.exports = function(fileContent, cssNamesKey) {
         var t = contents.pop();
         //修改使用到的地方
         var reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
+        if (configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+            if (t.length > configs.md5KeyLen) {
+                t = md5(t);
+            }
+        }
         fileContent = fileContent.replace(reg, ':$1' + cssNamesKey + '-' + t + '$1');
     }
     return fileContent;

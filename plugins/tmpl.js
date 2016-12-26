@@ -15,7 +15,7 @@ var tmplImg = require('./tmpl-img');
 var fileTmplReg = /(\btmpl\s*:\s*)?(['"])@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 var sep = path.sep;
-var processTmpl = function(from, fileContent, cache, cssNamesMap) {
+var processTmpl = function(e, from, fileContent, cache, cssNamesMap) {
     var fCache = cache[fileContent];
     if (!fCache) {
         var temp = {};
@@ -24,7 +24,7 @@ var processTmpl = function(from, fileContent, cache, cssNamesMap) {
         var tmplEvents = tmplEvent.extract(fileContent);
         temp.events = JSON.stringify(tmplEvents);
 
-        var guid = md5(from);
+        var guid = md5(e.moduleId);
         var refGuidToKeys = {},
             refTmplCommands = {};
         fileContent = tmplMxTag.process(fileContent);
@@ -61,7 +61,7 @@ module.exports = function(e) {
             var singleFile = (name == 'template' && e.contentInfo);
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                var fcInfo = processTmpl(from, fileContent, fileContentCache, cssNamesMap);
+                var fcInfo = processTmpl(e, from, fileContent, fileContentCache, cssNamesMap);
                 if (ext == ':events') { //事件
                     return fcInfo.events;
                 }
@@ -77,7 +77,7 @@ module.exports = function(e) {
                         subs: fcInfo.info.list
                     });
                 }
-                return (prefix ? prefix : '') + JSON.stringify(fcInfo.info.tmpl);
+                return (prefix || '') + JSON.stringify(fcInfo.info.tmpl);
             }
             return quote + 'unfound:' + name + quote;
         });

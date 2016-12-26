@@ -11,7 +11,8 @@ var cssUrl = require('./css-url');
 //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
 //https://github.com/Automattic/xgettext-js
 //处理js文件中如 'global@x.less' '@x.less:selector' 'ref@../x.scss' 等各种情况
-var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.\-\/\\]+?)(\.css|\.less|\.scss)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
+//"abc(@style.css:xx)"
+var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
 var sep = path.sep;
 module.exports = function(e) {
     var cssNamesMap = {};
@@ -19,16 +20,15 @@ module.exports = function(e) {
     var cssNamesKey;
     var cssNameReg = /(?:@|global)?\.([\w\-]+)(?=[^\{\}]*?\{)/g;
     var addToGlobalCSS = true;
-    var cssNamesCompress = {};
-    var cssNamesCompressIdx = 0;
     //处理css类名
     var cssNameProcessor = function(m, name) {
         if (m.indexOf('global') === 0) return m.slice(6);
         if (m.charAt(0) == '@') return m.slice(1); //@.rule
         var mappedName = name;
-        if (configs.compressCssSelectorNames) { //压缩，我们采用数字递增处理
-            if (cssNamesCompress[name]) mappedName = cssNamesCompress[name];
-            else mappedName = cssNamesCompress[name] = (cssNamesCompressIdx++).toString(32);
+        if (configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+            if (name.length > configs.md5KeyLen) {
+                mappedName = md5(name);
+            }
         }
         //只在原来的css类名前面加前缀
         var result = '.' + (cssNamesMap[name] = cssNamesKey + '-' + mappedName);
@@ -44,11 +44,13 @@ module.exports = function(e) {
             var resume = function() {
                 e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext, keys, key, tail) {
                     name = atpath.resolveName(name, e.moduleId);
-                    var mapName = name;
+                    var file;
                     if (e.contentInfo && name == 'style') {
-                        mapName = e.moduleId.replace(/\//g, '-');
+                        file = e.from;
+                    } else {
+                        file = path.resolve(path.dirname(e.from) + sep + name + ext);
                     }
-                    var file = path.resolve(path.dirname(e.from) + sep + mapName + ext);
+                    var fileName = path.basename(file);
                     var r = cssContentCache[file];
                     //从缓存中获取当前文件的信息
                     //如果不存在就返回一个不存在的提示
@@ -60,6 +62,9 @@ module.exports = function(e) {
                     cssNamesKey = configs.cssSelectorPrefix + md5(cssId);
                     if (prefix != 'global') { //如果不是项目中全局使用的
                         addToGlobalCSS = prefix != 'names'; //不是读取css名称对象的
+                        if (keys || key) { //有后缀时也不添加到全局
+                            addToGlobalCSS = false;
+                        }
                         cssNamesMap = {};
                         fileContent = fileContent.replace(cssNameReg, cssNameProcessor); //前缀处理
                         //@规则处理
@@ -76,7 +81,7 @@ module.exports = function(e) {
                         replacement = '';
                         tail = '';
                     } else if (key) { //仅读取文件中的某个名称
-                        var c = cssNamesMap[key] || key;
+                        var c = cssNamesMap[key] || 'unfound-[' + key + ']-from-' + fileName;
                         replacement = q + c + q;
                     } else { //输出整个css文件内容
                         var css = JSON.stringify(fileContent);
@@ -98,11 +103,12 @@ module.exports = function(e) {
             e.content = e.content.replace(cssTmplReg, function(m, q, prefix, name, ext) {
                 count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
                 name = atpath.resolveName(name, e.moduleId); //先处理名称
-                var mapName = name;
+                var file;
                 if (e.contentInfo && name == 'style') {
-                    mapName = e.moduleId.replace(/\//g, '-');
+                    file = e.from;
+                } else {
+                    file = path.resolve(path.dirname(e.from) + sep + name + ext);
                 }
-                var file = path.resolve(path.dirname(e.from) + sep + mapName + ext);
                 if (!cssContentCache[file]) { //文件尚未读取
                     cssContentCache[file] = 1;
                     //调用 css 文件读取模块

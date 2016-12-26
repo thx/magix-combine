@@ -22,6 +22,7 @@ var resolveAtName = function(name, moduleId) {
     if (name.indexOf('/') >= 0 && name.charAt(0) != '.') {
         name = resolveAtPath('"@' + name + '"', moduleId).slice(1, -1);
     }
+    //console.log('resolveAtName', name);
     return name;
 };
 

@@ -13,17 +13,17 @@ var SplitExprReg = /\[[^\[\]]+\]|[^.\[\]]+/g;
 var MxChangeReg = /\s+mx-change\s*=\s*"([^\(]+)\(([\s\S]*)?\)"/g;
 var Anchor = '\u0000';
 var NumGetReg = /^\[(\d+)\]$/;
-var IsRadio = /\stype\s*=\s*(['"])radio\1/i;
-var AtAttrNames = {
-    '@disabled': 'disabled',
-    '@checked': 'checked',
-    '@readonly': 'readonly'
-};
-var Tags = {
-    'textarea': 1,
-    'input': 1,
-    'select': 1
-};
+//var IsRadio = /\stype\s*=\s*(['"])radio\1/i;
+//var AtAttrNames = {
+//    '@disabled': 'disabled',
+//    '@checked': 'checked',
+//    '@readonly': 'readonly'
+//};
+//var Tags = {
+//    'textarea': 1,
+//    'input': 1,
+//    'select': 1
+//};
 module.exports = {
     process: function(tmpl) {
         var fn = [];
@@ -37,13 +37,12 @@ module.exports = {
             fn.push('`' + source + '`;');
             fn.push(content);
         });
-        fn = fn.join('');
+        fn = fn.join('');//移除<%%> 使用`变成标签模板分析
         var ast;
         try {
             ast = acorn.parse(fn);
         } catch (e) {
-            console.log(fn);
-            console.log(e);
+            console.log(e, fn);
         }
         var globalOffset = 0;
         var globalExists = {};
@@ -113,9 +112,9 @@ module.exports = {
                 }
                 hasBound = true;
                 expr = analyseExpr(expr);
-                if (Tags[tag] && AtAttrNames[name] && !IsRadio.test(attrs)) {
-                    ext += ',x:\'' + AtAttrNames[name] + '\'';
-                }
+                // if (Tags[tag] && AtAttrNames[name] && !IsRadio.test(attrs)) {
+                //     ext += ',x:\'' + AtAttrNames[name] + '\'';
+                // }
                 expr = ' mx-change="s\u0011e\u0011t({p:\'' + expr + '\'' + ext + '})"';
                 if (flag == ':') {
                     m = m.replace('<%:', '<%=');
