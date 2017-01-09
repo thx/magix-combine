@@ -2,7 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var fd = require('./util-fd');
 var atpath = require('./util-atpath');
-var md5 = require('./util-md5');
+//var md5 = require('./util-md5');
 var configs = require('./util-config');
 var tmplEvent = require('./tmpl-event');
 var tmplCmd = require('./tmpl-cmd');
@@ -21,13 +21,12 @@ var processTmpl = function(e, from, fileContent, cache, cssNamesMap) {
         var temp = {};
         cache[fileContent] = temp;
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
+        fileContent = tmplMxTag.process(fileContent);
         var tmplEvents = tmplEvent.extract(fileContent);
         temp.events = JSON.stringify(tmplEvents);
 
-        var guid = md5(e.moduleId);
-        var refGuidToKeys = {},
-            refTmplCommands = {};
-        fileContent = tmplMxTag.process(fileContent);
+        //var guid = md5(e.moduleId);
+        var refTmplCommands = {};
         fileContent = tmplImg.process(fileContent);
         if (configs.useMagixTmplAndUpdater) {
             fileContent = tmplMxTmpl.process(fileContent);
@@ -37,11 +36,13 @@ var processTmpl = function(e, from, fileContent, cache, cssNamesMap) {
 
         //console.log(refTmplEvents);
         fileContent = tmplCmd.tidy(fileContent);
-        fileContent = tmplGuid.add(fileContent, guid, refGuidToKeys);
+        if (configs.useMagixTmplAndUpdater) {
+            fileContent = tmplGuid.add(fileContent, refTmplCommands);
+        }
         //fileContent = Processor.run('tmpl:class', 'process', [fileContent, cssNamesMap]);
 
         //fileContent = Processor.run('tmpl:cmd', 'recover', [fileContent, refTmplCommands]);
-        var info = tmplPartial.process(fileContent, refGuidToKeys, refTmplCommands, cssNamesMap);
+        var info = tmplPartial.process(fileContent, refTmplCommands, cssNamesMap);
         temp.info = info;
         fCache = temp;
     }

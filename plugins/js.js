@@ -1,6 +1,5 @@
 var path = require('path');
 var fs = require('fs');
-var configs = require('./util-config');
 var fd = require('./util-fd');
 var jsContent = require('./js-content');
 var deps = require('./util-deps');

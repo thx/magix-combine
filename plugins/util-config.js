@@ -25,9 +25,6 @@ module.exports = {
     mxTagProcessor: function(tmpl) {
         return tmpl;
     },
-    atAttrProcessor: function(name, tmpl) { //对于html字符串中带@属性的特殊处理器，扩展用
-        return tmpl;
-    },
     compressTmplCommand: function(tmpl) { //压缩模板命令，扩展用
         return tmpl;
     },
@@ -36,8 +33,8 @@ module.exports = {
     },
     tmplImgSrcMatched: function(url) {
         return url;
-    }//,
-    //processAttachedFile: function() { //让外部决定如何处理同名的html或css文件，默认magix一个区块由html,css,js组成，如index.html index.css index.js 。打包时默认这3个文件打包成一个js文件，但有时候像css一些项目并不希望打包到js中，所以可以实现该方法来决定自己的方案
+    } //,
+        //processAttachedFile: function() { //让外部决定如何处理同名的html或css文件，默认magix一个区块由html,css,js组成，如index.html index.css index.js 。打包时默认这3个文件打包成一个js文件，但有时候像css一些项目并不希望打包到js中，所以可以实现该方法来决定自己的方案
 
     //}
 };

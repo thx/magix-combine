@@ -20,27 +20,16 @@ module.exports = function() {
         //configs.buildHolder = '$1' + buildFolderName + sep;
         if (configs.useMagixTmplAndUpdater) {
             configs.tmplCommand = /<%[\s\S]+?%>/g;
-            configs.atAttrProcessor = function(name, value, info) {
-                var cond = value.replace(/<%[!=]([\s\S]+?)%>/g, '$1');
-                if (info.partial) { //子模板中根据条件判断是否有值
-                    return '<%if(' + cond + '){%>' + value + '<%}%>';
-                }
-                if (info.prop) {//特殊属性，根据条件只输出name即可
-                    return '<%if(' + cond + '){%>' + name + '<%}%>';
-                }
-                //其它情况，根据条件输出name=value
-                return '<%if(' + cond + '){%>' + name + '="' + value + '"<%}%>';
-            };
             configs.compressTmplCommand = function(tmpl) {
                 var stores = {},
                     idx = 1,
                     key = '&\u001e';
                 //下面这行是把压缩模板命令，删除可能存在的空格
-                tmpl = tmpl.replace(/<%([=!@])?([\s\S]*?)%>/g, function(m, oper, content) {
+                tmpl = tmpl.replace(/<%([=!@:])?([\s\S]*?)%>/g, function(m, oper, content) {
                     return '<%' + (oper || '') + content.trim().replace(/\s*([,\(\)\{\}])\s*/g, '$1') + '%>';
                 });
                 //存储非输出命令(控制命令)
-                tmpl = tmpl.replace(/<%[^=!@][\s\S]*?%>\s*/g, function(m, k) {
+                tmpl = tmpl.replace(/<%[^=!@:][\s\S]*?%>\s*/g, function(m, k) {
                     k = key + (idx++) + key; //占位符
                     stores[k] = m; //存储
                     return k;

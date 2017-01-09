@@ -6,6 +6,7 @@ var depsReg = /(?:var\s+([^=]+)=\s*)?\brequire\s*\(([^\(\)]+)\);?/g;
 //var exportsReg = /module\.exports\s*=\s*/;
 var anchor = '\u0011';
 var anchorReg = /(['"])\u0011([^'"]+)\1/;
+var configs = require('./util-config');
 module.exports = {
     process: function(e) {
         var deps = [];
@@ -27,6 +28,9 @@ module.exports = {
                 deps.push(str);
             } else {
                 noKeyDeps.push(str);
+            }
+            if (configs.loaderType == 'kissy') {
+                return '';
             }
             return match.replace(anchor, '');
         });

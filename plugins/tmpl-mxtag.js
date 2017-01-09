@@ -2,7 +2,7 @@ var configs = require('./util-config');
 var tmplCmd = require('./tmpl-cmd');
 //模板代码片断的处理，较少用
 var snippetReg = /<mx-(\w+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
-var attrReg = /([\w-]+)\s*=\s*"([^"]+)"/g;
+var attrReg = /([\w-\d]+)\s*=\s*"([^"]+)"/g;
 module.exports = {
     process: function(tmpl) {
         var compare;
