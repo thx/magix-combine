@@ -230,10 +230,10 @@ var trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u001e]+?\1)?(?=\s+|\u001e\d+\u001e
 var trimAttrsEnd = /(\s+|\u001e\d+\u001e)[a-z\-\d]+(?:=(["'])[^\u001e]+?\2)?$/;
 var inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 //添加属性信息
-var addAttrs = function(tag, tmpl, info, refTmplCommands) {
+var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
     var attrsKeys = {},
         tmplKeys = {};
-    //console.log('recog', tmpl);
+    tmpl = tmplClass.process(tmpl, cssNamesMap);
     tmpl.replace(extractAttrsReg, function(match, attr) {
         var originAttr = attr;
         while (trimAttrsStart.test(attr)) {
@@ -405,7 +405,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                     var idx = addValueAsAttr.indexOf('>');
                     addValueAsAttr = addValueAsAttr.slice(0, idx) + ' value="' + content + '"' + addValueAsAttr.slice(idx);
                 }
-                addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands);
+                addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands, cssNamesMap);
                 delete tmplInfo.s; //这3行删除不必要的属性，节省资源
                 delete tmplInfo.tmpl;
                 delete tmplInfo.mask;
@@ -444,7 +444,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                 }
                 //console.log('wrapTag', wrapTag);
                 //对当前标签分析属性的局部更新
-                addAttrs(tag, wrapTag, tmplInfo, refTmplCommands);
+                addAttrs(tag, wrapTag, tmplInfo, refTmplCommands, cssNamesMap);
                 if (!tmplInfo.attr) {
                     delete tmplInfo.attr;
                 }
@@ -482,7 +482,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
             }
             list.push(tmplInfo);
             //属性分析
-            addAttrs(tag, match, tmplInfo, refTmplCommands);
+            addAttrs(tag, match, tmplInfo, refTmplCommands, cssNamesMap);
         } else { //记录移除的guid
             removeGuids.push(guid);
         }

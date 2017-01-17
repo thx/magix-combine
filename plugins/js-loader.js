@@ -8,6 +8,8 @@ var tmpls = {
     amd1: 'define(\'${moduleId}\',[\'module\',\'exports\'],function(module,exports){\r\n${content}\r\n});',
     kissy: 'KISSY.add(\'${moduleId}\',function(S,${vars}){\r\n${content}\r\n},\r\n{requires:[${requires}]});',
     kissy1: 'KISSY.add(\'${moduleId}\',function(S){\r\n${content}\r\n});',
+    webpack: '${content}',
+    webpack1: '${content}',
     iife: '(function(){\r\n${content}\r\n})();'
 };
 module.exports = function(e) {

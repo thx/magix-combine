@@ -18,6 +18,10 @@ module.exports = {
                 return Promise.resolve(content);
             }
         }
+        var r = configs.excludeFileContent(content);
+        if (r === true) {
+            return Promise.resolve(content);
+        }
         var contentInfo;
         if (mxTailReg.test(from)) {
             contentInfo = jsMx.process(content, from);

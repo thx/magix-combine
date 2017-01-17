@@ -1,8 +1,15 @@
+## 1.2.9
+1. `excludeFileContent`选项，可根据文件内容决定是否排除
+2. 增加`webpack`加载器
+
+## 1.2.8
+1. `outputTmplWithEvents`选项
+
 ## 1.2.7
 1. 自带模板中自动识别数据key，自动识别刷新的标签
 2. 修复自闭合标签无刷新`key`时，不再提供刷新信息
 3. 局部刷新属性时换另外方案：存属性字符串，分析有哪些属性，更新时以分析到的属性为准
-4. 增加kissy加载器
+4. 增加`kissy`加载器
 
 ## 1.2.6
 1. 修复`index.js`中`util.removeFileDepend`方法

@@ -2,7 +2,6 @@ module.exports = {
     md5KeyLen: 4,
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
-    //buildFolder: 'build', //压缩上线文件夹
     cssnanoOptions: { //css压缩选项
         safe: true
     },
@@ -18,11 +17,17 @@ module.exports = {
         keepClosingSlash: true //
     },
     tmplGlobalVars: {}, //模板中全局变量
-    outputTmplObject: false, //输出模板字符串为一个对象
+    outputTmplWithEvents: false, //输出事件
     excludeTmplFolders: [], //不让该工具处理的文件夹或文件
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
     useMagixTmplAndUpdater: false,
     mxTagProcessor: function(tmpl) {
+        return tmpl;
+    },
+    excludeFileContent: function(content) {
+
+    },
+    cssNamesProcessor: function(tmpl, cssNamesMap) {
         return tmpl;
     },
     compressTmplCommand: function(tmpl) { //压缩模板命令，扩展用
@@ -33,8 +38,5 @@ module.exports = {
     },
     tmplImgSrcMatched: function(url) {
         return url;
-    } //,
-        //processAttachedFile: function() { //让外部决定如何处理同名的html或css文件，默认magix一个区块由html,css,js组成，如index.html index.css index.js 。打包时默认这3个文件打包成一个js文件，但有时候像css一些项目并不希望打包到js中，所以可以实现该方法来决定自己的方案
-
-    //}
+    }
 };

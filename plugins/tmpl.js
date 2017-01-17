@@ -23,7 +23,7 @@ var processTmpl = function(e, from, fileContent, cache, cssNamesMap) {
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplMxTag.process(fileContent);
         var tmplEvents = tmplEvent.extract(fileContent);
-        temp.events = JSON.stringify(tmplEvents);
+        temp.events = tmplEvents;
 
         //var guid = md5(e.moduleId);
         var refTmplCommands = {};
@@ -64,18 +64,28 @@ module.exports = function(e) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 var fcInfo = processTmpl(e, from, fileContent, fileContentCache, cssNamesMap);
                 if (ext == ':events') { //事件
-                    return fcInfo.events;
+                    return JSON.stringify(fcInfo.events);
                 }
-                if (ext == ':data') {
+                if (ext == ':subs') {
                     return JSON.stringify(fcInfo.info.list);
                 }
                 if (ext == ':keys') {
                     return JSON.stringify(fcInfo.info.keys);
                 }
-                if (prefix && configs.outputTmplObject) {
-                    return prefix + JSON.stringify({
+                if (prefix && configs.useMagixTmplAndUpdater) {
+                    var temp = {
                         html: fcInfo.info.tmpl,
                         subs: fcInfo.info.list
+                    };
+                    if (configs.outputTmplWithEvents) {
+                        temp.events = fcInfo.events;
+                    }
+                    return prefix + JSON.stringify(temp);
+                }
+                if (prefix && configs.outputTmplWithEvents) {
+                    return prefix + JSON.stringify({
+                        html: fcInfo.info.tmpl,
+                        events: fcInfo.events
                     });
                 }
                 return (prefix || '') + JSON.stringify(fcInfo.info.tmpl);
