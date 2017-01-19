@@ -45,6 +45,9 @@ var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
     });
     return Object.keys(keys);
 };
+var escapeQ = function(str) {
+    return str.replace(/"/g, '&quote;');
+};
 var tagsBooleanPrpos = {
     input: {
         disabled: 1,
@@ -403,7 +406,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                 var addValueAsAttr = remain;
                 if (tmplCommandAnchorRegTest.test(content)) {
                     var idx = addValueAsAttr.indexOf('>');
-                    addValueAsAttr = addValueAsAttr.slice(0, idx) + ' value="' + content + '"' + addValueAsAttr.slice(idx);
+                    addValueAsAttr = addValueAsAttr.slice(0, idx) + ' value="' + escapeQ(content) + '"' + addValueAsAttr.slice(idx);
                 }
                 addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands, cssNamesMap);
                 delete tmplInfo.s; //这3行删除不必要的属性，节省资源

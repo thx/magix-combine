@@ -20,7 +20,10 @@ module.exports = {
         tmpl = tmpl.replace(/`/g, Anchor);
         tmpl.replace(Tmpl_Mathcer, function(match, operate, content, offset) {
             var start = 2;
-            if (operate) start = 3;
+            if (operate) {
+                start = 3;
+                content = '(' + content + ')';
+            }
             var source = tmpl.slice(index, offset + start);
             index = offset + match.length - 2;
             fn.push('`' + source + '`;');
@@ -29,10 +32,11 @@ module.exports = {
         fn = fn.join(''); //移除<%%> 使用`变成标签模板分析
         var ast;
         //console.log(fn);
+        //return;
         try {
             ast = acorn.parse(fn);
         } catch (e) {
-            console.log(e, fn);
+            console.log('parse ast error', e, fn);
         }
         var globalExists = {};
         var globalTracker = {};
@@ -127,6 +131,12 @@ module.exports = {
         //console.log(fn, modifiers);
         fn = fn.replace(/`;?/g, '');
         fn = fn.replace(/\u0000/g, '`');
+        fn = fn.replace(Tmpl_Mathcer, function(match, operate, content) {
+            if (operate) {
+                return '<%' + operate + content.slice(1, -1) + '%>';
+            }
+            return match;
+        });
         var max = 100;
         var cmdStore = {};
         var analyseExpr = function(expr) {
@@ -139,7 +149,8 @@ module.exports = {
                     b = globalTracker[b];
                     max--;
                     if (!max) {
-                        console.error('can not analysis:', expr);
+                        console.error('analyseExpr # can not analysis:', expr);
+                        break;
                     }
                 }
                 result.push(b);
@@ -164,7 +175,6 @@ module.exports = {
             });
             attrs = tmplCmd.recover(attrs, cmdStore);
             var hasBound = false;
-            //console.log(attrs);
             attrs = attrs.replace(BindReg, function(m, name, q, expr) {
                 expr = expr.trim();
                 if (hasBound) {
