@@ -1,6 +1,7 @@
 /*
     对模板增加根变量的分析，模板引擎中不需要用with语句
  */
+var util = require('util');
 var acorn = require('./util-acorn');
 var walker = require('./util-acorn-walk');
 var tmplCmd = require('./tmpl-cmd');
@@ -8,16 +9,50 @@ var configs = require('./util-config');
 var Tmpl_Mathcer = /<%([@=!:])?([\s\S]+?)%>|$/g;
 var TagReg = /<(\w+)([^>]*)>/g;
 var BindReg = /([\w\-]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
-var BingReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
+var BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
 var SplitExprReg = /\[[^\[\]]+\]|[^.\[\]]+/g;
-var MxChangeReg = /\s+mx-change\s*=\s*"([^\(]+)\(([\s\S]*)?\)"/g;
-var Anchor = '\u0000';
 var NumGetReg = /^\[(\d+)\]$/;
+var TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
+var CReg = /[用声全]/g;
+var HReg = /([\u0001\u0002])\d+/g;
+var StringReg = /^['"]/;
+var CMap = {
+    '用': '\u0001',
+    '声': '\u0002',
+    '全': '\u0003'
+};
+var StripChar = function(str) {
+    return str.replace(CReg, function(m) {
+        return CMap[m];
+    });
+};
+var StripNum = function(str) {
+    return str.replace(HReg, '$1');
+};
+var GenEventReg = function(type) {
+    var reg = GenEventReg[type];
+    if (!reg) {
+        reg = new RegExp('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)?\\)"');
+        GenEventReg[type] = reg;
+    }
+    reg.lastIndex = 0;
+    return reg;
+};
+/*
+    \u0000  `反撇
+    \u0001  模板中局部变量  用
+    \u0002  变量声明的地方  声
+    \u0003  模板中全局变量  全
+    \u0004  命令中的字符串
+    第一篇用汉字
+    第二篇用不可见字符
+ */
 module.exports = {
     process: function(tmpl) {
         var fn = [];
         var index = 0;
-        tmpl = tmpl.replace(/`/g, Anchor);
+        var htmlStore = {};
+        var htmlIndex = 0;
         tmpl.replace(Tmpl_Mathcer, function(match, operate, content, offset) {
             var start = 2;
             if (operate) {
@@ -25,13 +60,14 @@ module.exports = {
                 content = '(' + content + ')';
             }
             var source = tmpl.slice(index, offset + start);
+            var key = '\u0005' + (htmlIndex++) + '\u0005';
+            htmlStore[key] = source;
             index = offset + match.length - 2;
-            fn.push('`' + source + '`;');
-            fn.push(content);
+            fn.push(';`' + key + '`;', content);
         });
         fn = fn.join(''); //移除<%%> 使用`变成标签模板分析
         var ast;
-        //console.log(fn);
+        //console.log('x', fn);
         //return;
         try {
             ast = acorn.parse(fn);
@@ -47,6 +83,13 @@ module.exports = {
             变量和变量声明在ast里面遍历的顺序不一致，需要对位置信息保存后再修改fn
          */
         var modifiers = [];
+        var stringStore = {};
+        var stringIndex = 0;
+        var recoverString = function(tmpl) {
+            return tmpl.replace(/(['"])(\u0004\d+\u0004)\1/g, function(m, q, c) {
+                return stringStore[c];
+            });
+        };
         var fnProcessor = function(node) {
             if (node.type == 'FunctionDeclaration') {
                 globalExists[node.id.name] = 1;
@@ -82,19 +125,46 @@ module.exports = {
             walk(node.body.body);
         };
         walker.simple(ast, {
+            Property: function(node) {
+                StringReg.lastIndex = 0;
+                if (node.key.type == 'Literal' && StringReg.test(node.key.raw)) {
+                    var q = node.key.raw.match(StringReg)[0];
+                    var key = '\u0004' + (stringIndex++) + '\u0004';
+                    stringStore[key] = node.raw;
+                    modifiers.push({
+                        key: '',
+                        start: node.key.start,
+                        end: node.key.end,
+                        name: q + key + q
+                    });
+                }
+            },
+            Literal: function(node) { //存储字符串，减少分析干扰
+                StringReg.lastIndex = 0;
+                if (StringReg.test(node.raw)) {
+                    var q = node.raw.match(StringReg)[0];
+                    var key = '\u0004' + (stringIndex++) + '\u0004';
+                    stringStore[key] = node.raw;
+                    modifiers.push({
+                        key: '',
+                        start: node.start,
+                        end: node.end,
+                        name: q + key + q
+                    });
+                }
+            },
             Identifier: function(node) {
                 if (globalExists[node.name] !== 1) {
                     modifiers.push({
-                        key: '\u0003.',
+                        key: '全.',
                         start: node.start,
                         end: node.end,
                         name: node.name
                     });
-                    globalTracker[node.name] = '\u0003';
                 } else {
                     if (!configs.tmplGlobalVars[node.name]) {
                         modifiers.push({
-                            key: '\u0001',
+                            key: '用' + node.end,
                             start: node.start,
                             end: node.end,
                             name: node.name
@@ -105,22 +175,16 @@ module.exports = {
             VariableDeclarator: function(node) {
                 globalExists[node.id.name] = 1;
                 modifiers.push({
-                    key: '\u0002',
+                    key: '声' + node.start,
                     start: node.id.start,
                     end: node.id.end,
                     name: node.id.name
                 });
-                if (node.init) {
-                    if (node.init.type == 'Identifier') {
-                        globalTracker[node.id.name] = node.init.name;
-                    } else if (node.init.type == 'TaggedTemplateExpression') {
-                        globalTracker[node.id.name] = node.init.tag.name;
-                    }
-                }
             },
             FunctionDeclaration: fnProcessor,
             FunctionExpression: fnProcessor
         });
+
         modifiers.sort(function(a, b) { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });
@@ -128,36 +192,75 @@ module.exports = {
             m = modifiers[i];
             fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
         }
-        //console.log(fn, modifiers);
-        fn = fn.replace(/`;?/g, '');
-        fn = fn.replace(/\u0000/g, '`');
+        ast = acorn.parse(fn);
+        walker.simple(ast, {
+            VariableDeclarator: function(node) {
+                if (node.init) {
+                    var key = StripChar(node.id.name);
+                    var pos = key.match(/\u0002(\d+)/)[1];
+                    key = key.replace(/\u0002\d+/, '\u0001');
+                    var value = StripChar(fn.slice(node.init.start, node.init.end));
+                    if (!globalTracker[key]) {
+                        globalTracker[key] = [];
+                    }
+                    globalTracker[key].push({
+                        pos: pos | 0,
+                        value: value
+                    });
+                }
+            }
+        });
+        //fn = StripChar(fn);
+        fn = fn.replace(/(?:`;|;`)/g, '');
+        fn = StripChar(fn);
+
+        fn = fn.replace(/\u0005\d+\u0005/g, function(m) {
+            return htmlStore[m];
+        });
         fn = fn.replace(Tmpl_Mathcer, function(match, operate, content) {
             if (operate) {
                 return '<%' + operate + content.slice(1, -1) + '%>';
             }
-            return match;
+            return match; //移除代码中的汉字
         });
-        var max = 100;
         var cmdStore = {};
-        var analyseExpr = function(expr) {
-            var ps = expr.match(SplitExprReg);
-            var start = ps.shift();
-            var result = [];
-            if (start != '\u0003') {
-                var b = start.trim();
-                while (globalTracker[b] != '\u0003') {
-                    b = globalTracker[b];
-                    max--;
-                    if (!max) {
-                        console.error('analyseExpr # can not analysis:', expr);
-                        break;
-                    }
+        var best = function(head) {
+            var match = head.match(/\u0001(\d+)/);
+            if (!match) return null;
+            var pos = match[1];
+            pos = pos | 0;
+            var key = head.replace(/\u0001\d+/, '\u0001');
+            var list = globalTracker[key];
+            if (!list) return null;
+            for (var i = list.length - 1, item; i >= 0; i--) {
+                item = list[i];
+                if (item.pos < pos) {
+                    return item.value;
                 }
-                result.push(b);
-                result.push.apply(result, ps);
-            } else {
-                result = ps;
             }
+            return null;
+        };
+        var find = function(expr, srcExpr) {
+            if (!srcExpr) {
+                srcExpr = expr;
+            }
+            var ps = expr.match(SplitExprReg);
+            var head = ps[0];
+            if (head == '\u0003') {
+                return ps.slice(1);
+            }
+            var info = best(head);
+            if (!info) {
+                console.log(fn);
+                throw new Error('analyseExpr # can not analysis:' + srcExpr);
+            }
+            if (info != '\u0003') {
+                ps = find(info, srcExpr).concat(ps.slice(1));
+            }
+            return ps; //.join('.');
+        };
+        var analyseExpr = function(expr) {
+            var result = find(expr);
             for (var i = 0; i < result.length; i++) {
                 result[i] = result[i].replace(NumGetReg, '$1').trim();
             }
@@ -166,39 +269,88 @@ module.exports = {
             return result;
         };
         fn = tmplCmd.store(fn, cmdStore);
+        for (var p in cmdStore) {
+            var cmd = cmdStore[p];
+            if (util.isString(cmd)) {
+                cmd = recoverString(StripNum(cmd)); //移除命令中的数字和恢复字符串
+            }
+            cmdStore[p] = cmd;
+        }
+        fn = fn.replace(TextaraReg, function(match, attr, content) {
+            attr = tmplCmd.recover(attr, cmdStore);
+            content = tmplCmd.recover(content, cmdStore);
+            if (BindReg2.test(content)) {
+                var bind = '';
+                content = content.replace(BindReg2, function(m) {
+                    bind = m;
+                    return m.replace('<%:', '<%=');
+                });
+                attr = attr + ' ' + bind;
+            }
+            content = tmplCmd.store(content, cmdStore);
+            attr = tmplCmd.store(attr, cmdStore);
+            return '<textarea' + attr + '>' + content + '</textarea>';
+        });
         fn = fn.replace(TagReg, function(match, tag, attrs) {
-            var ext = '';
-            var mxChangeAttr = '';
-            attrs = attrs.replace(MxChangeReg, function(m, name, params) {
-                ext = ',m:\'' + name + '\',a:' + (params || '{}');
-                return (mxChangeAttr = tmplCmd.recover(m, cmdStore));
-            });
+            var bindEvents = configs.bindEvents;
+            var oldEvents = {};
+            var e;
+            var replacement = function(m, name, params) {
+                var now = ',m:\'' + name + '\',a:' + (params || '{}');
+                var old = m; //tmplCmd.recover(m, cmdStore);
+                oldEvents[e] = {
+                    old: old,
+                    now: now
+                };
+                return old;
+            };
+            for (var i = 0; i < bindEvents.length; i++) {
+                e = bindEvents[i];
+                var reg = GenEventReg(e);
+                attrs = attrs.replace(reg, replacement);
+            }
             attrs = tmplCmd.recover(attrs, cmdStore);
-            var hasBound = false;
+            var findCount = 0;
             attrs = attrs.replace(BindReg, function(m, name, q, expr) {
                 expr = expr.trim();
-                if (hasBound) {
-                    console.error('unsupport multi bind', expr, attrs);
+                if (findCount > 1) {
+                    console.error('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore));
                     return '';
                 }
-                hasBound = true;
                 expr = analyseExpr(expr);
-                expr = ' mx-change="s\u0011e\u0011t({p:\'' + expr + '\'' + ext + '})"';
+                var now = '',
+                    info;
+                for (i = 0; i < bindEvents.length; i++) {
+                    e = bindEvents[i];
+                    info = oldEvents[e];
+                    now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + '})"';
+                }
                 m = m.replace('<%:', '<%=');
-                return m + expr;
-            }).replace(BingReg2, function(m, expr) {
+                return m + now;
+            }).replace(BindReg2, function(m, expr) {
                 expr = expr.trim();
-                if (hasBound) {
-                    console.error('unsupport multi bind', expr, attrs);
+                if (findCount > 1) {
+                    console.error('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore));
                     return '';
                 }
-                hasBound = true;
+                findCount++;
                 expr = analyseExpr(expr);
-                expr = ' mx-change="s\u0011e\u0011t({p:\'' + expr + '\'' + ext + '})"';
-                return expr;
+                var now = '',
+                    info;
+                for (i = 0; i < bindEvents.length; i++) {
+                    e = bindEvents[i];
+                    info = oldEvents[e];
+                    now += '  mx-' + e + '="s\u0011e\u0011t({p:\'' + expr + '\'' + (info ? info.now : '') + '})"';
+                }
+                return now;
             });
-            if (hasBound) {
-                attrs = attrs.replace(mxChangeAttr, '');
+            if (findCount > 0) {
+                for (i = 0; i < bindEvents.length; i++) {
+                    e = oldEvents[bindEvents[i]];
+                    if (e) {
+                        attrs = attrs.replace(e.old, '');
+                    }
+                }
             }
             return '<' + tag + attrs + '>';
         });

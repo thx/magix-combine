@@ -18,13 +18,13 @@ module.exports = function() {
         configs.srcHolder = '$1' + srcFolderName + sep;
         configs.srcReg = new RegExp('(' + sepRegTmpl + '?)' + srcFolderName + sepRegTmpl);
         //configs.buildHolder = '$1' + buildFolderName + sep;
-        if (configs.useMagixTmplAndUpdater) {
+        if (!configs.disableMagixUpdater) {
             configs.tmplCommand = /<%[\s\S]+?%>/g;
             configs.compressTmplCommand = function(tmpl) {
                 var stores = {},
                     idx = 1,
-                    key = '&\u001e';
-                //下面这行是把压缩模板命令，删除可能存在的空格
+                    key = '&\u0008';
+                //下面这行是压缩模板命令，删除可能存在的空格
                 tmpl = tmpl.replace(/<%([=!@:])?([\s\S]*?)%>/g, function(m, oper, content) {
                     return '<%' + (oper || '') + content.trim().replace(/\s*([,\(\)\{\}])\s*/g, '$1') + '%>';
                 });
@@ -35,14 +35,14 @@ module.exports = function() {
                     return k;
                 });
                 //把多个连续存控制命令做压缩
-                tmpl = tmpl.replace(/(?:&\u001e\d+&\u001e){2,}/g, function(m) {
-                    m = m.replace(/&\u001e\d+&\u001e/g, function(n) {
+                tmpl = tmpl.replace(/(?:&\u0008\d+&\u0008){2,}/g, function(m) {
+                    m = m.replace(/&\u0008\d+&\u0008/g, function(n) {
                         return stores[n];
                     }); //命令还原
                     return m.replace(/%>\s*<%/g, ';').replace(/([\{\}]);/g, '$1').replace(/;+/g, ';'); //删除中间的%><%及分号
                 });
                 //console.log(tmpl);
-                tmpl = tmpl.replace(/&\u001e\d+&\u001e/g, function(n) { //其它命令还原
+                tmpl = tmpl.replace(/&\u0008\d+&\u0008/g, function(n) { //其它命令还原
                     //console.log(n,stores[n]);
                     return stores[n];
                 });

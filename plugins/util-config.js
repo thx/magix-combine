@@ -12,15 +12,17 @@ module.exports = {
     htmlminifierOptions: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
         collapseWhitespace: true, //空白
-        //removeAttributeQuotes: true, //属性引号
         quoteCharacter: '"',
-        keepClosingSlash: true //
+        keepClosingSlash: true, //
+        caseSensitive: true
     },
+    bindEvents: ['change'],
+    bindName: 's\u0011e\u0011t',
     tmplGlobalVars: {}, //模板中全局变量
     outputTmplWithEvents: false, //输出事件
     excludeTmplFolders: [], //不让该工具处理的文件夹或文件
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
-    useMagixTmplAndUpdater: false,
+    disableMagixUpdater: false,
     mxTagProcessor: function(tmpl) {
         return tmpl;
     },

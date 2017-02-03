@@ -1,10 +1,11 @@
 var tmplCmd = require('./tmpl-cmd');
+var util = require('util');
 //模板，增加guid标识，仅针对magix-updater使用：https://github.com/thx/magix-updater
 var tagReg = /<([\w]+)([^>]*?)(\/)?>/g;
 //var keysTagReg = /<([\w]+)([^>]*?)mx-keys\s*=\s*"[^"]+"([^>]*?)>/g;
 var holder = '\u001f';
 var slashReg = /\//g;
-var tmplCommandAnchorRegTest = /\u001e\d+\u001e/;
+var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 var subReg = (function() {
     var temp = '<([\\w]+)([^>]*?)>(#)</\\1>';
     var start = 12; //嵌套12层在同一个view中也足够了
@@ -89,7 +90,7 @@ module.exports = {
                 var tContent = content.replace(selfCloseTag, '').replace(subRegWithGuid, '');
                 content = removeGuid(content);
                 if (tmplCommandAnchorRegTest.test(tContent + attrs) && vdMatchId(attrs + tContent, tmplCommands)) {
-                    //console.log(attrs);
+                    ///console.log(attrs,tContent);
                     attrs = attrs.replace(slashReg, '\u0004'); //把/换掉，防止在子模板分析中分析自闭合标签时不准确
                     //console.log('origin content',content,'---',tContent);
                     var removeGuids = tContent.match(guidReg);
@@ -117,7 +118,11 @@ module.exports = {
         //console.log(tmpl);
 
         for (var p in tmplCommands) {
-            tmplCommands[p] = tmplCommands[p].replace(removeVdReg, '').replace(removeIdReg, '');
+            var cmd = tmplCommands[p];
+            if (util.isString(cmd)) {
+                tmplCommands[p] = cmd.replace(removeVdReg, '')
+                    .replace(removeIdReg, '');
+            }
         }
         //console.log(tmpl,tmplCommands);
         return tmpl;

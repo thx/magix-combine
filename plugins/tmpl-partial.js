@@ -19,34 +19,53 @@ var extractAttrsReg = /<\w+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
 //属性正则
 var attrNameValueReg = /([a-z\-\d]+)(?:=(["'])[\s\S]*?\2)?(?=$|\s)/g;
 //模板引擎命令被替换的占位符
-var tmplCommandAnchorReg = /\u001e\d+\u001e/g;
-var tmplCommandAnchorRegTest = /\u001e\d+\u001e/;
+var tmplCommandAnchorReg = /\u0007\d+\u0007/g;
+var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 var globalTmplRootReg = /\u0003/g;
+var escape$ = function(str) {
+    return str.replace(/\$/g, '$$$$');
+};
+var escapeQ = function(str) {
+    return str.replace(/"/g, '&quot;');
+};
 //恢复被替换的模板引擎命令
 var commandAnchorRecover = function(tmpl, refTmplCommands) {
-    return tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$');
+    return tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 };
-var dataKeysReg = /\u0003\.(\w+)\.?/g;
+var dataKeysReg = /\u0003\.([\w$]+)\.?/g;
 var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
-    var keys = {};
+    var attrKeys = {};
+    var tmplKeys = {};
     tmpl = tmpl.replace(content, ''); //标签加内容，移除内容，只剩标签
+    //console.log('--------',tmpl,'======',content);
     while (subReg.test(content) || selfCloseTag.test(content)) { //清除子模板
         content = content.replace(selfCloseTag, '');
         content = content.replace(subReg, '');
         //break;
     }
-    (tmpl + content).replace(tmplCommandAnchorReg, function(m) { //查找模板命令
+    //console.log('=====', tmpl, '-----', content);
+    tmpl.replace(tmplCommandAnchorReg, function(m) {
         var temp = refTmplCommands[m];
+        //console.log(temp);
         temp.replace(dataKeysReg, function(m, name) { //数据key
             if (!pKeys || !pKeys[name]) { //不在父作用域内
-                keys[name] = 1;
+                attrKeys[name] = 1;
             }
         });
     });
-    return Object.keys(keys);
-};
-var escapeQ = function(str) {
-    return str.replace(/"/g, '&quote;');
+    content.replace(tmplCommandAnchorReg, function(m) { //查找模板命令
+        var temp = refTmplCommands[m];
+        temp.replace(dataKeysReg, function(m, name) { //数据key
+            if (!pKeys || !pKeys[name]) { //不在父作用域内
+                tmplKeys[name] = 1;
+            }
+        });
+    });
+    return {
+        keys: Object.keys(attrKeys).concat(Object.keys(tmplKeys)),
+        attrKeys: attrKeys,
+        tmplKeys: tmplKeys
+    };
 };
 var tagsBooleanPrpos = {
     input: {
@@ -229,9 +248,19 @@ var globalProps = {
     //contenteditable: 'contentEditable',//这个比较特殊
     tabindex: 'tabIndex'
 };
-var trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u001e]+?\1)?(?=\s+|\u001e\d+\u001e|$)/g;
-var trimAttrsEnd = /(\s+|\u001e\d+\u001e)[a-z\-\d]+(?:=(["'])[^\u001e]+?\2)?$/;
+var mayBeAttrs = {};
+var trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007|$)/g;
+var trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
 var inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
+var stringReg = /(['"])([a-z]+)\1/g;
+for (var p in globalProps) {
+    mayBeAttrs[p] = 1;
+}
+for (p in tagsProps) {
+    for (var a in tagsProps[p]) {
+        mayBeAttrs[a] = 1;
+    }
+}
 //添加属性信息
 var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
     var attrsKeys = {},
@@ -253,6 +282,11 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
                 attrsKeys[vname] = 1;
             });
         });
+        var hasProps = {};
+        originAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, function(match, name) {
+            //console.log(name);
+            hasProps[name] = 1;
+        });
         var attrs = [];
         var attrsMap = {};
         var type = '';
@@ -263,18 +297,26 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
                 type = ms[2];
             }
         }
-        var extractProps = attr.replace(tmplCommandAnchorReg, '');
+
         var props = [];
+        var extractProps = attr.replace(tmplCommandAnchorReg, function(match) {
+            var temp = commandAnchorRecover(match, refTmplCommands);
+            temp.replace(stringReg, function(match, q, content) {
+                if (!hasProps[content] && mayBeAttrs[content]) {
+                    props.push(content);
+                }
+            });
+            return '';
+        });
+        //var extractProps = attr.replace(tmplCommandAnchorReg, '');
         extractProps.replace(attrNameValueReg, function(match, name) {
             props.push(name);
         });
         //console.log(extractProps);
-        for (var i = 0, prop, curIndex = 0; i < props.length; i++) {
+        for (var i = 0, prop; i < props.length; i++) {
             prop = props[i];
-            var fixedProp = prop;
             if (attrsMap[prop] == 1) {
                 console.warn('duplicate attr:', prop, ' near:', commandAnchorRecover(attr, refTmplCommands));
-                curIndex = attr.indexOf(prop, curIndex) + prop.length;
                 continue;
             }
             var t = {};
@@ -283,6 +325,10 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
 
             if (prop == 'mx-view') {
                 t.v = 1;
+            }
+
+            if ((tag == 'input' || tag == 'textarea') && prop == 'value') {
+                t.q = 1;
             }
 
             var propInfo = tagsBooleanPrpos[tag + '&' + type] || tagsBooleanPrpos[tag];
@@ -295,8 +341,9 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
                 var fixedName = propInfo[prop];
                 if (fixedName) {
                     t.p = 1;
-                    t.n = fixedName;
-                    fixedProp = fixedName;
+                    if (fixedName != prop) {
+                        t.f = fixedName;
+                    }
                 } else {
                     searchGlobal = true;
                 }
@@ -307,19 +354,16 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
                 propInfo = globalProps[prop];
                 if (propInfo) {
                     t.p = 1;
-                    t.n = propInfo;
-                    fixedProp = propInfo;
+                    if (propInfo != prop) {
+                        t.f = propInfo;
+                    }
                 }
             }
             attrs.push(t);
-            curIndex = attr.indexOf(prop, curIndex);
-            //console.log(curIndex, prop, attr);
-            attr = attr.slice(0, curIndex) + fixedProp + attr.slice(curIndex + prop.length);
-            curIndex += prop.length;
         }
         attr = commandAnchorRecover(attr, refTmplCommands);
         if (attr) {
-            info.attr = attr;
+            info.attr = attr.replace(slashAnchorReg, '/');
             info.attrs = attrs;
         }
     });
@@ -369,8 +413,8 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
     //子模板
     //console.log('input ',tmpl);
     tmpl = tmpl.replace(subReg, function(match, tag, guid, content) { //清除子模板后
-        match = match.replace(slashAnchorReg, '/');
-        //console.log(match,tag,guid,content);
+        //match = match.replace(slashAnchorReg, '/');
+        //console.log('match',match,tag,guid,'=======',content);
         var ownKeys = {};
         for (var p in parentOwnKeys) { //继承父结构的keys
             ownKeys[p] = parentOwnKeys[p];
@@ -391,15 +435,15 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
         //var datakey = refGuidToKeys[guid];
         //var keys = datakey.split(',');
         var remain = match;
-        var keys = extractUpdateKeys(match, refTmplCommands, content, parentOwnKeys); //从当前匹配到的标签取对应的数据key
-        //console.log('keys',keys,match,content);
-        if (keys.length) { //从当前标签分析出了数据key后，再深入分析
-            for (var i = 0, key; i < keys.length; i++) {
-                key = keys[i].trim();
+        var kInfo = extractUpdateKeys(match, refTmplCommands, content, parentOwnKeys); //从当前匹配到的标签取对应的数据key
+        //console.log('keys', kInfo, match, content);
+        if (kInfo.keys.length) { //从当前标签分析出了数据key后，再深入分析
+            for (var i = 0, key; i < kInfo.keys.length; i++) {
+                key = kInfo.keys[i].trim();
                 tmplInfo.keys.push(key);
-                ownKeys[key] = 1;
                 globalKeys[key] = 1;
             }
+            ownKeys = kInfo.tmplKeys;
             //list.push(tmplInfo); //先记录
             if (tag == 'textarea') { //textarea特殊处理，因为textarea可以有节点内容
                 remain = match;
@@ -438,7 +482,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                     if (tmplCommandAnchorRegTest.test(content)) {
                         var info = buildTmpl(content, refTmplCommands, cssNamesMap, list, ownKeys, globalKeys);
                         //console.log(match, '----', content, 'xxx', info.tmpl);
-                        remain = match.replace('>' + content, '>' + info.tmpl);
+                        remain = match.replace('>' + content, '>' + escape$(info.tmpl));
                     } else {
                         remain = match;
                     }
@@ -477,10 +521,10 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
             }
         }
         //自闭合标签只需要分析属性即可
-        var keys = extractUpdateKeys(match, refTmplCommands, '', parentOwnKeys);
-        if (keys.length) { //同样，当包含数据更新的key时才进行深入分析
-            for (var i = 0, key; i < keys.length; i++) {
-                key = keys[i].trim();
+        var kInfo = extractUpdateKeys(match, refTmplCommands, '', parentOwnKeys);
+        if (kInfo.keys.length) { //同样，当包含数据更新的key时才进行深入分析
+            for (var i = 0, key; i < kInfo.keys.length; i++) {
+                key = kInfo.keys[i].trim();
                 tmplInfo.keys.push(key);
             }
             list.push(tmplInfo);
@@ -502,6 +546,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
     for (var i = removeGuids.length; i >= 0; i--) { //删除没用的guid
         tmpl = tmpl.replace(' ' + removeGuids[i], '');
     }
+    tmpl = tmpl.replace(slashAnchorReg, '/');
     return {
         list: list,
         tmpl: tmpl,
