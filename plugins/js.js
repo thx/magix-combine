@@ -3,6 +3,7 @@ var fs = require('fs');
 var fd = require('./util-fd');
 var jsContent = require('./js-content');
 var deps = require('./util-deps');
+var configs = require('./util-config');
 //文件处理
 var extnames = {
     '.html': 1,
@@ -16,7 +17,9 @@ var sep = path.sep;
 var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
     return new Promise(function(resolve) {
         from = path.resolve(from);
-        console.log('process:', from);
+        if (configs.log) {
+            console.log('process:', from);
+        }
         to = path.resolve(to);
         if (jsOrMxTailReg.test(from)) {
             jsContent.process(from, to).then(function(content) {

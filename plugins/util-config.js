@@ -16,6 +16,7 @@ module.exports = {
         keepClosingSlash: true, //
         caseSensitive: true
     },
+    log: true,
     bindEvents: ['change'],
     bindName: 's\u0011e\u0011t',
     tmplGlobalVars: {}, //模板中全局变量

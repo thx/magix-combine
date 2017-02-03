@@ -21,7 +21,7 @@ var tagReg = /<[\w]+[^>]*?>/g;
 var mxEventReg = /\bmx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+\s*=\s*['"]/g;
 var holder = '\u001f';
 var magixHolder = '\u001e';
-var processTmpl = function(e, from, fileContent, cache, cssNamesMap, raw) {
+var processTmpl = function(fileContent, cache, cssNamesMap, raw) {
     var fCache = cache[fileContent];
     if (!fCache) {
         var temp = {};
@@ -39,28 +39,28 @@ var processTmpl = function(e, from, fileContent, cache, cssNamesMap, raw) {
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
-        if (!configs.disableMagixUpdater) {
-            fileContent = fileContent.replace(tagReg, function(match) {
-                if (mxViewAttrReg.test(match) && viewAttrReg.test(match)) {
-                    //console.log(match);
-                    var attrs = [];
-                    match = match.replace(viewAttrReg, function(m, name, q, content) {
-                        attrs.push(name + '=' + content);
-                        return '';
-                    });
-                    match = match.replace(mxViewAttrReg, function(m, q, content) {
-                        attrs = attrs.join('&');
-                        if (content.indexOf('?') > -1) {
-                            content = content + '&' + attrs;
-                        } else {
-                            content = content + '?' + attrs;
-                        }
-                        return 'mx-view=' + q + content + q;
-                    });
-                }
-                return match.replace(mxEventReg, '$&' + holder + magixHolder);
-            });
-        }
+        //if (!configs.disableMagixUpdater) {
+        fileContent = fileContent.replace(tagReg, function(match) {
+            if (mxViewAttrReg.test(match) && viewAttrReg.test(match)) {
+                //console.log(match);
+                var attrs = [];
+                match = match.replace(viewAttrReg, function(m, name, q, content) {
+                    attrs.push(name + '=' + content);
+                    return '';
+                });
+                match = match.replace(mxViewAttrReg, function(m, q, content) {
+                    attrs = attrs.join('&');
+                    if (content.indexOf('?') > -1) {
+                        content = content + '&' + attrs;
+                    } else {
+                        content = content + '?' + attrs;
+                    }
+                    return 'mx-view=' + q + content + q;
+                });
+            }
+            return match.replace(mxEventReg, '$&' + holder + magixHolder);
+        });
+        //}
         fileContent = tmplCmd.tidy(fileContent);
         if (!configs.disableMagixUpdater && !raw) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands);
@@ -87,7 +87,7 @@ module.exports = function(e) {
             var singleFile = (name == 'template' && e.contentInfo);
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                var fcInfo = processTmpl(e, from, fileContent, fileContentCache, cssNamesMap, raw);
+                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw);
                 if (ext == ':events') { //事件
                     return JSON.stringify(fcInfo.events);
                 }
