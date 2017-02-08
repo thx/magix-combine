@@ -1,3 +1,9 @@
+##1.3.3
+1. 增加`Promise`的`reject`
+2. 修复绑定`bug`
+3. 彩色`log`
+4. 路径转换可以禁用`useAtPathConverter`
+
 ## 1.3.1
 1. 事件增加前缀
 

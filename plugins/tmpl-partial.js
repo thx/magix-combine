@@ -1,5 +1,6 @@
 var tmplCmd = require('./tmpl-cmd');
 var tmplClass = require('./tmpl-class');
+var configs = require('./util-config');
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
 var subReg = (function() {
@@ -36,6 +37,8 @@ var dataKeysReg = /\u0003\.([\w$]+)\.?/g;
 var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
     var attrKeys = {};
     var tmplKeys = {};
+    pKeys = Object.assign({}, pKeys);
+    pKeys = Object.assign(pKeys, configs.tmplUnchangableVars);
     tmpl = tmpl.replace(content, ''); //标签加内容，移除内容，只剩标签
     //console.log('--------',tmpl,'======',content);
     while (subReg.test(content) || selfCloseTag.test(content)) { //清除子模板
@@ -262,7 +265,7 @@ for (p in tagsProps) {
     }
 }
 //添加属性信息
-var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
+var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
     var attrsKeys = {},
         tmplKeys = {};
     tmpl = tmplClass.process(tmpl, cssNamesMap);
@@ -316,7 +319,7 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
         for (var i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
-                console.warn('duplicate attr:', prop, ' near:', commandAnchorRecover(attr, refTmplCommands));
+                console.warn('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.from.gray);
                 continue;
             }
             var t = {};
@@ -385,7 +388,7 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
             if (attrsKeys[info.keys[i]]) m = m ? m | 2 : 2;
             mask += m + '';
             if (m === 0) {
-                console.error('check key word:', info.keys[i]);
+                console.log('check key word:', info.keys[i].red, ' relate file:', e.from.gray);
             }
         }
         //最后产出的结果可能如：
@@ -402,7 +405,7 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap) {
 
 var g = 0;
 //递归构建子模板
-var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys, globalKeys) {
+var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnKeys, globalKeys) {
     if (!list) {
         list = [];
         g = 0;
@@ -452,7 +455,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                     var idx = addValueAsAttr.indexOf('>');
                     addValueAsAttr = addValueAsAttr.slice(0, idx) + ' value="' + escapeQ(content) + '"' + addValueAsAttr.slice(idx);
                 }
-                addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands, cssNamesMap);
+                addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands, cssNamesMap, e);
                 delete tmplInfo.s; //这3行删除不必要的属性，节省资源
                 delete tmplInfo.tmpl;
                 delete tmplInfo.mask;
@@ -480,7 +483,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                     //remain = match; //去除子模板后没有模板命令，则保留所有内容
                     wrapTag = match.replace('>' + content, '>'); //属性分析时要去除干扰的内容
                     if (tmplCommandAnchorRegTest.test(content)) {
-                        var info = buildTmpl(content, refTmplCommands, cssNamesMap, list, ownKeys, globalKeys);
+                        var info = buildTmpl(content, refTmplCommands, cssNamesMap, e, list, ownKeys, globalKeys);
                         //console.log(match, '----', content, 'xxx', info.tmpl);
                         remain = match.replace('>' + content, '>' + escape$(info.tmpl));
                     } else {
@@ -491,7 +494,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
                 }
                 //console.log('wrapTag', wrapTag);
                 //对当前标签分析属性的局部更新
-                addAttrs(tag, wrapTag, tmplInfo, refTmplCommands, cssNamesMap);
+                addAttrs(tag, wrapTag, tmplInfo, refTmplCommands, cssNamesMap, e);
                 if (!tmplInfo.attr) {
                     delete tmplInfo.attr;
                 }
@@ -529,14 +532,14 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, list, parentOwnKeys
             }
             list.push(tmplInfo);
             //属性分析
-            addAttrs(tag, match, tmplInfo, refTmplCommands, cssNamesMap);
+            addAttrs(tag, match, tmplInfo, refTmplCommands, cssNamesMap, e);
         } else { //记录移除的guid
             removeGuids.push(guid);
         }
     });
     while (subs.length) { //开始递归调用
         var sub = subs.shift();
-        var i = buildTmpl(sub.tmpl, refTmplCommands, cssNamesMap, list, sub.ownKeys, globalKeys);
+        var i = buildTmpl(sub.tmpl, refTmplCommands, cssNamesMap, e, list, sub.ownKeys, globalKeys);
         //if (sub.tmplInfo) {
         sub.tmplInfo.tmpl = i.tmpl;
         //}

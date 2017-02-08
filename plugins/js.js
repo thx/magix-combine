@@ -15,7 +15,7 @@ var jsOrMxTailReg = /\.(?:js|mx)$/i;
 var mxTailReg = /\.mx$/;
 var sep = path.sep;
 var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
-    return new Promise(function(resolve) {
+    return new Promise(function(resolve, reject) {
         from = path.resolve(from);
         if (configs.log) {
             console.log('process:', from);
@@ -26,7 +26,7 @@ var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
                 to = to.replace(mxTailReg, '.js');
                 fd.write(to, content);
                 resolve();
-            });
+            }, reject);
         } else {
             var extname = path.extname(from);
             if (inwatch && deps.inDependencies(from)) { //只更新依赖项

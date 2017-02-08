@@ -21,7 +21,7 @@ var tagReg = /<[\w]+[^>]*?>/g;
 var mxEventReg = /\bmx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+\s*=\s*['"]/g;
 var holder = '\u001f';
 var magixHolder = '\u001e';
-var processTmpl = function(fileContent, cache, cssNamesMap, raw) {
+var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject) {
     var fCache = cache[fileContent];
     if (!fCache) {
         var temp = {};
@@ -35,45 +35,58 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw) {
         var refTmplCommands = {};
         fileContent = tmplImg.process(fileContent);
         if (!configs.disableMagixUpdater && !raw) {
-            fileContent = tmplMxTmpl.process(fileContent);
+            fileContent = tmplMxTmpl.process(fileContent, reject, e);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
-        //if (!configs.disableMagixUpdater) {
+        if (configs.addEventPrefix) {
+            fileContent = fileContent.replace(tagReg, function(match) {
+                return match.replace(mxEventReg, '$&' + holder + magixHolder);
+            });
+        }
         fileContent = fileContent.replace(tagReg, function(match) {
-            if (mxViewAttrReg.test(match) && viewAttrReg.test(match)) {
-                //console.log(match);
-                var attrs = [];
-                match = match.replace(viewAttrReg, function(m, name, q, content) {
-                    attrs.push(name + '=' + content);
-                    return '';
-                });
-                match = match.replace(mxViewAttrReg, function(m, q, content) {
-                    attrs = attrs.join('&');
-                    if (content.indexOf('?') > -1) {
-                        content = content + '&' + attrs;
-                    } else {
-                        content = content + '?' + attrs;
-                    }
-                    return 'mx-view=' + q + content + q;
-                });
+            if (mxViewAttrReg.test(match)) {
+                if (configs.useAtPathConverter) {
+                    match = atpath.resolvePath(match, e.moduleId);
+                }
+                if (viewAttrReg.test(match)) {
+                    //console.log(match);
+                    var attrs = [];
+                    match = match.replace(viewAttrReg, function(m, name, q, content) {
+                        attrs.push(name + '=' + content);
+                        return '';
+                    });
+                    match = match.replace(mxViewAttrReg, function(m, q, content) {
+                        attrs = attrs.join('&');
+                        if (content.indexOf('?') > -1) {
+                            content = content + '&' + attrs;
+                        } else {
+                            content = content + '?' + attrs;
+                        }
+                        return 'mx-view=' + q + content + q;
+                    });
+                }
             }
-            return match.replace(mxEventReg, '$&' + holder + magixHolder);
+            return match;
         });
-        //}
-        fileContent = tmplCmd.tidy(fileContent);
+        try {
+            fileContent = tmplCmd.tidy(fileContent);
+        } catch (ex) {
+            console.error('minify error : ' + ex);
+            console.log(('html file: ' + e.from).red);
+            reject(ex);
+        }
         if (!configs.disableMagixUpdater && !raw) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands);
         }
-        //if (raw) cssNamesMap = {};
-        var info = tmplPartial.process(fileContent, refTmplCommands, cssNamesMap);
+        var info = tmplPartial.process(fileContent, refTmplCommands, cssNamesMap, e);
         temp.info = info;
         fCache = temp;
     }
     return fCache;
 };
 module.exports = function(e) {
-    return new Promise(function(resolve) {
+    return new Promise(function(resolve, reject) {
         var cssNamesMap = e.cssNamesMap,
             from = e.from,
             moduleId = e.moduleId,
@@ -87,7 +100,7 @@ module.exports = function(e) {
             var singleFile = (name == 'template' && e.contentInfo);
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw);
+                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject);
                 if (ext == ':events') { //事件
                     return JSON.stringify(fcInfo.events);
                 }

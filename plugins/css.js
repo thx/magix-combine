@@ -38,7 +38,7 @@ module.exports = function(e) {
         return result;
     };
     var cssContentCache = {};
-    return new Promise(function(resolve) {
+    return new Promise(function(resolve, reject) {
         if (cssTmplReg.test(e.content)) { //有需要处理的@规则
             var count = 0;
             var resume = function() {
@@ -127,13 +127,14 @@ module.exports = function(e) {
                                 if (e.contentInfo) {
                                     file += '@' + e.contentInfo.fileName;
                                 }
+                                reject(error);
                                 console.log(file, error);
                                 go();
                             });
                         } else {
                             go();
                         }
-                    });
+                    }, reject);
                 } else {
                     go();
                 }

@@ -1,6 +1,6 @@
 var fs = require('fs');
 var path = require('path');
-
+require('colors');
 var configs = require('./plugins/util-config');
 var fd = require('./plugins/util-fd');
 var initFolder = require('./plugins/util-init');
@@ -28,7 +28,7 @@ module.exports = {
         });
     },
     combine: function() {
-        return new Promise(function(resolve) {
+        return new Promise(function(resolve, reject) {
             initFolder();
             var ps = [];
             fd.walk(configs.tmplFolder, function(filepath) {
@@ -36,7 +36,7 @@ module.exports = {
                 var to = from.replace(configs.tmplReg, configs.srcHolder);
                 ps.push(js.process(from, to));
             });
-            Promise.all(ps).then(resolve);
+            Promise.all(ps).then(resolve, reject);
         });
     },
     processFile: function(from) {

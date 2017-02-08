@@ -12,7 +12,9 @@ module.exports = {
         };
         var attrsProcessor = function(attrs) {
             attrs = attrs.replace(srcReg, function(match, q, value) {
-                console.log('tmpl-img match:', value);
+                if (configs.log) {
+                    console.log('tmpl-img match:', value);
+                }
                 value = configs.tmplImgSrcMatched(value);
                 return 'src=' + q + value + q;
             });

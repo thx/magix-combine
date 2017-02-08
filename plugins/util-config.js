@@ -17,8 +17,11 @@ module.exports = {
         caseSensitive: true
     },
     log: true,
+    addEventPrefix: true, //mx事件增加前缀
     bindEvents: ['change'],
     bindName: 's\u0011e\u0011t',
+    useAtPathConverter: true,
+    tmplUnchangableVars: {}, //模板中不会变的变量，减少子模板的分析
     tmplGlobalVars: {}, //模板中全局变量
     outputTmplWithEvents: false, //输出事件
     excludeTmplFolders: [], //不让该工具处理的文件夹或文件

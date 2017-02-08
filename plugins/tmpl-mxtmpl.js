@@ -32,7 +32,7 @@ var StripNum = function(str) {
 var GenEventReg = function(type) {
     var reg = GenEventReg[type];
     if (!reg) {
-        reg = new RegExp('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)?\\)"');
+        reg = new RegExp('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)\\)"');
         GenEventReg[type] = reg;
     }
     reg.lastIndex = 0;
@@ -48,7 +48,7 @@ var GenEventReg = function(type) {
     第二篇用不可见字符
  */
 module.exports = {
-    process: function(tmpl) {
+    process: function(tmpl, eInfo) {
         var fn = [];
         var index = 0;
         var htmlStore = {};
@@ -69,10 +69,12 @@ module.exports = {
         var ast;
         //console.log('x', fn);
         //return;
+
         try {
             ast = acorn.parse(fn);
-        } catch (e) {
-            console.log('parse ast error', e, fn);
+        } catch (ex) {
+            console.log('parse ast error', ex);
+            console.log('file:', eInfo.from.gray);
         }
         var globalExists = {};
         var globalTracker = {};
@@ -295,6 +297,7 @@ module.exports = {
             var bindEvents = configs.bindEvents;
             var oldEvents = {};
             var e;
+            attrs = tmplCmd.recover(attrs, cmdStore);
             var replacement = function(m, name, params) {
                 var now = ',m:\'' + name + '\',a:' + (params || '{}');
                 var old = m; //tmplCmd.recover(m, cmdStore);
@@ -309,14 +312,14 @@ module.exports = {
                 var reg = GenEventReg(e);
                 attrs = attrs.replace(reg, replacement);
             }
-            attrs = tmplCmd.recover(attrs, cmdStore);
             var findCount = 0;
             attrs = attrs.replace(BindReg, function(m, name, q, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.error('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore));
+                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', eInfo.from.gray);
                     return '';
                 }
+                findCount++;
                 expr = analyseExpr(expr);
                 var now = '',
                     info;
@@ -330,7 +333,7 @@ module.exports = {
             }).replace(BindReg2, function(m, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.error('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore));
+                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', eInfo.from.gray);
                     return '';
                 }
                 findCount++;
