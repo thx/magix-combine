@@ -1,6 +1,5 @@
 var tmplCmd = require('./tmpl-cmd');
 var tmplClass = require('./tmpl-class');
-var configs = require('./util-config');
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
 var subReg = (function() {
@@ -22,7 +21,7 @@ var attrNameValueReg = /([a-z\-\d]+)(?:=(["'])[\s\S]*?\2)?(?=$|\s)/g;
 //模板引擎命令被替换的占位符
 var tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
-var globalTmplRootReg = /\u0003/g;
+var globalTmplRootReg = /[\u0003\u0006]/g;
 var escape$ = function(str) {
     return str.replace(/\$/g, '$$$$');
 };
@@ -37,8 +36,6 @@ var dataKeysReg = /\u0003\.([\w$]+)\.?/g;
 var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
     var attrKeys = {};
     var tmplKeys = {};
-    pKeys = Object.assign({}, pKeys);
-    pKeys = Object.assign(pKeys, configs.tmplUnchangableVars);
     tmpl = tmpl.replace(content, ''); //标签加内容，移除内容，只剩标签
     //console.log('--------',tmpl,'======',content);
     while (subReg.test(content) || selfCloseTag.test(content)) { //清除子模板

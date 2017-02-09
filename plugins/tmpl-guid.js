@@ -1,5 +1,4 @@
 var tmplCmd = require('./tmpl-cmd');
-var util = require('util');
 //模板，增加guid标识，仅针对magix-updater使用：https://github.com/thx/magix-updater
 var tagReg = /<([\w]+)([^>]*?)(\/)?>/g;
 //var keysTagReg = /<([\w]+)([^>]*?)mx-keys\s*=\s*"[^"]+"([^>]*?)>/g;
@@ -30,8 +29,6 @@ var guidReg = /\s+mx-guid="g[^"]+"/g;
 var vdReg = /\u0002(\w+)\b/g;
 var idReg = /\u0001(\w+)\b/g;
 var globalRegTest = /\u0003/;
-var removeVdReg = /\u0002/g;
-var removeIdReg = /\u0001/g;
 var vdMatchId = function(tmpl, tmplCommands) {
     var c = tmplCmd.recover(tmpl, tmplCommands);
     if (!globalRegTest.test(c)) { //不存在全局的变量，不用局部刷新
@@ -117,13 +114,6 @@ module.exports = {
         tmpl = removeGuid(tmpl);
         //console.log(tmpl);
 
-        for (var p in tmplCommands) {
-            var cmd = tmplCommands[p];
-            if (util.isString(cmd)) {
-                tmplCommands[p] = cmd.replace(removeVdReg, '')
-                    .replace(removeIdReg, '');
-            }
-        }
         //console.log(tmpl,tmplCommands);
         return tmpl;
     }

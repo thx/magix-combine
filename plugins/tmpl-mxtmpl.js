@@ -13,13 +13,14 @@ var BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
 var SplitExprReg = /\[[^\[\]]+\]|[^.\[\]]+/g;
 var NumGetReg = /^\[(\d+)\]$/;
 var TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
-var CReg = /[用声全]/g;
+var CReg = /[用声全未]/g;
 var HReg = /([\u0001\u0002])\d+/g;
 var StringReg = /^['"]/;
 var CMap = {
     '用': '\u0001',
     '声': '\u0002',
-    '全': '\u0003'
+    '全': '\u0003',
+    '未': '\u0006'
 };
 var StripChar = function(str) {
     return str.replace(CReg, function(m) {
@@ -44,8 +45,10 @@ var GenEventReg = function(type) {
     \u0002  变量声明的地方  声
     \u0003  模板中全局变量  全
     \u0004  命令中的字符串
-    第一篇用汉字
-    第二篇用不可见字符
+    \u0005  html中的字符串
+    \u0006  unchangableVars
+    第一遍用汉字
+    第二遍用不可见字符
  */
 module.exports = {
     process: function(tmpl, eInfo) {
@@ -73,7 +76,7 @@ module.exports = {
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
-            console.log('parse ast error', ex);
+            console.log('tmpl-mxtmpl parse ast error', ex);
             console.log('file:', eInfo.from.gray);
         }
         var globalExists = {};
@@ -126,6 +129,7 @@ module.exports = {
             };
             walk(node.body.body);
         };
+        var unchangableVars = configs.tmplUnchangableVars;
         walker.simple(ast, {
             Property: function(node) {
                 StringReg.lastIndex = 0;
@@ -158,7 +162,7 @@ module.exports = {
             Identifier: function(node) {
                 if (globalExists[node.name] !== 1) {
                     modifiers.push({
-                        key: '全.',
+                        key: (unchangableVars[node.name] ? '未' : '全') + '.',
                         start: node.start,
                         end: node.end,
                         name: node.name

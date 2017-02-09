@@ -12,7 +12,7 @@ var cssUrl = require('./css-url');
 //https://github.com/Automattic/xgettext-js
 //处理js文件中如 'global@x.less' '@x.less:selector' 'ref@../x.scss' 等各种情况
 //"abc(@style.css:xx)"
-var cssTmplReg = /(['"]?)\(?(global|ref|names)?@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
+var cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
 var sep = path.sep;
 module.exports = function(e) {
     var cssNamesMap = {};

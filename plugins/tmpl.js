@@ -1,5 +1,6 @@
 var path = require('path');
 var fs = require('fs');
+var util = require('util');
 var fd = require('./util-fd');
 var atpath = require('./util-atpath');
 //var md5 = require('./util-md5');
@@ -14,18 +15,21 @@ var tmplImg = require('./tmpl-img');
 var mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
 var viewAttrReg = /\bview-(\w+)=(["'])([\s\S]*?)\2/g;
 //模板处理，即处理view.html文件
-var fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?@([^'"]+)\.html(:data|:keys|:events)?\2/g;
+var fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 var sep = path.sep;
 var tagReg = /<[\w]+[^>]*?>/g;
 var mxEventReg = /\bmx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+\s*=\s*['"]/g;
 var holder = '\u001f';
 var magixHolder = '\u001e';
-var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject) {
-    var fCache = cache[fileContent];
+var removeVdReg = /\u0002/g;
+var removeIdReg = /\u0001/g;
+var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, prefix) {
+    var key = prefix + holder + raw + holder + fileContent;
+    var fCache = cache[key];
     if (!fCache) {
         var temp = {};
-        cache[fileContent] = temp;
+        cache[key] = temp;
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplMxTag.process(fileContent);
         var tmplEvents = tmplEvent.extract(fileContent);
@@ -76,8 +80,16 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject) {
             console.log(('html file: ' + e.from).red);
             reject(ex);
         }
-        if (!configs.disableMagixUpdater && !raw) {
+        if (prefix && !configs.disableMagixUpdater && !raw) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands);
+        }
+
+        for (var p in refTmplCommands) {
+            var cmd = refTmplCommands[p];
+            if (util.isString(cmd)) {
+                refTmplCommands[p] = cmd.replace(removeVdReg, '')
+                    .replace(removeIdReg, '');
+            }
         }
         var info = tmplPartial.process(fileContent, refTmplCommands, cssNamesMap, e);
         temp.info = info;
@@ -100,7 +112,7 @@ module.exports = function(e) {
             var singleFile = (name == 'template' && e.contentInfo);
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject);
+                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject, prefix);
                 if (ext == ':events') { //事件
                     return JSON.stringify(fcInfo.events);
                 }
