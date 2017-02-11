@@ -2,6 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var util = require('util');
 var fd = require('./util-fd');
+var deps = require('./util-deps');
 var atpath = require('./util-atpath');
 //var md5 = require('./util-md5');
 var configs = require('./util-config');
@@ -110,6 +111,9 @@ module.exports = function(e) {
             var file = path.resolve(path.dirname(from) + sep + name + '.html');
             var fileContent = name;
             var singleFile = (name == 'template' && e.contentInfo);
+            if (!singleFile) {
+                deps.addFileDepend(file, e.from, e.to);
+            }
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject, prefix);
@@ -140,7 +144,7 @@ module.exports = function(e) {
                 }
                 return (prefix || '') + JSON.stringify(fcInfo.info.tmpl);
             }
-            return (prefix || '') + quote + 'unfound:' + name + quote;
+            return (prefix || '') + quote + 'unfound file:' + name + '.html' + quote;
         });
         resolve(e);
     });

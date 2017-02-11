@@ -11,7 +11,7 @@ module.exports = function(fileContent, cssNamesKey) {
     fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {
         //把名称保存下来，因为还要修改使用的地方
         contents.push(name);
-        if (configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+        if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
             if (name.length > configs.md5KeyLen) {
                 name = md5(name);
             }
@@ -35,7 +35,7 @@ module.exports = function(fileContent, cssNamesKey) {
         var t = contents.pop();
         //修改使用到的地方
         var reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
-        if (configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+        if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
             if (t.length > configs.md5KeyLen) {
                 t = md5(t);
             }

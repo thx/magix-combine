@@ -14,9 +14,11 @@ module.exports = {
         collapseWhitespace: true, //空白
         quoteCharacter: '"',
         keepClosingSlash: true, //
+        collapseInlineTagWhitespace: true,
         caseSensitive: true
     },
     log: true,
+    compressCss: true, //是否压缩css内容
     addEventPrefix: true, //mx事件增加前缀
     bindEvents: ['change'],
     bindName: 's\u0011e\u0011t',

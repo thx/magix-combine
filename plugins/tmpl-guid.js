@@ -56,7 +56,11 @@ module.exports = {
         var g = 0;
         var r = tmpl.replace(selfCloseTag, '').replace(subReg, '');
         if (tmplCommandAnchorRegTest.test(r)) {
-            tmpl = '<div>' + tmpl + '</div>';
+            var cmd = tmplCmd.recover(r, tmplCommands);
+            var addWrapper = globalRegTest.test(cmd) || vdReg.test(cmd);
+            if (addWrapper) {
+                tmpl = '<div>' + tmpl + '</div>';
+            }
         }
         tmpl = tmpl.replace(tagReg, function(match, tag, attrs, close, tKey) {
             if (close && !tmplCommandAnchorRegTest.test(match)) {

@@ -31,6 +31,7 @@ module.exports = {
         return ctx;
     },
     inDependencies: function(file) {
+        //console.log(fileDependencies);
         return fileDependencies.hasOwnProperty(file);
     },
     removeFileDepend: removeFileDepend,

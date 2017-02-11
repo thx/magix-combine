@@ -11,7 +11,7 @@ var subReg = (function() {
     temp = temp.replace('#', '[\\s\\S]*?');
     return new RegExp(temp, 'ig');
 }());
-var holder = '\u001f';
+var holder = '\u001d';
 var slashAnchorReg = /\u0004/g;
 //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
 var selfCloseTag = /<(\w+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
@@ -421,7 +421,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
         }
         //console.log('gggggg', match,'cccc',content);
         var tmplInfo = {
-            s: ++g,
+            s: ++g + holder,
             keys: [],
             tmpl: content,
             path: tag + '[' + guid + ']'
@@ -463,7 +463,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
                 var wrapTag;
                 if (tmplCommandAnchorRegTest.test(tContent)) { //如果剩余有模板命令
                     //则使用占位符的方式占位
-                    wrapTag = remain = match.replace('>' + content, '>' + holder + g + holder); //只留包括的标签及占位符
+                    wrapTag = remain = match.replace('>' + content + '<', '>' + g + holder + '<'); //只留包括的标签及占位符
                     //然后再递归分析子模板
                     subs.push({
                         tmpl: content,

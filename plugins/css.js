@@ -7,25 +7,28 @@ var md5 = require('./util-md5');
 var cssAtRule = require('./css-atrule');
 var cssFileRead = require('./css-read');
 var cssUrl = require('./css-url');
+var deps = require('./util-deps');
 //处理css文件
 //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
 //https://github.com/Automattic/xgettext-js
 //处理js文件中如 'global@x.less' '@x.less:selector' 'ref@../x.scss' 等各种情况
 //"abc(@style.css:xx)"
 var cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
+var cssNameReg = /(?:@|global)?\.([\w\-]+)(?=[^\{\}]*?\{)/g;
+var cssCommentReg = /\s*\/\*[\s\S]+?\*\/\s*/g;
 var sep = path.sep;
+var slashReg = /\//g;
 module.exports = function(e) {
     var cssNamesMap = {};
     var gCSSNamesMap = {};
     var cssNamesKey;
-    var cssNameReg = /(?:@|global)?\.([\w\-]+)(?=[^\{\}]*?\{)/g;
     var addToGlobalCSS = true;
     //处理css类名
     var cssNameProcessor = function(m, name) {
         if (m.indexOf('global') === 0) return m.slice(6);
         if (m.charAt(0) == '@') return m.slice(1); //@.rule
         var mappedName = name;
-        if (configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+        if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
             if (name.length > configs.md5KeyLen) {
                 mappedName = md5(name);
             }
@@ -58,8 +61,13 @@ module.exports = function(e) {
                     var fileContent = r.css;
                     //获取模块的id
                     var cssId = util.extractModuleId(file);
+                    if (configs.compressCss) {
+                        cssId = md5(cssId);
+                    } else {
+                        cssId = cssId.replace(slashReg, '_');
+                    }
                     //css前缀是配置项中的前缀加上模块的md5信息
-                    cssNamesKey = configs.cssSelectorPrefix + md5(cssId);
+                    cssNamesKey = configs.cssSelectorPrefix + cssId;
                     if (prefix != 'global') { //如果不是项目中全局使用的
                         addToGlobalCSS = prefix != 'names'; //不是读取css名称对象的
                         if (keys || key) { //有后缀时也不添加到全局
@@ -108,6 +116,7 @@ module.exports = function(e) {
                     file = e.from;
                 } else {
                     file = path.resolve(path.dirname(e.from) + sep + name + ext);
+                    deps.addFileDepend(file, e.from, e.to);
                 }
                 if (!cssContentCache[file]) { //文件尚未读取
                     cssContentCache[file] = 1;
@@ -119,18 +128,22 @@ module.exports = function(e) {
                             css: ''
                         };
                         if (info.exists && info.content) {
-                            //css压缩
-                            cssnano.process(info.content, configs.cssnanoOptions).then(function(r) {
-                                cssContentCache[file].css = r.css;
+                            if (configs.compressCss) {
+                                cssnano.process(info.content, configs.cssnanoOptions).then(function(r) {
+                                    cssContentCache[file].css = r.css;
+                                    go();
+                                }, function(error) {
+                                    if (e.contentInfo) {
+                                        file += '@' + e.contentInfo.fileName;
+                                    }
+                                    reject(error);
+                                    console.log(file, error);
+                                    go();
+                                });
+                            } else {
+                                cssContentCache[file].css = info.content.replace(cssCommentReg, '');
                                 go();
-                            }, function(error) {
-                                if (e.contentInfo) {
-                                    file += '@' + e.contentInfo.fileName;
-                                }
-                                reject(error);
-                                console.log(file, error);
-                                go();
-                            });
+                            }
                         } else {
                             go();
                         }

@@ -51,7 +51,7 @@ var GenEventReg = function(type) {
     第二遍用不可见字符
  */
 module.exports = {
-    process: function(tmpl, eInfo) {
+    process: function(tmpl, reject, eInfo) {
         var fn = [];
         var index = 0;
         var htmlStore = {};
@@ -76,6 +76,7 @@ module.exports = {
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
+            reject(ex);
             console.log('tmpl-mxtmpl parse ast error', ex);
             console.log('file:', eInfo.from.gray);
         }
@@ -257,8 +258,8 @@ module.exports = {
             }
             var info = best(head);
             if (!info) {
-                console.log(fn);
-                throw new Error('analyseExpr # can not analysis:' + srcExpr);
+                console.log(('analyseExpr # can not analysis:' + srcExpr).red);
+                return ['analysisError'];
             }
             if (info != '\u0003') {
                 ps = find(info, srcExpr).concat(ps.slice(1));

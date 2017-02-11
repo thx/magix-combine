@@ -5,35 +5,45 @@ var jsContent = require('./js-content');
 var deps = require('./util-deps');
 var configs = require('./util-config');
 //文件处理
-var extnames = {
+/*var extnames = {
     '.html': 1,
     '.css': 1,
     '.less': 1,
     '.scss': 1
-};
+};*/
 var jsOrMxTailReg = /\.(?:js|mx)$/i;
 var mxTailReg = /\.mx$/;
-var sep = path.sep;
+//var sep = path.sep;
 var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
     return new Promise(function(resolve, reject) {
         from = path.resolve(from);
         if (configs.log) {
-            console.log('process:', from);
+            console.log('start process:', from);
         }
         to = path.resolve(to);
+        var promise = Promise.resolve();
+        if (inwatch && deps.inDependencies(from)) {
+            promise = deps.runFileDepend(from);
+        }
         if (jsOrMxTailReg.test(from)) {
-            jsContent.process(from, to).then(function(content) {
-                to = to.replace(mxTailReg, '.js');
-                fd.write(to, content);
-                resolve();
-            }, reject);
-        } else {
-            var extname = path.extname(from);
-            if (inwatch && deps.inDependencies(from)) { //只更新依赖项
-                deps.runFileDepend(from).then(resolve);
-                return;
+            if (fs.existsSync(from)) {
+                promise.then(function() {
+                    return jsContent.process(from, to);
+                }).then(function(content) {
+                    to = to.replace(mxTailReg, '.js');
+                    fd.write(to, content);
+                    resolve();
+                    if (configs.log) {
+                        console.log('finish:', from.green);
+                    }
+                }, reject);
+            } else {
+                promise.then(resolve);
             }
-            if (extnames[extname] === 1) {
+        } else {
+            //var extname = path.extname(from);
+            promise.then(resolve);
+            /*if (extnames[extname] === 1) {
                 var name = path.basename(from, extname);
                 var ns = name.split('-');
                 var found;
@@ -50,14 +60,13 @@ var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
                         } else {
                             resolve();
                         }
-                        //configs.processAttachedFile(extname, from, to);
                         break;
                     }
                 }
                 resolve();
             } else {
                 resolve();
-            }
+            }*/
         }
     });
 };

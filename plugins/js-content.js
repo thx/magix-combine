@@ -33,7 +33,11 @@ module.exports = {
             contentInfo = jsMx.process(content, from);
             content = contentInfo.script;
         }
+        if (configs.log) {
+            console.log('compile:', from.blue);
+        }
         return jsRequire.process({
+            to: to,
             from: from,
             content: content
         }).then(function(e) {
@@ -84,10 +88,15 @@ module.exports = {
             e.content = tmpl;
             return Promise.resolve(e);
         }).then(function(e) {
-            e.to = to;
             if (contentInfo) e.contentInfo = contentInfo;
+            //console.time('css'+e.from);
             return cssProcessor(e);
-        }).then(tmplProcessor).then(function(e) {
+        }).then(function(e){
+            //console.timeEnd('css'+e.from);
+            //console.time('js'+e.from);
+            return tmplProcessor(e);
+        }).then(function(e) {
+            //console.timeEnd('js'+e.from);
             return Promise.resolve(e.content);
         });
     }
