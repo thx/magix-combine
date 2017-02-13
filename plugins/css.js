@@ -64,10 +64,10 @@ module.exports = function(e) {
                     if (configs.compressCss) {
                         cssId = md5(cssId);
                     } else {
-                        cssId = cssId.replace(slashReg, '_');
+                        cssId = '_' + cssId.replace(slashReg, '_') + '_';
                     }
                     //css前缀是配置项中的前缀加上模块的md5信息
-                    cssNamesKey = configs.cssSelectorPrefix + cssId;
+                    cssNamesKey = (configs.cssSelectorPrefix || 'mx-') + cssId;
                     if (prefix != 'global') { //如果不是项目中全局使用的
                         addToGlobalCSS = prefix != 'names'; //不是读取css名称对象的
                         if (keys || key) { //有后缀时也不添加到全局

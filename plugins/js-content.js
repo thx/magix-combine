@@ -51,32 +51,39 @@ module.exports = {
                 return Promise.reject(ex);
             }
             var modifiers = [];
-            walker.simple(ast, {
-                Literal: function(node) { //存储字符串，减少分析干扰
-                    StringReg.lastIndex = 0;
-                    var add = false;
-                    if (StringReg.test(node.raw)) {
-                        if (moduleIdReg.test(node.raw)) {
-                            node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
+            var processString = function(node) { //存储字符串，减少分析干扰
+                StringReg.lastIndex = 0;
+                var add = false;
+                if (StringReg.test(node.raw)) {
+                    if (moduleIdReg.test(node.raw)) {
+                        node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
+                        add = true;
+                    } else if (cssFileReg.test(node.raw) || htmlFileReg.test(node.raw)) {
+                        node.raw = node.raw.replace(/@/g, '\u0012@');
+                        add = true;
+                    } else if (configs.useAtPathConverter) {
+                        if (node.raw.charAt(1) == '@' && node.raw.lastIndexOf('@') == 1 && node.raw.indexOf('/') > 0) {
+                            node.raw = atpath.resolvePath(node.raw, e.moduleId);
                             add = true;
-                        } else if (cssFileReg.test(node.raw) || htmlFileReg.test(node.raw)) {
-                            node.raw = node.raw.replace(/@/g, '\u0012@');
-                            add = true;
-                        } else if (configs.useAtPathConverter) {
-                            if (node.raw.charAt(1) == '@' && node.raw.lastIndexOf('@') == 1 && node.raw.indexOf('/') > 0) {
-                                node.raw = atpath.resolvePath(node.raw, e.moduleId);
-                                add = true;
-                            }
-                        }
-                        if (add) {
-                            modifiers.push({
-                                start: node.start,
-                                end: node.end,
-                                content: node.raw
-                            });
                         }
                     }
+                    if (add) {
+                        modifiers.push({
+                            start: node.start,
+                            end: node.end,
+                            content: node.raw
+                        });
+                    }
                 }
+            };
+            walker.simple(ast, {
+                Property: function(node) {
+                    node = node.key;
+                    if (node.type == 'Literal') {
+                        processString(node);
+                    }
+                },
+                Literal: processString
             });
             modifiers.sort(function(a, b) { //根据start大小排序，这样修改后的fn才是正确的
                 return a.start - b.start;
@@ -91,11 +98,7 @@ module.exports = {
             if (contentInfo) e.contentInfo = contentInfo;
             //console.time('css'+e.from);
             return cssProcessor(e);
-        }).then(function(e){
-            //console.timeEnd('css'+e.from);
-            //console.time('js'+e.from);
-            return tmplProcessor(e);
-        }).then(function(e) {
+        }).then(tmplProcessor).then(function(e) {
             //console.timeEnd('js'+e.from);
             return Promise.resolve(e.content);
         });

@@ -2,8 +2,9 @@
 
 var configs = require('./util-config');
 var classReg = /\bclass\s*=\s*(['"])([^'"]+)(?:\1)/g;
-var classNameReg = /(\s|^|\b)([\w\-]+)(?=\s|$|\b)/g;
+var classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 var pureTagReg = /<\w+[^>]*>/g;
+var selfCssReg = /@:([\w\-]+)/g;
 module.exports = {
     process: function(tmpl, cssNamesMap) {
         var classResult = function(m, h, n) {
@@ -12,8 +13,12 @@ module.exports = {
         var classProcessor = function(m, q, c) {
             return 'class=' + q + c.replace(classNameReg, classResult) + q;
         };
+        var selfCssClass = function(m, key) {
+            return cssNamesMap[key] || key;
+        };
         var pureProcessor = function(match) {
             match = configs.cssNamesProcessor(match, cssNamesMap);
+            match = match.replace(selfCssReg, selfCssClass);
             return match.replace(classReg, classProcessor); //保证是class属性
         };
         if (cssNamesMap) {

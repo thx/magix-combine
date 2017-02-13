@@ -137,7 +137,7 @@ module.exports = {
                 if (node.key.type == 'Literal' && StringReg.test(node.key.raw)) {
                     var q = node.key.raw.match(StringReg)[0];
                     var key = '\u0004' + (stringIndex++) + '\u0004';
-                    stringStore[key] = node.raw;
+                    stringStore[key] = node.key.raw;
                     modifiers.push({
                         key: '',
                         start: node.key.start,

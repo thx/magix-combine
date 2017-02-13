@@ -17,7 +17,7 @@ var slashAnchorReg = /\u0004/g;
 var selfCloseTag = /<(\w+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
 var extractAttrsReg = /<\w+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
 //属性正则
-var attrNameValueReg = /([a-z\-\d]+)(?:=(["'])[\s\S]*?\2)?(?=$|\s)/g;
+var attrNameValueReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?(?=$|\s)/g;
 //模板引擎命令被替换的占位符
 var tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
