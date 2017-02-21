@@ -15,6 +15,8 @@ var NumGetReg = /^\[(\d+)\]$/;
 var TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 var CReg = /[用声全未]/g;
 var HReg = /([\u0001\u0002])\d+/g;
+var HtmlHolderReg = /\u0005\d+\u0005/g;
+var SCharReg = /(?:`;|;`)/g;
 var StringReg = /^['"]/;
 var CMap = {
     '用': '\u0001',
@@ -51,7 +53,7 @@ var GenEventReg = function(type) {
     第二遍用不可见字符
  */
 module.exports = {
-    process: function(tmpl, reject, eInfo) {
+    process: function(tmpl, reject, sourceFile) {
         var fn = [];
         var index = 0;
         var htmlStore = {};
@@ -70,15 +72,24 @@ module.exports = {
         });
         fn = fn.join(''); //移除<%%> 使用`变成标签模板分析
         var ast;
+        var recoverHTML = function(fn) {
+            fn = fn.replace(SCharReg, '');
+            fn = fn.replace(HtmlHolderReg, function(m) {
+                return htmlStore[m];
+            });
+            return fn;
+        };
         //console.log('x', fn);
         //return;
 
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
-            reject(ex);
-            console.log('tmpl-mxtmpl parse ast error', ex);
-            console.log('file:', eInfo.from.gray);
+            console.log('parse html cmd ast error:', ex.message.red);
+            var html = recoverHTML(fn.slice(ex.loc.column));
+            console.log('near html:', (html.slice(0, 200)).green);
+            console.log('html file:', sourceFile.red);
+            reject(ex.message);
         }
         var globalExists = {};
         var globalTracker = {};
@@ -131,35 +142,28 @@ module.exports = {
             walk(node.body.body);
         };
         var unchangableVars = configs.tmplUnchangableVars;
+        var processString = function(node) { //存储字符串，减少分析干扰
+            StringReg.lastIndex = 0;
+            if (StringReg.test(node.raw)) {
+                var q = node.raw.match(StringReg)[0];
+                var key = '\u0004' + (stringIndex++) + '\u0004';
+                stringStore[key] = node.raw;
+                modifiers.push({
+                    key: '',
+                    start: node.start,
+                    end: node.end,
+                    name: q + key + q
+                });
+            }
+        };
         walker.simple(ast, {
             Property: function(node) {
                 StringReg.lastIndex = 0;
-                if (node.key.type == 'Literal' && StringReg.test(node.key.raw)) {
-                    var q = node.key.raw.match(StringReg)[0];
-                    var key = '\u0004' + (stringIndex++) + '\u0004';
-                    stringStore[key] = node.key.raw;
-                    modifiers.push({
-                        key: '',
-                        start: node.key.start,
-                        end: node.key.end,
-                        name: q + key + q
-                    });
+                if (node.key.type == 'Literal') {
+                    processString(node.key);
                 }
             },
-            Literal: function(node) { //存储字符串，减少分析干扰
-                StringReg.lastIndex = 0;
-                if (StringReg.test(node.raw)) {
-                    var q = node.raw.match(StringReg)[0];
-                    var key = '\u0004' + (stringIndex++) + '\u0004';
-                    stringStore[key] = node.raw;
-                    modifiers.push({
-                        key: '',
-                        start: node.start,
-                        end: node.end,
-                        name: q + key + q
-                    });
-                }
-            },
+            Literal: processString,
             Identifier: function(node) {
                 if (globalExists[node.name] !== 1) {
                     modifiers.push({
@@ -218,10 +222,10 @@ module.exports = {
             }
         });
         //fn = StripChar(fn);
-        fn = fn.replace(/(?:`;|;`)/g, '');
+        fn = fn.replace(SCharReg, '');
         fn = StripChar(fn);
 
-        fn = fn.replace(/\u0005\d+\u0005/g, function(m) {
+        fn = fn.replace(HtmlHolderReg, function(m) {
             return htmlStore[m];
         });
         fn = fn.replace(Tmpl_Mathcer, function(match, operate, content) {
@@ -321,7 +325,7 @@ module.exports = {
             attrs = attrs.replace(BindReg, function(m, name, q, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', eInfo.from.gray);
+                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -338,7 +342,7 @@ module.exports = {
             }).replace(BindReg2, function(m, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', eInfo.from.gray);
+                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', sourceFile.gray);
                     return '';
                 }
                 findCount++;

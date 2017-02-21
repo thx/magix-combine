@@ -117,6 +117,7 @@ module.exports = function(e) {
                 } else {
                     file = path.resolve(path.dirname(e.from) + sep + name + ext);
                     deps.addFileDepend(file, e.from, e.to);
+                    e.fileDeps[file] = 1;
                 }
                 if (!cssContentCache[file]) { //文件尚未读取
                     cssContentCache[file] = 1;

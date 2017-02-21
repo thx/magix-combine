@@ -44,8 +44,8 @@ module.exports = {
         var to = from.replace(configs.tmplReg, configs.srcHolder);
         return js.process(from, to, true);
     },
-    processContent: function(from, to, content) {
+    processContent: function(from, to, content, outputObject) {
         initFolder();
-        return jsContent.process(from, to, content);
+        return jsContent.process(from, to, content, outputObject);
     }
 };

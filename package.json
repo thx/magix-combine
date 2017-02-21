@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "合并Magix View的html,js,css成一个js文件",
   "main": "index.js",
   "repository": {

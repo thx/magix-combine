@@ -17,7 +17,7 @@ var moduleIdReg = /(['"])(@moduleId)\1/;
 var cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx)/;
 var htmlFileReg = /(['"])(raw)?@([^'"]+)\.html(:data|:keys|:events)?\1/;
 module.exports = {
-    process: function(from, to, content) {
+    process: function(from, to, content, outputObject) {
         if (!content) content = fd.read(from);
         for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
             if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
@@ -37,6 +37,7 @@ module.exports = {
             console.log('compile:', from.blue);
         }
         return jsRequire.process({
+            fileDeps: {},
             to: to,
             from: from,
             content: content
@@ -46,9 +47,14 @@ module.exports = {
             try {
                 ast = acorn.parse(tmpl);
             } catch (ex) {
-                console.log('js-content parse ast error:', ex);
+                console.log('parse js ast error:', ex.message);
+                var arr = tmpl.split(/\r\n|\r|\n/);
+                var line = ex.loc.line - 1;
+                if (arr[line]) {
+                    console.log('near code:', arr[line].green);
+                }
                 console.log(('js file: ' + e.from).red);
-                return Promise.reject(ex);
+                return Promise.reject(ex.message);
             }
             var modifiers = [];
             var processString = function(node) { //存储字符串，减少分析干扰
@@ -99,7 +105,7 @@ module.exports = {
             //console.time('css'+e.from);
             return cssProcessor(e);
         }).then(tmplProcessor).then(function(e) {
-            //console.timeEnd('js'+e.from);
+            if (outputObject) return Promise.resolve(e);
             return Promise.resolve(e.content);
         });
     }

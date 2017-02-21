@@ -15,17 +15,30 @@ var tmplMxTmpl = require('./tmpl-mxtmpl');
 var tmplImg = require('./tmpl-img');
 var mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
 var viewAttrReg = /\bview-(\w+)=(["'])([\s\S]*?)\2/g;
+var cmdReg = /\u0007\d+\u0007/g;
 //模板处理，即处理view.html文件
 var fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 var sep = path.sep;
 var tagReg = /<[\w]+[^>]*?>/g;
-var mxEventReg = /\bmx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+\s*=\s*['"]/g;
+var mxEventReg = /\bmx-(?!view|vframe|init)[a-zA-Z]+\s*=\s*['"]/g;
 var holder = '\u001f';
 var magixHolder = '\u001e';
 var removeVdReg = /\u0002/g;
 var removeIdReg = /\u0001/g;
-var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, prefix) {
+var htmlUnescapeMap = {
+    'amp': '&',
+    'lt': '<',
+    'gt': '>',
+    'quot': '"',
+    '#x27': '\'',
+    '#x60': '`'
+};
+var htmlUnescapeReg = /&([^;]+?);/g;
+var htmlUnescape = function(m, name) {
+    return htmlUnescapeMap[name] || m;
+};
+var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, prefix, file) {
     var key = prefix + holder + raw + holder + fileContent;
     var fCache = cache[key];
     if (!fCache) {
@@ -40,7 +53,7 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
         var refTmplCommands = {};
         fileContent = tmplImg.process(fileContent);
         if (!configs.disableMagixUpdater && !raw) {
-            fileContent = tmplMxTmpl.process(fileContent, reject, e);
+            fileContent = tmplMxTmpl.process(fileContent, reject, file);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
@@ -58,6 +71,19 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
                     //console.log(match);
                     var attrs = [];
                     match = match.replace(viewAttrReg, function(m, name, q, content) {
+                        var cmdTemp = [];
+                        content.replace(cmdReg, function(cm) {
+                            cmdTemp.push(cm);
+                        });
+                        var cs = content.split(cmdReg);
+                        for (var i = 0; i < cs.length; i++) {
+                            cs[i] = cs[i].replace(htmlUnescapeReg, htmlUnescape);
+                            cs[i] = encodeURIComponent(cs[i]).replace(/'/g, '%27');
+                            if (i < cmdTemp.length) {
+                                cs[i] = cs[i] + cmdTemp[i];
+                            }
+                        }
+                        content = cs.join('');
                         attrs.push(name + '=' + content);
                         return '';
                     });
@@ -78,7 +104,7 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
             console.error('minify error : ' + ex);
-            console.log(('html file: ' + e.from).red);
+            console.log(('html file: ' + file).red);
             reject(ex);
         }
         if (prefix && !configs.disableMagixUpdater && !raw) {
@@ -113,10 +139,13 @@ module.exports = function(e) {
             var singleFile = (name == 'template' && e.contentInfo);
             if (!singleFile) {
                 deps.addFileDepend(file, e.from, e.to);
+                e.fileDeps[file] = 1;
+            } else {
+                file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject, prefix);
+                var fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject, prefix, file);
                 if (ext == ':events') { //事件
                     return JSON.stringify(fcInfo.events);
                 }

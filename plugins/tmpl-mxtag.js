@@ -1,8 +1,8 @@
 var configs = require('./util-config');
 var tmplCmd = require('./tmpl-cmd');
 //模板代码片断的处理，较少用
-var snippetReg = /<mx-(\w+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
-var attrReg = /([\w-\d]+)\s*=\s*"([^"]+)"/g;
+var snippetReg = /<mx-([\w-]+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
+var snippetReg1 = /<mx-([\w-]+)([^>]*)\/>/g;
 module.exports = {
     process: function(tmpl) {
         var compare;
@@ -11,35 +11,26 @@ module.exports = {
         var restore = function(tmpl) {
             return tmplCmd.recover(tmpl, cmdCache);
         };
-        var analyseAttrs = function(attrs) {
-            var a = [];
-            attrs.replace(attrReg, function(match, key, value) {
-                var temp = {
-                    key: key,
-                    origin: match,
-                    value: value
-                };
-                if (key.indexOf('mx-') === 0) {
-                    temp.isMxKey = true;
-                }
-                if (value.indexOf('<%:') === 0) {
-                    temp.isBindValue = true;
-                }
-                a.push(temp);
-            });
-            return a;
-        };
         var tagProcessor = function(match, tag, attrs, content) {
             attrs = restore(attrs);
             var result = {
                 tag: tag,
                 content: content,
-                attrs: analyseAttrs(attrs)
+                attrs: attrs
             };
             return configs.mxTagProcessor(result);
         };
-        while (snippetReg.test(tmpl)) {
-            compare = tmpl.replace(snippetReg, tagProcessor);
+        var tagProcessor1 = function(match, tag, attrs) {
+            attrs = restore(attrs);
+            var result = {
+                tag: tag,
+                content: '',
+                attrs: attrs
+            };
+            return configs.mxTagProcessor(result);
+        };
+        while (snippetReg.test(tmpl) || snippetReg1.test(tmpl)) {
+            compare = tmpl.replace(snippetReg, tagProcessor).replace(snippetReg1, tagProcessor1);
             if (compare == tmpl) {
                 break;
             } else {
