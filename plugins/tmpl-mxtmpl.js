@@ -6,10 +6,11 @@ var acorn = require('./util-acorn');
 var walker = require('./util-acorn-walk');
 var tmplCmd = require('./tmpl-cmd');
 var configs = require('./util-config');
-var Tmpl_Mathcer = /<%([@=!:])?([\s\S]+?)%>|$/g;
+var Tmpl_Mathcer = /<%([@=!:~])?([\s\S]+?)%>|$/g;
 var TagReg = /<(\w+)([^>]*)>/g;
 var BindReg = /([\w\-]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
 var BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
+var PathReg = /<%~([\s\S]+?)%>/g;
 var SplitExprReg = /\[[^\[\]]+\]|[^.\[\]]+/g;
 var NumGetReg = /^\[(\d+)\]$/;
 var TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
@@ -86,7 +87,7 @@ module.exports = {
             ast = acorn.parse(fn);
         } catch (ex) {
             console.log('parse html cmd ast error:', ex.message.red);
-            var html = recoverHTML(fn.slice(ex.loc.column));
+            var html = recoverHTML(fn.slice(Math.max(ex.loc.column - 5, 0)));
             console.log('near html:', (html.slice(0, 200)).green);
             console.log('html file:', sourceFile.red);
             reject(ex.message);
@@ -280,13 +281,6 @@ module.exports = {
             return result;
         };
         fn = tmplCmd.store(fn, cmdStore);
-        for (var p in cmdStore) {
-            var cmd = cmdStore[p];
-            if (util.isString(cmd)) {
-                cmd = recoverString(StripNum(cmd)); //移除命令中的数字和恢复字符串
-            }
-            cmdStore[p] = cmd;
-        }
         fn = fn.replace(TextaraReg, function(match, attr, content) {
             attr = tmplCmd.recover(attr, cmdStore);
             content = tmplCmd.recover(content, cmdStore);
@@ -355,6 +349,12 @@ module.exports = {
                     now += '  mx-' + e + '="s\u0011e\u0011t({p:\'' + expr + '\'' + (info ? info.now : '') + '})"';
                 }
                 return now;
+            }).replace(PathReg, function(m, expr) {
+                expr = expr.trim();
+                expr = analyseExpr(expr);
+                return expr;
+            }).replace(Tmpl_Mathcer, function(m) {
+                return StripNum(m);
             });
             if (findCount > 0) {
                 for (i = 0; i < bindEvents.length; i++) {
@@ -366,6 +366,14 @@ module.exports = {
             }
             return '<' + tag + attrs + '>';
         });
+
+        for (var p in cmdStore) {
+            var cmd = cmdStore[p];
+            if (util.isString(cmd)) {
+                cmd = recoverString(StripNum(cmd)); //移除命令中的数字和恢复字符串
+            }
+            cmdStore[p] = cmd;
+        }
         fn = tmplCmd.recover(fn, cmdStore);
         //console.log(fn);
         return fn;

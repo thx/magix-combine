@@ -12,33 +12,59 @@ var deps = require('./util-deps');
 //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
 //https://github.com/Automattic/xgettext-js
 //处理js文件中如 'global@x.less' '@x.less:selector' 'ref@../x.scss' 等各种情况
-//"abc(@style.css:xx)"
+//"abc(@style.css:xx)yyzz"
+//[ref="@../default.css:inmain"] .open{
+//    color:red
+//}
 var cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx)(?:\[([\w-,]+)\]|:([\w\-]+))?\)?\1(;?)/g;
-var cssNameReg = /(?:@|global)?\.([\w\-]+)(?=[^\{\}]*?\{)/g;
+var cssNameReg = /(?:@|global)?\.([\w\-]+)(\[[^\]]*?\])?(?=[^\{\}]*?\{)/g;
 var cssCommentReg = /\s*\/\*[\s\S]+?\*\/\s*/g;
+var cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx):([\w\-]+)\1\]/g;
 var sep = path.sep;
 var slashReg = /\//g;
+var genCssNamesKey = function(file) {
+    //获取模块的id
+    var cssId = util.extractModuleId(file);
+    if (configs.compressCss) {
+        cssId = md5(cssId);
+    } else {
+        cssId = '_' + cssId.replace(slashReg, '_') + '_';
+    }
+    //css前缀是配置项中的前缀加上模块的md5信息
+    return (configs.cssSelectorPrefix || 'mx-') + cssId;
+};
+var genCssSelector = function(selector) {
+    var mappedName = selector;
+    if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+        if (selector.length > configs.md5KeyLen) {
+            mappedName = md5(selector);
+        }
+    }
+    return mappedName;
+};
 module.exports = function(e) {
     var cssNamesMap = {};
     var gCSSNamesMap = {};
     var cssNamesKey;
     var addToGlobalCSS = true;
     //处理css类名
-    var cssNameProcessor = function(m, name) {
+    var cssNameProcessor = function(m, name, attr) {
+        attr = attr || '';
         if (m.indexOf('global') === 0) return m.slice(6);
         if (m.charAt(0) == '@') return m.slice(1); //@.rule
-        var mappedName = name;
-        if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
-            if (name.length > configs.md5KeyLen) {
-                mappedName = md5(name);
-            }
-        }
+        var mappedName = genCssSelector(name);
         //只在原来的css类名前面加前缀
         var result = '.' + (cssNamesMap[name] = cssNamesKey + '-' + mappedName);
         if (addToGlobalCSS) { //是否增加到当前模块的全局css里，因为一个view.js可以依赖多个css文件
             gCSSNamesMap[name] = cssNamesMap[name];
         }
-        return result;
+        return result + attr;
+    };
+    var refProcessor = function(m, q, file, ext, name) {
+        file = path.resolve(path.dirname(e.from) + sep + file + ext);
+        file = genCssNamesKey(file);
+        name = genCssSelector(name);
+        return '@.' + file + '-' + name;
     };
     var cssContentCache = {};
     return new Promise(function(resolve, reject) {
@@ -59,21 +85,15 @@ module.exports = function(e) {
                     //如果不存在就返回一个不存在的提示
                     if (!r.exists) return q + 'unfound:' + name + ext + q;
                     var fileContent = r.css;
-                    //获取模块的id
-                    var cssId = util.extractModuleId(file);
-                    if (configs.compressCss) {
-                        cssId = md5(cssId);
-                    } else {
-                        cssId = '_' + cssId.replace(slashReg, '_') + '_';
-                    }
-                    //css前缀是配置项中的前缀加上模块的md5信息
-                    cssNamesKey = (configs.cssSelectorPrefix || 'mx-') + cssId;
+
+                    cssNamesKey = genCssNamesKey(file);
                     if (prefix != 'global') { //如果不是项目中全局使用的
                         addToGlobalCSS = prefix != 'names'; //不是读取css名称对象的
                         if (keys || key) { //有后缀时也不添加到全局
                             addToGlobalCSS = false;
                         }
                         cssNamesMap = {};
+                        fileContent = fileContent.replace(cssRefReg, refProcessor);
                         fileContent = fileContent.replace(cssNameReg, cssNameProcessor); //前缀处理
                         //@规则处理
                         fileContent = cssAtRule(fileContent, cssNamesKey);

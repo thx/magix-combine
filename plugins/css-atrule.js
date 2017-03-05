@@ -1,14 +1,15 @@
 var configs = require('./util-config');
 var md5 = require('./util-md5');
 //以@开始的名称，如@font-face
+//charset不处理，压缩器会自动处理
 var cssAtNamesKeyReg = /(^|[\s\}])@([a-z\-]+)\s*([\w\-]+)?\{([^\{\}]*)\}/g;
 //keyframes，如@-webkit-keyframes xx
-var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+([\w\-]+)/g;
+var cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+(['"])?([\w\-]+)\3/g;
 //css @规则的处理
 module.exports = function(fileContent, cssNamesKey) {
     var contents = [];
     //先处理keyframes
-    fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, name) {
+    fileContent = fileContent.replace(cssKeyframesReg, function(m, head, keyframe, q, name) {
         //把名称保存下来，因为还要修改使用的地方
         contents.push(name);
         if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key

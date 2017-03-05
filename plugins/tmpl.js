@@ -20,7 +20,7 @@ var cmdReg = /\u0007\d+\u0007/g;
 var fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 var sep = path.sep;
-var tagReg = /<[\w]+[^>]*?>/g;
+var tagReg = /<[\w]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
 var mxEventReg = /\bmx-(?!view|vframe|init)[a-zA-Z]+\s*=\s*['"]/g;
 var holder = '\u001f';
 var magixHolder = '\u001e';
@@ -37,6 +37,17 @@ var htmlUnescapeMap = {
 var htmlUnescapeReg = /&([^;]+?);/g;
 var htmlUnescape = function(m, name) {
     return htmlUnescapeMap[name] || m;
+};
+var encodeMore = {
+    '!': '%21',
+    '\'': '%27',
+    '(': '%28',
+    ')': '%29',
+    '*': '%2A'
+};
+var encodeMoreReg = /[!')(*]/g;
+var encodeReplacor = function(m) {
+    return encodeMore[m];
 };
 var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, prefix, file) {
     var key = prefix + holder + raw + holder + fileContent;
@@ -78,7 +89,7 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
                         var cs = content.split(cmdReg);
                         for (var i = 0; i < cs.length; i++) {
                             cs[i] = cs[i].replace(htmlUnescapeReg, htmlUnescape);
-                            cs[i] = encodeURIComponent(cs[i]).replace(/'/g, '%27');
+                            cs[i] = encodeURIComponent(cs[i]).replace(encodeMoreReg, encodeReplacor);
                             if (i < cmdTemp.length) {
                                 cs[i] = cs[i] + cmdTemp[i];
                             }

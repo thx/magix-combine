@@ -12,11 +12,13 @@ var jsOrMxTailReg = /\.(?:js|mx)$/i;
 var cssTailReg = /\.(?:css|less|scss)/i;
 var startSlashReg = /^\//;
 var extractModuleId = function(file) {
-    return file.replace(configs.moduleIdRemovedPath, '')
+    var id = file.replace(configs.moduleIdRemovedPath, '')
         .replace(jsOrMxTailReg, '')
         .replace(cssTailReg, '')
         .replace(sepReg, '/')
         .replace(startSlashReg, '');
+    id = configs.resolveModuleId(id);
+    return id;
 };
 
 module.exports = {

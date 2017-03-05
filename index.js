@@ -26,14 +26,18 @@ module.exports = {
         configs.excludeTmplFolders = configs.excludeTmplFolders.map(function(str) {
             return path.resolve(str);
         });
+        configs.excludeTmplFiles = configs.excludeTmplFiles.map(function(str) {
+            return path.resolve(str);
+        });
+        configs.excludeTmplFiles = configs.excludeTmplFolders.concat(configs.excludeTmplFiles);
     },
     combine: function() {
         return new Promise(function(resolve, reject) {
             initFolder();
             var ps = [];
             fd.walk(configs.tmplFolder, function(filepath) {
-                var from = filepath;
-                var to = from.replace(configs.tmplReg, configs.srcHolder);
+                var from = path.resolve(filepath);
+                var to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
                 ps.push(js.process(from, to));
             });
             Promise.all(ps).then(resolve, reject);
@@ -41,7 +45,8 @@ module.exports = {
     },
     processFile: function(from) {
         initFolder();
-        var to = from.replace(configs.tmplReg, configs.srcHolder);
+        from = path.resolve(from);
+        var to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
         return js.process(from, to, true);
     },
     processContent: function(from, to, content, outputObject) {

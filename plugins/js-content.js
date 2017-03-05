@@ -19,8 +19,8 @@ var htmlFileReg = /(['"])(raw)?@([^'"]+)\.html(:data|:keys|:events)?\1/;
 module.exports = {
     process: function(from, to, content, outputObject) {
         if (!content) content = fd.read(from);
-        for (var i = configs.excludeTmplFolders.length - 1; i >= 0; i--) {
-            if (from.indexOf(configs.excludeTmplFolders[i]) >= 0) {
+        for (var i = configs.excludeTmplFiles.length - 1; i >= 0; i--) {
+            if (from.indexOf(configs.excludeTmplFiles[i]) >= 0) {
                 return Promise.resolve(content);
             }
         }
