@@ -34,14 +34,14 @@ module.exports = {
             };
             configs.resolveRequire(reqInfo);
             var dId;
-            if (key != reqInfo.variable || depId != reqInfo.dependedId) {
-                if (reqInfo.dependedId) {
-                    dId = JSON.stringify(reqInfo.dependedId);
-                    deps.push(dId);
-                    if (reqInfo.variable) {
-                        vars.push(reqInfo.variable);
-                    }
+            if (reqInfo.dependedId) {
+                dId = JSON.stringify(reqInfo.dependedId);
+                deps.push(dId);
+                if (reqInfo.variable) {
+                    vars.push(reqInfo.variable);
                 }
+            }
+            if (key != reqInfo.variable || depId != reqInfo.dependedId) {
                 if (!reqInfo.hasOwnProperty('replacement')) {
                     if (reqInfo.variable) {
                         prefix = prefix + reqInfo.variable + '=';
