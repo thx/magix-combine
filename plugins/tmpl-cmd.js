@@ -31,9 +31,12 @@ module.exports = {
         tmpl = tmpl.replace(tmplCommandAnchorCompressReg2, '$1$2');
         return tmpl;
     },
-    recover: function(tmpl, refTmplCommands) { //恢复替换的命令
+    recover: function(tmpl, refTmplCommands, processor) { //恢复替换的命令
         return tmpl.replace(tmplCommandAnchorReg, function(match) {
             var value = refTmplCommands[match];
+            if (processor) {
+                value = processor(value);
+            }
             return value;
         });
     }

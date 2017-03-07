@@ -61,8 +61,9 @@ var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
             }
         });
     });
+    var allKeys = Object.assign(attrKeys, tmplKeys);
     return {
-        keys: Object.keys(attrKeys).concat(Object.keys(tmplKeys)),
+        keys: Object.keys(allKeys),
         attrKeys: attrKeys,
         tmplKeys: tmplKeys
     };
@@ -325,6 +326,7 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
 
             if (prop == 'mx-view') {
                 t.v = 1;
+                info.hasView = true;
             }
 
             if ((tag == 'input' || tag == 'textarea') && prop == 'value') {
@@ -382,7 +384,8 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
             //如果key存在内容模板中，则m为1
             if (tmplKeys[info.keys[i]]) m = 1;
             //如果key存在属性中,则m为2或者或上1
-            if (attrsKeys[info.keys[i]]) m = m ? m | 2 : 2;
+            //console.log(info.keys);
+            if (attrsKeys[info.keys[i]] || (m && info.hasView)) m = m ? m | 2 : 2;
             mask += m + '';
             if (m === 0) {
                 console.log('check key word:', info.keys[i].red, ' relate file:', e.from.gray);
@@ -398,6 +401,7 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
         if (/[12]/.test(mask))
             info.mask = mask;
     }
+    delete info.hasView;
 };
 
 var g = 0;
@@ -436,6 +440,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
         //var keys = datakey.split(',');
         var remain = match;
         var kInfo = extractUpdateKeys(match, refTmplCommands, content, parentOwnKeys); //从当前匹配到的标签取对应的数据key
+        //console.log(kInfo);
         //console.log('keys', kInfo, match, content);
         if (kInfo.keys.length) { //从当前标签分析出了数据key后，再深入分析
             for (var i = 0, key; i < kInfo.keys.length; i++) {

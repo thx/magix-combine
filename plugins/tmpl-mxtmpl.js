@@ -300,7 +300,8 @@ module.exports = {
             var bindEvents = configs.bindEvents;
             var oldEvents = {};
             var e;
-            attrs = tmplCmd.recover(attrs, cmdStore);
+            //console.log(cmdStore, attrs);
+            attrs = tmplCmd.recover(attrs, cmdStore, recoverString);
             var replacement = function(m, name, params) {
                 var now = ',m:\'' + name + '\',a:' + (params || '{}');
                 var old = m; //tmplCmd.recover(m, cmdStore);
@@ -319,7 +320,7 @@ module.exports = {
             attrs = attrs.replace(BindReg, function(m, name, q, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', sourceFile.gray);
+                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -336,7 +337,7 @@ module.exports = {
             }).replace(BindReg2, function(m, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore), ' relate file:', sourceFile.gray);
+                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -367,14 +368,10 @@ module.exports = {
             return '<' + tag + attrs + '>';
         });
 
-        for (var p in cmdStore) {
-            var cmd = cmdStore[p];
-            if (util.isString(cmd)) {
-                cmd = recoverString(StripNum(cmd)); //移除命令中的数字和恢复字符串
-            }
-            cmdStore[p] = cmd;
-        }
-        fn = tmplCmd.recover(fn, cmdStore);
+        var processCmd = function(cmd) {
+            return recoverString(StripNum(cmd));
+        };
+        fn = tmplCmd.recover(fn, cmdStore, processCmd);
         //console.log(fn);
         return fn;
     }
