@@ -1,3 +1,4 @@
+var util = require('util');
 var fd = require('./util-fd');
 var jsMx = require('./js-mx');
 var jsRequire = require('./js-require');
@@ -36,18 +37,24 @@ module.exports = {
         if (configs.log) {
             console.log('compile:', from.blue);
         }
-        return jsRequire.process({
-            fileDeps: {},
-            to: to,
-            from: from,
-            content: content
+        var before = configs.compileBeforeProcessor(content);
+        if (util.isString(before)) {
+            before = Promise.resolve(before);
+        }
+        return before.then(function(content) {
+            return jsRequire.process({
+                fileDeps: {},
+                to: to,
+                from: from,
+                content: content
+            });
         }).then(function(e) {
             var tmpl = jsLoader(e);
             var ast;
             try {
                 ast = acorn.parse(tmpl);
             } catch (ex) {
-                console.log('parse js ast error:', ex.message);
+                console.log('parse js ast error:', ex.message.red);
                 var arr = tmpl.split(/\r\n|\r|\n/);
                 var line = ex.loc.line - 1;
                 if (arr[line]) {
@@ -107,6 +114,6 @@ module.exports = {
         }).then(tmplProcessor).then(function(e) {
             if (outputObject) return Promise.resolve(e);
             return Promise.resolve(e.content);
-        });
+        }).then(configs.compileAfterProcessor);
     }
 };

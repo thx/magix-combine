@@ -4,8 +4,8 @@
 # 功能
 1. 合并html,css,js成一个js文件。[为什么不在打包上线时合并？](https://github.com/thx/magix-combine/issues/5)
 2. css只在当前区块内生效。[关于style的scope](https://github.com/thx/magix-combine/issues/6) [css模块](http://www.75team.com/post/1049.html)
-3. 基于mx-keys的子模板离线数据提取及预处理
-4. CommonJS的写法，由工具加上web loader
+3. 智能子模板离线数据提取及预处理
+4. CommonJS的写法，由工具加上相应的web loader
 
 ## gulp使用示例
 [gulp使用示例](https://github.com/thx/magix-combine/issues/16)

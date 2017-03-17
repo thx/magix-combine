@@ -4,7 +4,7 @@ var tmplCmd = require('./tmpl-cmd');
 var snippetReg = /<mx-([\w-]+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
 var snippetReg1 = /<mx-([\w-]+)([^>]*)\/>/g;
 module.exports = {
-    process: function(tmpl) {
+    process: function(tmpl, extInfo) {
         var compare;
         var cmdCache = {};
         tmpl = tmplCmd.store(tmpl, cmdCache);
@@ -14,20 +14,22 @@ module.exports = {
         var tagProcessor = function(match, tag, attrs, content) {
             attrs = restore(attrs);
             var result = {
+                name: tag,
                 tag: tag,
                 content: content,
                 attrs: attrs
             };
-            return configs.mxTagProcessor(result);
+            return configs.mxTagProcessor(result, extInfo);
         };
         var tagProcessor1 = function(match, tag, attrs) {
             attrs = restore(attrs);
             var result = {
+                name: tag,
                 tag: tag,
                 content: '',
                 attrs: attrs
             };
-            return configs.mxTagProcessor(result);
+            return configs.mxTagProcessor(result, extInfo);
         };
         while (snippetReg.test(tmpl) || snippetReg1.test(tmpl)) {
             compare = tmpl.replace(snippetReg, tagProcessor).replace(snippetReg1, tagProcessor1);

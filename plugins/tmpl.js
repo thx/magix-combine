@@ -56,7 +56,10 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
         var temp = {};
         cache[key] = temp;
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
-        fileContent = tmplMxTag.process(fileContent);
+        var extInfo = {
+            file: file
+        };
+        fileContent = tmplMxTag.process(fileContent, extInfo);
         var tmplEvents = tmplEvent.extract(fileContent);
         temp.events = tmplEvents;
 

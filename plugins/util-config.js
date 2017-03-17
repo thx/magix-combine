@@ -23,6 +23,7 @@ module.exports = {
     bindEvents: ['change'],
     bindName: 's\u0011e\u0011t',
     useAtPathConverter: true,
+    compileFileExtNames: ['js', 'mx'], //选择编译时的后缀名
     tmplUnchangableVars: {}, //模板中不会变的变量，减少子模板的分析
     tmplGlobalVars: {}, //模板中全局变量
     outputTmplWithEvents: false, //输出事件
@@ -30,7 +31,13 @@ module.exports = {
     excludeTmplFiles: [],
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
     disableMagixUpdater: false,
-    mxTagProcessor: function(tmpl) {
+    compileBeforeProcessor: function(content) {
+        return content;
+    },
+    compileAfterProcessor: function(content) {
+        return content;
+    },
+    mxTagProcessor: function(tmpl, info) {
         return tmpl;
     },
     excludeFileContent: function(content) {
