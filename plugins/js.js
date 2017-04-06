@@ -16,10 +16,18 @@ var processFile = function(from, to, inwatch) { // d:\a\b.js  d:\c\d.js
         if (inwatch && deps.inDependencies(from)) {
             promise = deps.runFileDepend(from);
         }
-        if (configs.compileFileExtNamesReg.test(from)) {
-            if (fs.existsSync(from)) {
+        if (fs.existsSync(from)) {
+            promise = promise.then(function() {
+                var p = configs.startProcessor(from, to);
+                if (!p || !p.then) {
+                    console.log('magix-combine:config > startProcessor must return a promise'.red);
+                    p = Promise.resolve();
+                }
+                return p;
+            });
+            if (configs.compileFileExtNamesReg.test(from)) {
                 promise.then(function() {
-                    return jsContent.process(from, to);
+                    return jsContent.process(from, to, 0, 0, inwatch);
                 }).then(function(content) {
                     to = to.replace(configs.compileFileExtNamesReg, '.js');
                     fd.write(to, content);

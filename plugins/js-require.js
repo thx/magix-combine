@@ -25,14 +25,15 @@ module.exports = {
             if (configs.useAtPathConverter) {
                 str = atpath.resolvePath(str, moduleId);
             }
-            var depId;
+            var depId = str.slice(1, -1);
             var reqInfo = {
                 prefix: prefix,
                 tail: tail || '',
-                dependedId: depId = str.slice(1, -1),
+                depId: depId,
+                dependedId: depId,
                 variable: key
             };
-            configs.resolveRequire(reqInfo);
+            configs.resolveRequire(reqInfo, e);
             var dId;
             if (reqInfo.dependedId) {
                 dId = JSON.stringify(reqInfo.dependedId);
@@ -62,7 +63,6 @@ module.exports = {
             }
             return reqInfo.replacement;
         });
-        //console.log(e.content);
         deps = deps.concat(noKeyDeps);
         e.moduleId = moduleId;
         e.deps = deps;

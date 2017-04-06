@@ -1,5 +1,6 @@
 module.exports = {
-    md5KeyLen: 4,
+    md5CssFileLen: 2,
+    md5CssSelectorLen: 2,
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
     cssnanoOptions: { //css压缩选项
@@ -21,6 +22,8 @@ module.exports = {
     compressCss: true, //是否压缩css内容
     addEventPrefix: true, //mx事件增加前缀
     bindEvents: ['change'],
+    globalCss: [],
+    scopedAsGlobalCss: [],
     bindName: 's\u0011e\u0011t',
     useAtPathConverter: true,
     compileFileExtNames: ['js', 'mx'], //选择编译时的后缀名
@@ -31,6 +34,12 @@ module.exports = {
     excludeTmplFiles: [],
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
     disableMagixUpdater: false,
+    startProcessor: function(file) {
+        return Promise.resolve(file);
+    },
+    afterDependenceAnalysisProcessor: function(e) {
+        return Promise.resolve(e);
+    },
     compileBeforeProcessor: function(content) {
         return content;
     },
@@ -58,7 +67,7 @@ module.exports = {
     resolveModuleId: function(id) {
         return id;
     },
-    resolveRequire: function(reqInfo) {
+    resolveRequire: function(reqInfo, context) {
         return reqInfo;
     }
 };

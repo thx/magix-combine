@@ -19,6 +19,7 @@ var compileContent = function(file, content, ext, resolve, reject) {
             }
             resolve({
                 exists: true,
+                file: file,
                 content: err || result.css.toString()
             });
         });
@@ -30,12 +31,14 @@ var compileContent = function(file, content, ext, resolve, reject) {
             }
             resolve({
                 exists: true,
+                file: file,
                 content: err || result.css
             });
         });
     } else if (ext == '.css') {
         resolve({
             exists: true,
+            file: file,
             content: content
         });
     } else if (ext == '.mx') {

@@ -13,8 +13,8 @@ module.exports = function(fileContent, cssNamesKey) {
         //把名称保存下来，因为还要修改使用的地方
         contents.push(name);
         if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
-            if (name.length > configs.md5KeyLen) {
-                name = md5(name);
+            if (name.length > configs.md5CssSelectorLen) {
+                name = md5(name, configs.md5CssSelectorLen);
             }
         }
         //增加前缀
@@ -37,8 +37,8 @@ module.exports = function(fileContent, cssNamesKey) {
         //修改使用到的地方
         var reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
         if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
-            if (t.length > configs.md5KeyLen) {
-                t = md5(t);
+            if (t.length > configs.md5CssSelectorLen) {
+                t = md5(t, configs.md5CssSelectorLen);
             }
         }
         fileContent = fileContent.replace(reg, ':$1' + cssNamesKey + '-' + t + '$1');

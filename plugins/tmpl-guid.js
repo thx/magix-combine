@@ -1,12 +1,12 @@
 var tmplCmd = require('./tmpl-cmd');
 //模板，增加guid标识，仅针对magix-updater使用：https://github.com/thx/magix-updater
-var tagReg = /<([\w]+)([^>]*?)(\/)?>/g;
+var tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 //var keysTagReg = /<([\w]+)([^>]*?)mx-keys\s*=\s*"[^"]+"([^>]*?)>/g;
 var holder = '\u001f';
 var slashReg = /\//g;
 var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 var subReg = (function() {
-    var temp = '<([\\w]+)([^>]*?)>(#)</\\1>';
+    var temp = '<([^>\\s\\/]+)([^>]*?)>(#)</\\1>';
     var start = 12; //嵌套12层在同一个view中也足够了
     while (start--) {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
@@ -15,7 +15,7 @@ var subReg = (function() {
     return new RegExp(temp, 'ig');
 }());
 var subRegWithGuid = (function() {
-    var temp = '<([\\w]+)(\\s+mx-guid="g[^"]+")([^>]*?)>(#)</\\1>';
+    var temp = '<([^>\\s\\/]+)(\\s+mx-guid="g[^"]+")([^>]*?)>(#)</\\1>';
     var start = 12; //嵌套12层在同一个view中也足够了
     while (start--) {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
@@ -23,8 +23,8 @@ var subRegWithGuid = (function() {
     temp = temp.replace('#', '[\\s\\S]*?');
     return new RegExp(temp, 'ig');
 }());
-var selfCloseTagWithGuid = /<(\w+)(\s+mx-guid="g[^"]+")([^>]*?)\/>/g;
-var selfCloseTag = /<\w+[^>]*?\/>/g;
+var selfCloseTagWithGuid = /<([^>\s\/]+)(\s+mx-guid="g[^"]+")([^>]*?)\/>/g;
+var selfCloseTag = /<[^>\s\/]+[^>]*?\/>/g;
 var guidReg = /\s+mx-guid="g[^"]+"/g;
 var vdReg = /\u0002(\w+)\b/g;
 var idReg = /\u0001(\w+)\b/g;
@@ -59,7 +59,7 @@ module.exports = {
             var cmd = tmplCmd.recover(r, tmplCommands);
             var addWrapper = globalRegTest.test(cmd) || vdReg.test(cmd);
             if (addWrapper) {
-                tmpl = '<div>' + tmpl + '</div>';
+                tmpl = '<mxv-root>' + tmpl + '</mxv-root>';
             }
         }
         tmpl = tmpl.replace(tagReg, function(match, tag, attrs, close, tKey) {

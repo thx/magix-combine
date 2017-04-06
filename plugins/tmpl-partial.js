@@ -3,7 +3,7 @@ var tmplClass = require('./tmpl-class');
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
 var subReg = (function() {
-    var temp = '<([\\w]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
+    var temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
     var start = 12; //嵌套12层在同一个view中也足够了
     while (start--) {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
@@ -14,14 +14,15 @@ var subReg = (function() {
 var holder = '\u001d';
 var slashAnchorReg = /\u0004/g;
 //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
-var selfCloseTag = /<(\w+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
-var extractAttrsReg = /<\w+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
+var selfCloseTag = /<([^>\s\/]+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
+var extractAttrsReg = /<[^>\s\/]+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
 //属性正则
-var attrNameValueReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?(?=$|\s)/g;
+var attrNameValueReg = /([^=\/\s]+)(?:\s*=\s*(["'])[\s\S]*?\2)?(?=$|\s)/g;
 //模板引擎命令被替换的占位符
 var tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 var globalTmplRootReg = /[\u0003\u0006]/g;
+var virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
 var escape$ = function(str) {
     return str.replace(/\$/g, '$$$$');
 };
@@ -423,12 +424,15 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
         for (var p in parentOwnKeys) { //继承父结构的keys
             ownKeys[p] = parentOwnKeys[p];
         }
-        //console.log('gggggg', match,'cccc',content);
+        var selector = tag + '[' + guid + ']';
+        if (tag == 'mxv-root') {
+            selector = '#\u001f';
+        }
         var tmplInfo = {
             s: ++g + holder,
             keys: [],
             tmpl: content,
-            path: tag + '[' + guid + ']'
+            path: selector
         };
         if (parentOwnKeys) {
             var pKeys = Object.keys(parentOwnKeys);
@@ -510,6 +514,9 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
         } else { //如果当前标签分析不到数据key，则是不需要局部刷新的节点
             removeGuids.push(guid);
         }
+        if (virtualRoot.test(remain)) {
+            remain = remain.replace(virtualRoot, '$1');
+        }
         return remain;
     });
     //自闭合
@@ -552,6 +559,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
         tmpl = tmpl.replace(' ' + removeGuids[i], '');
     }
     tmpl = tmpl.replace(slashAnchorReg, '/');
+    //console.log('xxx',tmpl);
     return {
         list: list,
         tmpl: tmpl,

@@ -1,7 +1,7 @@
 //处理img标签
 var configs = require('./util-config');
 var tmplCmd = require('./tmpl-cmd');
-var imgTagReg = /<img[^>]*>/ig;
+var imgTagReg = /<img\s+[^>]*>/ig;
 var srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
 module.exports = {
     process: function(tmpl) {

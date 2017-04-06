@@ -1,24 +1,23 @@
 /*
     对模板增加根变量的分析，模板引擎中不需要用with语句
  */
-var util = require('util');
-var acorn = require('./util-acorn');
-var walker = require('./util-acorn-walk');
+var acorn = require('acorn');
+var walker = require('acorn/dist/walk');
 var tmplCmd = require('./tmpl-cmd');
 var configs = require('./util-config');
 var Tmpl_Mathcer = /<%([@=!:~])?([\s\S]+?)%>|$/g;
-var TagReg = /<(\w+)([^>]*)>/g;
-var BindReg = /([\w\-]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
+var TagReg = /<([^>\s\/]+)([^>]*)>/g;
+var BindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
 var BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
 var PathReg = /<%~([\s\S]+?)%>/g;
-var SplitExprReg = /\[[^\[\]]+\]|[^.\[\]]+/g;
-var NumGetReg = /^\[(\d+)\]$/;
 var TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
+var MxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
 var CReg = /[用声全未]/g;
 var HReg = /([\u0001\u0002])\d+/g;
 var HtmlHolderReg = /\u0005\d+\u0005/g;
 var SCharReg = /(?:`;|;`)/g;
 var StringReg = /^['"]/;
+var BindFunctionsReg = /\{\s*([^\{\}]+)\}\s*$/;
 var CMap = {
     '用': '\u0001',
     '声': '\u0002',
@@ -42,6 +41,62 @@ var GenEventReg = function(type) {
     reg.lastIndex = 0;
     return reg;
 };
+var SplitExpr = function(expr) {
+    var stack = [];
+    var temp = '';
+    var max = expr.length;
+    var i = 0,
+        c, opened = 0;
+    while (i < max) {
+        c = expr.charAt(i);
+        if (c == '.') {
+            if (!opened) {
+                if (temp) {
+                    stack.push(temp);
+                }
+                temp = '';
+            } else {
+                temp += c;
+            }
+        } else if (c == '[') {
+            if (!opened && temp) {
+                stack.push(temp);
+                temp = '';
+            }
+            opened++;
+            temp += c;
+        } else if (c == ']') {
+            opened--;
+            temp += c;
+            if (!opened && temp) {
+                stack.push(temp);
+                temp = '';
+            }
+        } else {
+            temp += c;
+        }
+        i++;
+    }
+    if (temp) {
+        stack.push(temp);
+    }
+    return stack;
+};
+
+var ExtractFunctions = function(expr) {
+    var idx = expr.length - 1;
+    var fns = '';
+    if (expr.charAt(idx) == ')') {
+        var lastLeft = expr.lastIndexOf('(');
+        if (lastLeft > 0) {
+            fns = expr.slice((idx = lastLeft) + 1, -1);
+        }
+    }
+    return {
+        expr: fns.length ? expr.slice(0, idx) : expr,
+        fns: fns
+    };
+};
 /*
     \u0000  `反撇
     \u0001  模板中局部变量  用
@@ -59,6 +114,13 @@ module.exports = {
         var index = 0;
         var htmlStore = {};
         var htmlIndex = 0;
+        tmpl = tmpl.replace(BindReg2, function(m, expr) {
+            if (BindFunctionsReg.test(expr)) {
+                expr = expr.replace(BindFunctionsReg, '($1)');
+            }
+            return ' <%:' + expr + '%> ';
+        });
+        //console.log(tmpl);
         tmpl.replace(Tmpl_Mathcer, function(match, operate, content, offset) {
             var start = 2;
             if (operate) {
@@ -256,7 +318,9 @@ module.exports = {
             if (!srcExpr) {
                 srcExpr = expr;
             }
-            var ps = expr.match(SplitExprReg);
+            //console.log('expr', expr);
+            var ps = SplitExpr(expr); //expr.match(SplitExprReg);
+            //console.log('ps', ps);
             var head = ps[0];
             if (head == '\u0003') {
                 return ps.slice(1);
@@ -272,12 +336,18 @@ module.exports = {
             return ps; //.join('.');
         };
         var analyseExpr = function(expr) {
+            //console.log('expr', expr);
             var result = find(expr);
-            for (var i = 0; i < result.length; i++) {
-                result[i] = result[i].replace(NumGetReg, '$1').trim();
+            //console.log('result', result);
+            for (var i = 0, one; i < result.length; i++) {
+                one = result[i];
+                if (one.charAt(0) == '[' && one.charAt(one.length - 1) == ']') {
+                    one = '<%=' + one.slice(1, -1) + '%>';
+                }
+                //one = StripNum(one);
+                result[i] = one;
             }
             result = result.join('.');
-            result = result.replace(/\[/g, '<%!').replace(/\]/g, '%>');
             return result;
         };
         fn = tmplCmd.store(fn, cmdStore);
@@ -300,6 +370,7 @@ module.exports = {
             var bindEvents = configs.bindEvents;
             var oldEvents = {};
             var e;
+            var hasMagixView = MxViewAttrReg.test(attrs);
             //console.log(cmdStore, attrs);
             attrs = tmplCmd.recover(attrs, cmdStore, recoverString);
             var replacement = function(m, name, params) {
@@ -317,6 +388,23 @@ module.exports = {
                 attrs = attrs.replace(reg, replacement);
             }
             var findCount = 0;
+            var transformEvent = function(exprInfo) {
+                var expr = exprInfo.expr;
+                var f = '';
+                var fns = exprInfo.fns;
+                if (fns.length) {
+                    f = ',f:\'' + fns.replace(/[\u0001\u0003\u0006]\d*\.?/g, '') + '\'';
+                }
+                expr = analyseExpr(expr);
+                var now = '',
+                    info;
+                for (i = 0; i < bindEvents.length; i++) {
+                    e = bindEvents[i];
+                    info = oldEvents[e];
+                    now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + f + '})"';
+                }
+                return now;
+            };
             attrs = attrs.replace(BindReg, function(m, name, q, expr) {
                 expr = expr.trim();
                 if (findCount > 1) {
@@ -324,15 +412,15 @@ module.exports = {
                     return '';
                 }
                 findCount++;
-                expr = analyseExpr(expr);
-                var now = '',
-                    info;
-                for (i = 0; i < bindEvents.length; i++) {
-                    e = bindEvents[i];
-                    info = oldEvents[e];
-                    now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + '})"';
+
+                var exprInfo = ExtractFunctions(expr);
+                var now = transformEvent(exprInfo);
+
+                var replacement = '<%=';
+                if (hasMagixView && name.indexOf('view-') === 0) {
+                    replacement = '<%@';
                 }
-                m = m.replace('<%:', '<%=');
+                m = name + '=' + q + replacement + exprInfo.expr + '%>' + q;
                 return m + now;
             }).replace(BindReg2, function(m, expr) {
                 expr = expr.trim();
@@ -341,14 +429,8 @@ module.exports = {
                     return '';
                 }
                 findCount++;
-                expr = analyseExpr(expr);
-                var now = '',
-                    info;
-                for (i = 0; i < bindEvents.length; i++) {
-                    e = bindEvents[i];
-                    info = oldEvents[e];
-                    now += '  mx-' + e + '="s\u0011e\u0011t({p:\'' + expr + '\'' + (info ? info.now : '') + '})"';
-                }
+                var exprInfo = ExtractFunctions(expr);
+                var now = transformEvent(exprInfo);
                 return now;
             }).replace(PathReg, function(m, expr) {
                 expr = expr.trim();

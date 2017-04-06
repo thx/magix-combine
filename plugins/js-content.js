@@ -8,17 +8,17 @@ var atpath = require('./util-atpath');
 var jsLoader = require('./js-loader');
 var configs = require('./util-config');
 
-var acorn = require('./util-acorn');
-var walker = require('./util-acorn-walk');
+var acorn = require('acorn');
+var walker = require('acorn/dist/walk');
 
 var StringReg = /^['"]/;
 var mxTailReg = /\.mx$/;
 //文件内容处理，主要是把各个处理模块串起来
 var moduleIdReg = /(['"])(@moduleId)\1/;
-var cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx)/;
+var cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
 var htmlFileReg = /(['"])(raw)?@([^'"]+)\.html(:data|:keys|:events)?\1/;
 module.exports = {
-    process: function(from, to, content, outputObject) {
+    process: function(from, to, content, outputObject, inwatch) {
         if (!content) content = fd.read(from);
         for (var i = configs.excludeTmplFiles.length - 1; i >= 0; i--) {
             if (from.indexOf(configs.excludeTmplFiles[i]) >= 0) {
@@ -37,7 +37,7 @@ module.exports = {
         if (configs.log) {
             console.log('compile:', from.blue);
         }
-        var before = configs.compileBeforeProcessor(content);
+        var before = configs.compileBeforeProcessor(content, from);
         if (util.isString(before)) {
             before = Promise.resolve(before);
         }
@@ -48,6 +48,13 @@ module.exports = {
                 from: from,
                 content: content
             });
+        }).then(function(e) {
+            var p = configs.afterDependenceAnalysisProcessor(e);
+            if (!p || !p.then) {
+                console.log('magix-combine:config > afterDependenceAnalysisProcessor must return a promise'.red);
+                p = Promise.resolve(e);
+            }
+            return p;
         }).then(function(e) {
             var tmpl = jsLoader(e);
             var ast;
@@ -110,7 +117,7 @@ module.exports = {
         }).then(function(e) {
             if (contentInfo) e.contentInfo = contentInfo;
             //console.time('css'+e.from);
-            return cssProcessor(e);
+            return cssProcessor(e, inwatch);
         }).then(tmplProcessor).then(function(e) {
             if (outputObject) return Promise.resolve(e);
             return Promise.resolve(e.content);

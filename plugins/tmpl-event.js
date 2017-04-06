@@ -1,5 +1,5 @@
 //模板中事件的提取，主要为brix-event模块提供：https://github.com/thx/brix-event/blob/master/src/brix/event.js#L15
-var pureTagReg = /<\w+[^>]*>/g;
+var pureTagReg = /<[^>\s\/]+[^>]*>/g;
 var attrsNameValueReg = /([^\s]+)=(["'])[\s\S]+?\2/ig;
 var eventReg = /mx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+/;
 module.exports = {

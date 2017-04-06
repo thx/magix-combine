@@ -1,3 +1,17 @@
+## 2.0.5
+1. 增加全局的局部化处理`scopedAsGlobalCss`，增加全局样式`globalCss`方便提示
+2. 增加`scoped.style`作为全局样式的局部化文件名称
+3. 开放`writeFile`
+4. 增加`startProcessor`钩子
+5. `resolveRequire`增加`context`参数
+6. 增加`afterDependenceAnalysisProcessor`钩子
+7. 使用`mxv-root`虚拟根节点代替子模板分析时如果没有外层标签默认使用`div`的方案，解决`ul``li`标签拆分问题，如外层使用`ul`，子`view`循环输出`li`
+8. 修复变量路径分析`bug`，旧版对`.frames[codes[keys[i].name]]`分析不正确，未能正确分析嵌套的`[]`
+9. `view`传参带绑定时，使用`<%@`而非`<%=`
+10. 调整`acorn`的依赖，放在外部
+11. 界面变化绑定数据的表达式增加参数支持
+12. 调整生成样式选择器算法，减少生成的文件内容
+
 ## 2.0.4
 1. `js`解析出错，错误信息标红
 2. 增加在开始或结束编译`js`内容时的钩子，方便与其它工具对接

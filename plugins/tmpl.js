@@ -4,7 +4,6 @@ var util = require('util');
 var fd = require('./util-fd');
 var deps = require('./util-deps');
 var atpath = require('./util-atpath');
-//var md5 = require('./util-md5');
 var configs = require('./util-config');
 var tmplEvent = require('./tmpl-event');
 var tmplCmd = require('./tmpl-cmd');
@@ -20,7 +19,7 @@ var cmdReg = /\u0007\d+\u0007/g;
 var fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 var htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 var sep = path.sep;
-var tagReg = /<[\w]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
+var tagReg = /<[\w-]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
 var mxEventReg = /\bmx-(?!view|vframe|init)[a-zA-Z]+\s*=\s*['"]/g;
 var holder = '\u001f';
 var magixHolder = '\u001e';
@@ -60,10 +59,7 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
             file: file
         };
         fileContent = tmplMxTag.process(fileContent, extInfo);
-        var tmplEvents = tmplEvent.extract(fileContent);
-        temp.events = tmplEvents;
 
-        //var guid = md5(e.moduleId);
         var refTmplCommands = {};
         fileContent = tmplImg.process(fileContent);
         if (!configs.disableMagixUpdater && !raw) {
@@ -71,6 +67,8 @@ var processTmpl = function(fileContent, cache, cssNamesMap, raw, e, reject, pref
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
+        var tmplEvents = tmplEvent.extract(fileContent);
+        temp.events = tmplEvents;
         if (configs.addEventPrefix) {
             fileContent = fileContent.replace(tagReg, function(match) {
                 return match.replace(mxEventReg, '$&' + holder + magixHolder);

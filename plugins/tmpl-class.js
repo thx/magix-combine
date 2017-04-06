@@ -3,7 +3,7 @@
 var configs = require('./util-config');
 var classReg = /\bclass\s*=\s*(['"])([^'"]+)(?:\1)/g;
 var classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
-var pureTagReg = /<\w+[^>]*>/g;
+var pureTagReg = /<[^>\s\/]+[^>]*>/g;
 var selfCssReg = /@:([\w\-]+)/g;
 module.exports = {
     process: function(tmpl, cssNamesMap) {
@@ -14,6 +14,7 @@ module.exports = {
             return 'class=' + q + c.replace(classNameReg, classResult) + q;
         };
         var selfCssClass = function(m, key) {
+            //console.log(m,key);
             return cssNamesMap[key] || key;
         };
         var pureProcessor = function(match) {
