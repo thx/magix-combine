@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "2.0.5",
+  "version": "2.1.0",
   "description": "合并Magix View的html,js,css成一个js文件",
   "main": "index.js",
   "repository": {
@@ -12,12 +12,12 @@
     "view"
   ],
   "dependencies": {
-    "colors": "1.1.2",
-    "cssnano": "3.10.0",
-    "html-minifier": "3.3.1",
-    "less": "2.7.2",
-    "node-sass": "4.5.0",
-    "acorn": "5.0.2"
+    "colors": "1.1.x",
+    "cssnano": "3.10.x",
+    "html-minifier": "3.4.x",
+    "less": "2.7.x",
+    "node-sass": "4.5.x",
+    "acorn": "5.0.x"
   },
   "author": "xinglie <xinglie.lkf@taobao.com>",
   "license": "MIT",

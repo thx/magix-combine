@@ -1,17 +1,17 @@
 //抽取模块id,如文件物理路径为'/users/xiglie/afp/tmpl/app/views/default.js'
 //则抽取出来的模块id是 app/vies/default
 
-var path = require('path');
+let path = require('path');
 
-var configs = require('./util-config');
+let configs = require('./util-config');
 
-var sep = path.sep;
-var sepRegTmpl = sep.replace(/\\/g, '\\\\');
-var sepReg = new RegExp(sepRegTmpl, 'g');
-var cssTailReg = /\.(?:css|less|scss)/i;
-var startSlashReg = /^\//;
-var extractModuleId = function(file) {
-    var id = file.replace(configs.moduleIdRemovedPath, '')
+let sep = path.sep;
+let sepRegTmpl = sep.replace(/\\/g, '\\\\');
+let sepReg = new RegExp(sepRegTmpl, 'g');
+let cssTailReg = /\.(?:css|less|scss)/i;
+let startSlashReg = /^\//;
+let extractModuleId = (file) => {
+    let id = file.replace(configs.moduleIdRemovedPath, '')
         .replace(configs.compileFileExtNamesReg, '')
         .replace(cssTailReg, '')
         .replace(sepReg, '/')

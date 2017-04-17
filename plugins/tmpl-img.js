@@ -1,17 +1,17 @@
 //处理img标签
-var configs = require('./util-config');
-var tmplCmd = require('./tmpl-cmd');
-var imgTagReg = /<img\s+[^>]*>/ig;
-var srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
+let configs = require('./util-config');
+let tmplCmd = require('./tmpl-cmd');
+let imgTagReg = /<img\s+[^>]*>/ig;
+let srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
 module.exports = {
-    process: function(tmpl) {
-        var cmdCache = {};
+    process(tmpl) {
+        let cmdCache = {};
         tmpl = tmplCmd.store(tmpl, cmdCache);
-        var restore = function(tmpl) {
+        let restore = (tmpl) => {
             return tmplCmd.recover(tmpl, cmdCache);
         };
-        var attrsProcessor = function(attrs) {
-            attrs = attrs.replace(srcReg, function(match, q, value) {
+        let attrsProcessor = (attrs) => {
+            attrs = attrs.replace(srcReg, (match, q, value) => {
                 if (configs.log) {
                     console.log('tmpl-img match:', value);
                 }
@@ -20,7 +20,7 @@ module.exports = {
             });
             return attrs;
         };
-        var tagProcessor = function(match) {
+        let tagProcessor = (match) => {
             match = restore(match);
             match = attrsProcessor(match);
             return match;

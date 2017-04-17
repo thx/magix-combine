@@ -1,40 +1,39 @@
-var util = require('./util');
-var atpath = require('./util-atpath');
-var jsRequireParser = require('./js-require-parser');
+let util = require('./util');
+let atpath = require('./util-atpath');
+let jsRequireParser = require('./js-require-parser');
 //分析js中的require命令
-var depsReg = /(?:(var\s+|,)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(([^\(\)]+)\)(;)?/g;
-//var exportsReg = /module\.exports\s*=\s*/;
-var anchor = '\u0011';
-var anchorReg = /(['"])\u0011([^'"]+)\1/;
-var configs = require('./util-config');
+let depsReg = /(?:((?:var|let|const)\s+|,)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(([^\(\)]+)\)(;)?/g;
+//let exportsReg = /module\.exports\s*=\s*/;
+let anchor = '\u0011';
+let anchorReg = /(['"])\u0011([^'"]+)\1/;
+let configs = require('./util-config');
 module.exports = {
-    process: function(e) {
-        var deps = [];
-        var vars = [];
-        var noKeyDeps = [];
-        var moduleId = util.extractModuleId(e.from);
-        var depsInfo = jsRequireParser.process(e.content);
-        for (var i = 0, start; i < depsInfo.length; i++) {
+    process(e) {
+        let deps = [];
+        let vars = [];
+        let noKeyDeps = [];
+        let moduleId = util.extractModuleId(e.from);
+        let depsInfo = jsRequireParser.process(e.content);
+        for (let i = 0, start; i < depsInfo.length; i++) {
             start = depsInfo[i].start + i;
             e.content = e.content.substring(0, start) + anchor + e.content.substring(start);
         }
-        e.content = e.content.replace(depsReg, function(match, prefix, key, str, tail) {
-            var info = str.match(anchorReg);
+        e.content = e.content.replace(depsReg, (match, prefix, key, str, tail) => {
+            let info = str.match(anchorReg);
             if (!info) return match;
             str = info[1] + info[2] + info[1];
             if (configs.useAtPathConverter) {
                 str = atpath.resolvePath(str, moduleId);
             }
-            var depId = str.slice(1, -1);
-            var reqInfo = {
+            let depId = str.slice(1, -1);
+            let reqInfo = {
                 prefix: prefix,
                 tail: tail || '',
-                depId: depId,
                 dependedId: depId,
                 variable: key
             };
             configs.resolveRequire(reqInfo, e);
-            var dId;
+            let dId;
             if (reqInfo.dependedId) {
                 dId = JSON.stringify(reqInfo.dependedId);
                 deps.push(dId);

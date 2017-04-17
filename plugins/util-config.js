@@ -18,56 +18,63 @@ module.exports = {
         collapseInlineTagWhitespace: true,
         caseSensitive: true
     },
-    log: true,
+    log: true, //输出普通日志
+    logTmplClassUndeclared: true, //输出模板中未声明的clas
+    logCssUnused: true, //输出样式中未使用的样式
+    logCssExists: true, //输出重名的样式
+    logFileCssGlobal: true, //输出不再推荐使用的global@前缀
     compressCss: true, //是否压缩css内容
+    compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
     addEventPrefix: true, //mx事件增加前缀
-    bindEvents: ['change'],
-    globalCss: [],
-    scopedAsGlobalCss: [],
-    bindName: 's\u0011e\u0011t',
-    useAtPathConverter: true,
+    bindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
+    bindName: 's\u0011e\u0011t', //绑定表达式<%:expr%>绑定的处理名称
+    globalCss: [], //全局样式
+    scopedCss: [], //全局但做为scoped使用的样式
+    useAtPathConverter: true, //是否使用@转换路径的功能
     compileFileExtNames: ['js', 'mx'], //选择编译时的后缀名
     tmplUnchangableVars: {}, //模板中不会变的变量，减少子模板的分析
     tmplGlobalVars: {}, //模板中全局变量
     outputTmplWithEvents: false, //输出事件
     excludeTmplFolders: [], //不让该工具处理的文件夹或文件
     excludeTmplFiles: [],
-    compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
     disableMagixUpdater: false,
-    startProcessor: function(file) {
+    tmplPadCallArguments(name) { //模板中某些函数的调用，我们可以动态添加一些参数。
+        return '';
+    },
+    startProcessor(file) {
         return Promise.resolve(file);
     },
-    afterDependenceAnalysisProcessor: function(e) {
+    compileBeforeProcessor(content) { //开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
+        return content;
+    },
+    compileAfterProcessor(content) { //结束编译
+        return content;
+    },
+    afterDependenceAnalysisProcessor(e) { //分析完依赖后的处理器，可以在这个地方加入一些其它流程。
         return Promise.resolve(e);
     },
-    compileBeforeProcessor: function(content) {
-        return content;
-    },
-    compileAfterProcessor: function(content) {
-        return content;
-    },
-    mxTagProcessor: function(tmpl, info) {
+    mxTagProcessor(tmpl, e) { //mx-tag的处理器
         return tmpl;
     },
-    excludeFileContent: function(content) {
+    excludeFileContent(content) { //可以根据文件内容来决定是否编译该文件
 
     },
-    cssNamesProcessor: function(tmpl, cssNamesMap) {
+    cssNamesProcessor(tmpl, cssNamesMap) { //模板中class名称的处理器
         return tmpl;
     },
-    compressTmplCommand: function(tmpl) { //压缩模板命令，扩展用
+    compressTmplCommand(tmpl) { //压缩模板命令，扩展用
         return tmpl;
     },
-    cssUrlMatched: function(url) {
+    cssUrlMatched(url) { //样式中匹配到url时的处理器
         return url;
     },
-    tmplImgSrcMatched: function(url) {
+    tmplImgSrcMatched(url) { //模板中匹配到img标签时的处理器
         return url;
     },
-    resolveModuleId: function(id) {
+    resolveModuleId(id) { //处理模块id时的处理器
         return id;
     },
-    resolveRequire: function(reqInfo, context) {
+    resolveRequire(reqInfo, context) { //处理rqeuire时的处理器
         return reqInfo;
     }
 };

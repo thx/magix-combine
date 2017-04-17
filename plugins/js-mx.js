@@ -1,18 +1,18 @@
 //处理mx后缀的文件
-var path = require('path');
-var templateReg = /<template>([\s\S]+?)<\/template>/i;
-var styleReg = /<style([^>]*)>([\s\S]+?)<\/style>/i;
-var scriptReg = /<script[^>]*>([\s\S]+?)<\/script>/i;
-var styleTypeReg = /type\s*=(['"])([^'"]+)\1/;
-var styleTypesMap = {
+let path = require('path');
+let templateReg = /<template>([\s\S]+?)<\/template>/i;
+let styleReg = /<style([^>]*)>([\s\S]+?)<\/style>/i;
+let scriptReg = /<script[^>]*>([\s\S]+?)<\/script>/i;
+let styleTypeReg = /type\s*=(['"])([^'"]+)\1/;
+let styleTypesMap = {
     'text/less': '.less',
     'text/sass': '.sass'
 };
 module.exports = {
-    process: function(content, from) {
-        var template, style, script, type;
-        var temp = content.match(templateReg);
-        var fileName = path.basename(from);
+    process(content, from) {
+        let template, style, script, type;
+        let temp = content.match(templateReg);
+        let fileName = path.basename(from);
         if (temp) {
             template = temp[1];
         } else {

@@ -6,6 +6,7 @@
 2. css只在当前区块内生效。[关于style的scope](https://github.com/thx/magix-combine/issues/6) [css模块](http://www.75team.com/post/1049.html)
 3. 智能子模板离线数据提取及预处理
 4. CommonJS的写法，由工具加上相应的web loader
+5. 检测项目中未使用到的样式、重名的样式。模板中使用未声明的选择器
 
 ## gulp使用示例
 [gulp使用示例](https://github.com/thx/magix-combine/issues/16)

@@ -1,19 +1,19 @@
-var configs = require('./util-config');
-var tmplCmd = require('./tmpl-cmd');
+let configs = require('./util-config');
+let tmplCmd = require('./tmpl-cmd');
 //模板代码片断的处理，较少用
-var snippetReg = /<mx-([\w-]+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
-var snippetReg1 = /<mx-([\w-]+)([^>]*)\/>/g;
+let snippetReg = /<mx-([\w-]+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
+let snippetReg1 = /<mx-([\w-]+)([^>]*)\/>/g;
 module.exports = {
-    process: function(tmpl, extInfo) {
-        var compare;
-        var cmdCache = {};
+    process(tmpl, extInfo) {
+        let compare;
+        let cmdCache = {};
         tmpl = tmplCmd.store(tmpl, cmdCache);
-        var restore = function(tmpl) {
+        let restore = (tmpl) => {
             return tmplCmd.recover(tmpl, cmdCache);
         };
-        var tagProcessor = function(match, tag, attrs, content) {
+        let tagProcessor = (match, tag, attrs, content) => {
             attrs = restore(attrs);
-            var result = {
+            let result = {
                 name: tag,
                 tag: tag,
                 content: content,
@@ -21,9 +21,9 @@ module.exports = {
             };
             return configs.mxTagProcessor(result, extInfo);
         };
-        var tagProcessor1 = function(match, tag, attrs) {
+        let tagProcessor1 = (match, tag, attrs) => {
             attrs = restore(attrs);
-            var result = {
+            let result = {
                 name: tag,
                 tag: tag,
                 content: '',

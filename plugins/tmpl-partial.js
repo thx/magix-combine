@@ -1,42 +1,41 @@
-var tmplCmd = require('./tmpl-cmd');
-var tmplClass = require('./tmpl-class');
+let tmplCmd = require('./tmpl-cmd');
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
-var subReg = (function() {
-    var temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
-    var start = 12; //嵌套12层在同一个view中也足够了
+let subReg = (() => {
+    let temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
+    let start = 12; //嵌套12层在同一个view中也足够了
     while (start--) {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
     }
     temp = temp.replace('#', '[\\s\\S]*?');
     return new RegExp(temp, 'ig');
-}());
-var holder = '\u001d';
-var slashAnchorReg = /\u0004/g;
+})();
+let holder = '\u001d';
+let slashAnchorReg = /\u0004/g;
 //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
-var selfCloseTag = /<([^>\s\/]+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
-var extractAttrsReg = /<[^>\s\/]+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
+let selfCloseTag = /<([^>\s\/]+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
+let extractAttrsReg = /<[^>\s\/]+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
 //属性正则
-var attrNameValueReg = /([^=\/\s]+)(?:\s*=\s*(["'])[\s\S]*?\2)?(?=$|\s)/g;
+let attrNameValueReg = /([^=\/\s]+)(?:\s*=\s*(["'])[\s\S]*?\2)?(?=$|\s)/g;
 //模板引擎命令被替换的占位符
-var tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-var tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
-var globalTmplRootReg = /[\u0003\u0006]/g;
-var virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
-var escape$ = function(str) {
+let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
+let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
+let globalTmplRootReg = /[\u0003\u0006]/g;
+let virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
+let escape$ = (str) => {
     return str.replace(/\$/g, '$$$$');
 };
-var escapeQ = function(str) {
+let escapeQ = (str) => {
     return str.replace(/"/g, '&quot;');
 };
 //恢复被替换的模板引擎命令
-var commandAnchorRecover = function(tmpl, refTmplCommands) {
+let commandAnchorRecover = (tmpl, refTmplCommands) => {
     return tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 };
-var dataKeysReg = /\u0003\.([\w$]+)\.?/g;
-var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
-    var attrKeys = {};
-    var tmplKeys = {};
+let dataKeysReg = /\u0003\.([\w$]+)\.?/g;
+let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
+    let attrKeys = {};
+    let tmplKeys = {};
     tmpl = tmpl.replace(content, ''); //标签加内容，移除内容，只剩标签
     //console.log('--------',tmpl,'======',content);
     while (subReg.test(content) || selfCloseTag.test(content)) { //清除子模板
@@ -45,31 +44,31 @@ var extractUpdateKeys = function(tmpl, refTmplCommands, content, pKeys) {
         //break;
     }
     //console.log('=====', tmpl, '-----', content);
-    tmpl.replace(tmplCommandAnchorReg, function(m) {
-        var temp = refTmplCommands[m];
+    tmpl.replace(tmplCommandAnchorReg, (m) => {
+        let temp = refTmplCommands[m];
         //console.log(temp);
-        temp.replace(dataKeysReg, function(m, name) { //数据key
+        temp.replace(dataKeysReg, (m, name) => { //数据key
             if (!pKeys || !pKeys[name]) { //不在父作用域内
                 attrKeys[name] = 1;
             }
         });
     });
-    content.replace(tmplCommandAnchorReg, function(m) { //查找模板命令
-        var temp = refTmplCommands[m];
-        temp.replace(dataKeysReg, function(m, name) { //数据key
+    content.replace(tmplCommandAnchorReg, (m) => { //查找模板命令
+        let temp = refTmplCommands[m];
+        temp.replace(dataKeysReg, (m, name) => { //数据key
             if (!pKeys || !pKeys[name]) { //不在父作用域内
                 tmplKeys[name] = 1;
             }
         });
     });
-    var allKeys = Object.assign(attrKeys, tmplKeys);
+    let allKeys = Object.assign(attrKeys, tmplKeys);
     return {
         keys: Object.keys(allKeys),
         attrKeys: attrKeys,
         tmplKeys: tmplKeys
     };
 };
-var tagsBooleanPrpos = {
+let tagsBooleanPrpos = {
     input: {
         disabled: 1,
         readonly: 1,
@@ -119,7 +118,7 @@ var tagsBooleanPrpos = {
         disabled: 1
     }
 };
-var tagsProps = {
+let tagsProps = {
     input: {
         maxlength: 'maxLength',
         minlength: 'minLength',
@@ -241,7 +240,7 @@ var tagsProps = {
         height: 'height'
     }
 };
-var globalProps = {
+let globalProps = {
     id: 'id',
     class: 'className',
     title: 'title',
@@ -250,26 +249,25 @@ var globalProps = {
     //contenteditable: 'contentEditable',//这个比较特殊
     tabindex: 'tabIndex'
 };
-var mayBeAttrs = {};
-var trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007|$)/g;
-var trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
-var inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
-var stringReg = /(['"])([a-z]+)\1/g;
-for (var p in globalProps) {
+let mayBeAttrs = {};
+let trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007|$)/g;
+let trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
+let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
+let stringReg = /(['"])([a-z]+)\1/g;
+for (let p in globalProps) {
     mayBeAttrs[p] = 1;
 }
-for (p in tagsProps) {
-    for (var a in tagsProps[p]) {
+for (let p in tagsProps) {
+    for (let a in tagsProps[p]) {
         mayBeAttrs[a] = 1;
     }
 }
 //添加属性信息
-var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
-    var attrsKeys = {},
+let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
+    let attrsKeys = {},
         tmplKeys = {};
-    tmpl = tmplClass.process(tmpl, cssNamesMap);
-    tmpl.replace(extractAttrsReg, function(match, attr) {
-        var originAttr = attr;
+    tmpl.replace(extractAttrsReg, (match, attr) => {
+        let originAttr = attr;
         while (trimAttrsStart.test(attr)) {
             attr = attr.replace(trimAttrsStart, '').trim();
         }
@@ -278,50 +276,50 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
         }
         if (!attr) return;
         //console.log(attr);
-        attr.replace(tmplCommandAnchorReg, function(match) {
-            var value = refTmplCommands[match];
-            value.replace(dataKeysReg, function(m, vname) {
+        attr.replace(tmplCommandAnchorReg, (match) => {
+            let value = refTmplCommands[match];
+            value.replace(dataKeysReg, (m, vname) => {
                 attrsKeys[vname] = 1;
             });
         });
-        var hasProps = {};
-        originAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, function(match, name) {
+        let hasProps = {};
+        originAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, (match, name) => {
             //console.log(name);
             hasProps[name] = 1;
         });
-        var attrs = [];
-        var attrsMap = {};
-        var type = '';
+        let attrs = [];
+        let attrsMap = {};
+        let type = '';
         if (tag == 'input') { //特殊处理input
             //console.log(originAttr);
-            var ms = originAttr.match(inputTypeReg);
+            let ms = originAttr.match(inputTypeReg);
             if (ms) {
                 type = ms[2];
             }
         }
 
-        var props = [];
-        var extractProps = attr.replace(tmplCommandAnchorReg, function(match) {
-            var temp = commandAnchorRecover(match, refTmplCommands);
-            temp.replace(stringReg, function(match, q, content) {
+        let props = [];
+        let extractProps = attr.replace(tmplCommandAnchorReg, (match) => {
+            let temp = commandAnchorRecover(match, refTmplCommands);
+            temp.replace(stringReg, (match, q, content) => {
                 if (!hasProps[content] && mayBeAttrs[content]) {
                     props.push(content);
                 }
             });
             return '';
         });
-        //var extractProps = attr.replace(tmplCommandAnchorReg, '');
-        extractProps.replace(attrNameValueReg, function(match, name) {
+        //let extractProps = attr.replace(tmplCommandAnchorReg, '');
+        extractProps.replace(attrNameValueReg, (match, name) => {
             props.push(name);
         });
         //console.log(extractProps);
-        for (var i = 0, prop; i < props.length; i++) {
+        for (let i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
                 console.warn('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.from.gray);
                 continue;
             }
-            var t = {};
+            let t = {};
             t.n = prop;
             attrsMap[prop] = 1;
 
@@ -334,14 +332,14 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
                 t.q = 1;
             }
 
-            var propInfo = tagsBooleanPrpos[tag + '&' + type] || tagsBooleanPrpos[tag];
+            let propInfo = tagsBooleanPrpos[tag + '&' + type] || tagsBooleanPrpos[tag];
             if (propInfo && propInfo[prop]) {
                 t.b = 1;
             }
             propInfo = tagsProps[tag + '&' + type] || tagsProps[tag];
-            var searchGlobal = false;
+            let searchGlobal = false;
             if (propInfo) {
-                var fixedName = propInfo[prop];
+                let fixedName = propInfo[prop];
                 if (fixedName) {
                     t.p = 1;
                     if (fixedName != prop) {
@@ -372,15 +370,15 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
     });
     if (info.tmpl && info.attr) { //有模板及属性
         //接下来我们处理前面的属性和内容更新问题
-        info.tmpl.replace(tmplCommandAnchorReg, function(match) {
-            var value = refTmplCommands[match];
-            value.replace(dataKeysReg, function(m, vname) {
+        info.tmpl.replace(tmplCommandAnchorReg, (match) => {
+            let value = refTmplCommands[match];
+            value.replace(dataKeysReg, (m, vname) => {
                 tmplKeys[vname] = 1;
             });
         });
         //console.log(info.keys, tmplKeys, attrsKeys);
-        var mask = '';
-        for (var i = 0, m; i < info.keys.length; i++) {
+        let mask = '';
+        for (let i = 0, m; i < info.keys.length; i++) {
             m = 0;
             //如果key存在内容模板中，则m为1
             if (tmplKeys[info.keys[i]]) m = 1;
@@ -405,49 +403,49 @@ var addAttrs = function(tag, tmpl, info, refTmplCommands, cssNamesMap, e) {
     delete info.hasView;
 };
 
-var g = 0;
+let g = 0;
 //递归构建子模板
-var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnKeys, globalKeys) {
+let buildTmpl = (tmpl, refTmplCommands, e, list, parentOwnKeys, globalKeys) => {
     if (!list) {
         list = [];
         g = 0;
         globalKeys = {};
     }
-    var subs = [];
-    var removeGuids = []; //经过tmpl-guid插件之后，所有的标签都会加上guid，但只有具备局部刷新的标签才保留guid，其它的移除，这里用来记录要移除的guid
+    let subs = [];
+    let removeGuids = []; //经过tmpl-guid插件之后，所有的标签都会加上guid，但只有具备局部刷新的标签才保留guid，其它的移除，这里用来记录要移除的guid
     //子模板
     //console.log('input ',tmpl);
-    tmpl = tmpl.replace(subReg, function(match, tag, guid, content) { //清除子模板后
+    tmpl = tmpl.replace(subReg, (match, tag, guid, content) => { //清除子模板后
         //match = match.replace(slashAnchorReg, '/');
         //console.log('match',match,tag,guid,'=======',content);
-        var ownKeys = {};
-        for (var p in parentOwnKeys) { //继承父结构的keys
+        let ownKeys = {};
+        for (let p in parentOwnKeys) { //继承父结构的keys
             ownKeys[p] = parentOwnKeys[p];
         }
-        var selector = tag + '[' + guid + ']';
+        let selector = tag + '[' + guid + ']';
         if (tag == 'mxv-root') {
             selector = '#\u001f';
         }
-        var tmplInfo = {
+        let tmplInfo = {
             s: ++g + holder,
             keys: [],
             tmpl: content,
             path: selector
         };
         if (parentOwnKeys) {
-            var pKeys = Object.keys(parentOwnKeys);
+            let pKeys = Object.keys(parentOwnKeys);
             if (pKeys.length) {
                 tmplInfo.pKeys = pKeys; //记录父结构有哪些keys，当数据变化且在父结构中时，当前结构是不需要去做更新操作的，由父代劳
             }
         }
-        //var datakey = refGuidToKeys[guid];
-        //var keys = datakey.split(',');
-        var remain = match;
-        var kInfo = extractUpdateKeys(match, refTmplCommands, content, parentOwnKeys); //从当前匹配到的标签取对应的数据key
+        //let datakey = refGuidToKeys[guid];
+        //let keys = datakey.split(',');
+        let remain = match;
+        let kInfo = extractUpdateKeys(match, refTmplCommands, content, parentOwnKeys); //从当前匹配到的标签取对应的数据key
         //console.log(kInfo);
         //console.log('keys', kInfo, match, content);
         if (kInfo.keys.length) { //从当前标签分析出了数据key后，再深入分析
-            for (var i = 0, key; i < kInfo.keys.length; i++) {
+            for (let i = 0, key; i < kInfo.keys.length; i++) {
                 key = kInfo.keys[i].trim();
                 tmplInfo.keys.push(key);
                 globalKeys[key] = 1;
@@ -456,20 +454,20 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
             //list.push(tmplInfo); //先记录
             if (tag == 'textarea') { //textarea特殊处理，因为textarea可以有节点内容
                 remain = match;
-                var addValueAsAttr = remain;
+                let addValueAsAttr = remain;
                 if (tmplCommandAnchorRegTest.test(content)) {
-                    var idx = addValueAsAttr.indexOf('>');
+                    let idx = addValueAsAttr.indexOf('>');
                     addValueAsAttr = addValueAsAttr.slice(0, idx) + ' value="' + escapeQ(content) + '"' + addValueAsAttr.slice(idx);
                 }
-                addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands, cssNamesMap, e);
+                addAttrs(tag, addValueAsAttr, tmplInfo, refTmplCommands, e);
                 delete tmplInfo.s; //这3行删除不必要的属性，节省资源
                 delete tmplInfo.tmpl;
                 delete tmplInfo.mask;
                 list.push(tmplInfo);
             } else {
                 //从内容中移除自闭合标签及子模板
-                var tContent = content.replace(selfCloseTag, '').replace(subReg, '');
-                var wrapTag;
+                let tContent = content.replace(selfCloseTag, '').replace(subReg, '');
+                let wrapTag;
                 if (tmplCommandAnchorRegTest.test(tContent)) { //如果剩余有模板命令
                     //则使用占位符的方式占位
                     wrapTag = remain = match.replace('>' + content + '<', '>' + g + holder + '<'); //只留包括的标签及占位符
@@ -489,7 +487,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
                     //remain = match; //去除子模板后没有模板命令，则保留所有内容
                     wrapTag = match.replace('>' + content, '>'); //属性分析时要去除干扰的内容
                     if (tmplCommandAnchorRegTest.test(content)) {
-                        var info = buildTmpl(content, refTmplCommands, cssNamesMap, e, list, ownKeys, globalKeys);
+                        let info = buildTmpl(content, refTmplCommands, e, list, ownKeys, globalKeys);
                         //console.log(match, '----', content, 'xxx', info.tmpl);
                         remain = match.replace('>' + content, '>' + escape$(info.tmpl));
                     } else {
@@ -500,7 +498,7 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
                 }
                 //console.log('wrapTag', wrapTag);
                 //对当前标签分析属性的局部更新
-                addAttrs(tag, wrapTag, tmplInfo, refTmplCommands, cssNamesMap, e);
+                addAttrs(tag, wrapTag, tmplInfo, refTmplCommands, e);
                 if (!tmplInfo.attr) {
                     delete tmplInfo.attr;
                 }
@@ -520,42 +518,41 @@ var buildTmpl = function(tmpl, refTmplCommands, cssNamesMap, e, list, parentOwnK
         return remain;
     });
     //自闭合
-    tmpl.replace(selfCloseTag, function(match, tag, guid) {
+    tmpl.replace(selfCloseTag, (match, tag, guid) => {
         //match = match.replace(/\u0004/g, '/');
-        var tmplInfo = {
+        let tmplInfo = {
             keys: [],
             path: tag + '[' + guid + ']'
         };
         if (parentOwnKeys) {
-            var pKeys = Object.keys(parentOwnKeys);
+            let pKeys = Object.keys(parentOwnKeys);
             if (pKeys.length) {
                 tmplInfo.pKeys = pKeys; //记录父结构有哪些keys，当数据变化且在父结构中时，当前结构是不需要去做更新操作的，由父代劳
             }
         }
         //自闭合标签只需要分析属性即可
-        var kInfo = extractUpdateKeys(match, refTmplCommands, '', parentOwnKeys);
+        let kInfo = extractUpdateKeys(match, refTmplCommands, '', parentOwnKeys);
         if (kInfo.keys.length) { //同样，当包含数据更新的key时才进行深入分析
-            for (var i = 0, key; i < kInfo.keys.length; i++) {
+            for (let i = 0, key; i < kInfo.keys.length; i++) {
                 key = kInfo.keys[i].trim();
                 tmplInfo.keys.push(key);
             }
             list.push(tmplInfo);
             //属性分析
-            addAttrs(tag, match, tmplInfo, refTmplCommands, cssNamesMap, e);
+            addAttrs(tag, match, tmplInfo, refTmplCommands, e);
         } else { //记录移除的guid
             removeGuids.push(guid);
         }
     });
     while (subs.length) { //开始递归调用
-        var sub = subs.shift();
-        var i = buildTmpl(sub.tmpl, refTmplCommands, cssNamesMap, e, list, sub.ownKeys, globalKeys);
+        let sub = subs.shift();
+        let i = buildTmpl(sub.tmpl, refTmplCommands, e, list, sub.ownKeys, globalKeys);
         //if (sub.tmplInfo) {
         sub.tmplInfo.tmpl = i.tmpl;
         //}
     }
-    tmpl = tmplClass.process(tmpl, cssNamesMap); //处理class name
     tmpl = commandAnchorRecover(tmpl, refTmplCommands); //恢复模板命令
-    for (var i = removeGuids.length; i >= 0; i--) { //删除没用的guid
+    for (let i = removeGuids.length; i >= 0; i--) { //删除没用的guid
         tmpl = tmpl.replace(' ' + removeGuids[i], '');
     }
     tmpl = tmpl.replace(slashAnchorReg, '/');
