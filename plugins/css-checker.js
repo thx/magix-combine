@@ -1,4 +1,5 @@
 let configs = require('./util-config');
+let slog = require('./util-log');
 let filesToSelectors = {};
 let filesUndeclared = {};
 let markUsedTemp = {};
@@ -6,13 +7,18 @@ let existsSelectors = [];
 let fileSelectorsUsed = {};
 let fileGlobals = {};
 module.exports = {
-    reset() {
+    reset(all) {
         filesUndeclared = {};
         filesToSelectors = {};
         fileGlobals = {};
+        if (all) {
+            existsSelectors = [];
+            fileSelectorsUsed = {};
+            markUsedTemp = {};
+        }
     },
     clearUsed(from) {
-        if (!configs.logCssUnused) return;
+        if (!configs.logCssChecker) return;
         for (let p in fileSelectorsUsed) {
             let fInfo = fileSelectorsUsed[p];
             if (fInfo) {
@@ -24,10 +30,10 @@ module.exports = {
         }
     },
     fileToSelectors(file, selectors, processUsed) {
-        if (!configs.logCssUnused) return;
+        if (!configs.logCssChecker) return;
         if (!filesToSelectors[file]) {
             filesToSelectors[file] = Object.assign({}, selectors);
-            //console.log('@@@@@@@@',file,selectors)
+            //slog.ever('@@@@@@@@',file,selectors)
             let a = markUsedTemp[file];
             if (a && a.length) {
                 delete markUsedTemp[file];
@@ -48,15 +54,19 @@ module.exports = {
         }
     },
     markExists(name, currentFile, prevFiles) {
-        if (!configs.logCssExists) return;
-        existsSelectors.push({
-            name: name,
-            current: currentFile,
-            prev: prevFiles
-        });
+        if (!configs.logCssChecker) return;
+        let key = [name, currentFile, prevFiles].join('\u0000');
+        if (!existsSelectors[key]) {
+            existsSelectors[key] = true;
+            existsSelectors.push({
+                name: name,
+                current: currentFile,
+                prev: prevFiles
+            });
+        }
     },
     markUsed(files, selectors, host) {
-        if (!configs.logCssUnused) return;
+        if (!configs.logCssChecker) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -67,6 +77,9 @@ module.exports = {
             let info = filesToSelectors[file];
             if (info) {
                 selectors.forEach((selector) => {
+                    // if(selector=='store-query-footer'){
+                    //     console.log(host,info);
+                    // }
                     if (host) {
                         let fInfo = fileSelectorsUsed[file];
                         if (!fInfo) {
@@ -88,14 +101,14 @@ module.exports = {
         });
     },
     markLazyDeclared(selector) {
-        if (!configs.logTmplClassUndeclared) return;
+        if (!configs.logCssChecker) return;
         for (let p in filesUndeclared) {
             let info = filesUndeclared[p];
             delete info[selector];
         }
     },
     markUndeclared(file, selector) {
-        if (!configs.logTmplClassUndeclared) return;
+        if (!configs.logCssChecker) return;
         let r = filesUndeclared[file];
         if (!r) {
             r = filesUndeclared[file] = {};
@@ -111,48 +124,48 @@ module.exports = {
     },
     output() {
         let p, keys, outCss = false;
-        if (configs.logFileCssGlobal) {
+        if (configs.logCssChecker) {
             for (let p in fileGlobals) {
                 outCss = true;
                 let info = fileGlobals[p];
                 let keys = Object.keys(info);
-                console.log(p.magenta + ' avoid use ' + (keys + '').red);
+                slog.ever(p.magenta + ' avoid use ' + (keys + '').red);
             }
         }
-        if (configs.logCssExists) {
+        if (configs.logCssChecker) {
             if (outCss) {
-                console.log('------------------------------'.gray);
+                slog.ever('──────────────────────────────'.gray);
             }
             outCss = false;
             if (existsSelectors.length) {
                 outCss = true;
                 existsSelectors.forEach((item) => {
-                    console.log('css:already exists', item.name.red, 'current file', item.current.grey, 'prev files', item.prev.blue);
+                    slog.ever('css:already exists', item.name.red, 'current file', item.current.grey, 'prev files', item.prev.blue);
                 });
                 existsSelectors = [];
             }
         }
-        if (configs.logCssUnused) {
+        if (configs.logCssChecker) {
             if (outCss) {
-                console.log('------------------------------'.gray);
+                slog.ever('──────────────────────────────'.gray);
             }
             outCss = false;
             for (p in filesToSelectors) {
                 keys = Object.keys(filesToSelectors[p]);
                 if (keys.length) {
                     outCss = true;
-                    console.log(p.magenta + ' never used', ('.' + keys.join(' .')).red);
+                    slog.ever(p.magenta + ' never used', ('.' + keys.join(' .')).red);
                 }
             }
         }
-        if (configs.logTmplClassUndeclared) {
+        if (configs.logCssChecker) {
             if (outCss) {
-                console.log('------------------------------'.gray);
+                slog.ever('──────────────────────────────'.gray);
             }
             for (p in filesUndeclared) {
                 keys = Object.keys(filesUndeclared[p]);
                 if (keys.length) {
-                    console.log(p.magenta + ' never declared', ('.' + keys.join(' .')).red);
+                    slog.ever(p.magenta + ' never declared', ('.' + keys.join(' .')).red);
                 }
             }
         }

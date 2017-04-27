@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "合并Magix View的html,js,css成一个js文件",
   "main": "index.js",
   "repository": {
@@ -9,7 +9,10 @@
   },
   "keywords": [
     "magix",
-    "view"
+    "view",
+    "combine",
+    "checker",
+    "offline"
   ],
   "dependencies": {
     "colors": "1.1.x",
@@ -17,7 +20,8 @@
     "html-minifier": "3.4.x",
     "less": "2.7.x",
     "node-sass": "4.5.x",
-    "acorn": "5.0.x"
+    "acorn": "5.0.x",
+    "string-width":"2.0.x"
   },
   "author": "xinglie <xinglie.lkf@taobao.com>",
   "license": "MIT",

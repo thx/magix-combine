@@ -14,6 +14,7 @@ let tmplPartial = require('./tmpl-partial');
 let tmplMxTmpl = require('./tmpl-mxtmpl');
 let tmplImg = require('./tmpl-img');
 let tmplViewAttr = require('./tmpl-viewattr');
+let slog = require('./util-log');
 //模板处理，即处理view.html文件
 let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html(:data|:keys|:events)?\2/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -24,7 +25,7 @@ let holder = '\u001f';
 let magixHolder = '\u001e';
 let removeVdReg = /\u0002/g;
 let removeIdReg = /\u0001/g;
-let stringReg = /\u0017([^\u0017]+?)\u0017/g;
+let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file) => {
     let key = prefix + holder + raw + holder + fileContent;
     let fCache = cache[key];
@@ -35,6 +36,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         let extInfo = {
             file: file
         };
+
+        e.srcHTMLFile = file;
         fileContent = tmplMxTag.process(fileContent, extInfo);
 
         let refTmplCommands = {};
@@ -55,15 +58,13 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
-            console.error('minify error : ' + ex);
-            console.log(('html file: ' + file).red);
+            slog.ever('minify error : ' + ex, ('html file: ' + file).red);
             reject(ex);
         }
         if (prefix && !configs.disableMagixUpdater && !raw) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands);
         }
 
-        e.srcHTMLFile = file;
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
 
         for (let p in refTmplCommands) {
@@ -85,6 +86,7 @@ module.exports = (e) => {
             from = e.from,
             moduleId = e.moduleId,
             fileContentCache = {};
+
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
         e.content = e.content.replace(fileTmplReg, (match, prefix, quote, raw, name, ext) => {
             name = atpath.resolvePath(name, moduleId);

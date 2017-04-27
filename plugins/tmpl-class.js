@@ -8,8 +8,9 @@ let pureTagReg = /<[^>\s\/]+[^>]*>/g;
 let selfCssReg = /@:([\w\-]+)/g;
 let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-let Tmpl_Mathcer = /<%([=!])?([\s\S]+?)%>/g;
-let stringReg = /\u0017([^\u0017]+?)\u0017/g;
+let Tmpl_Mathcer = /<%([=!])?([\s\S]+?)%>/;
+let stringReg = /\u0017([^\u0017]*?)\u0017/g;
+let deps = require('./util-deps');
 module.exports = {
     process(tmpl, cssNamesMap, refTmplCommands, e) {
         let tempCache = {};
@@ -21,6 +22,9 @@ module.exports = {
                 if (r) {
                     let files = e.cssNamesInFiles[key + '!r'];
                     cssChecker.markUsed(files, key, e.from);
+                    files.forEach((f) => {
+                        deps.addFileDepend(f, e.from, e.to);
+                    });
                 } else {
                     cssChecker.markUndeclared(e.srcHTMLFile, key);
                 }
@@ -28,10 +32,14 @@ module.exports = {
             return h + (r || key);
         };
         let cmdProcessor = (m, key) => {
-            return key.replace(classNameReg, classResult);
+            if (key) {
+                return key.replace(classNameReg, classResult);
+            }
+            return key;
         };
         let classProcessor = (m, q, c) => {
             if (tmplCommandAnchorReg.test(m)) {
+                tmplCommandAnchorReg.lastIndex = 0;
                 m.replace(tmplCommandAnchorReg, (tm) => {
                     let cmd = refTmplCommands[tm];
                     if (Tmpl_Mathcer.test(cmd)) {

@@ -1,3 +1,15 @@
+## 3.0.0
+1. 增加`html`默认压缩选项
+2. 处理绑定参数空格问题
+3. 删除`startProcessor`
+4. 增加`beforeWriteFile`
+5. 增加手动合并`js`文件功能，通过`'@file.js';`即可把指定文件的内容输出在当前位置，同时在被引用的文件顶部写上`'#snippet';`，指明该文件是一个代码片断，则`magix-combine`不会把这个文件写到硬盘上。`'@file.js','compile@file.js','top,compile@file.js','bottom@file.js'`
+6. 删除`excludeTmplFolders`、`excludeTmplFiles`及`excludeFileContent`
+7. 增加`'#exclude(define,before,after)';`标识
+8. 减少大量的`log`输出为进度条
+9. 修复潜在的正则问题
+10. 修复模板分析变量反复赋值问题
+
 ## 2.1.0
 1. 更新依赖
 2. 依赖版本号配置为自动升级`bug`版本
@@ -10,7 +22,7 @@
 9.　检测项目中样式：重名的、未使用到的。
 10. 检测模板中使用未声明过的选择器
 11. ES6、增加`let`、`const`关键字的支持
-12. 支持如`input``img`标签不写闭合`/`
+12. 支持如`input`、`img`标签不写闭合`/`
 
 ## 2.0.5
 1. 增加全局的局部化处理`scopedAsGlobalCss`，增加全局样式`globalCss`方便提示

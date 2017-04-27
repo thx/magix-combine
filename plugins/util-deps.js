@@ -3,11 +3,13 @@ let fileDependencies = {};
 let context;
 //添加文件依赖关系
 let addFileDepend = (file, dependFrom, dependTo) => {
-    let list = fileDependencies[file];
-    if (!list) {
-        list = fileDependencies[file] = {};
+    if (file != dependFrom) {
+        let list = fileDependencies[file];
+        if (!list) {
+            list = fileDependencies[file] = {};
+        }
+        list[dependFrom] = dependTo;
     }
-    list[dependFrom] = dependTo;
 };
 //运行依赖列表
 let runFileDepend = (file) => {
@@ -32,6 +34,9 @@ module.exports = {
     },
     inDependencies(file) {
         return fileDependencies.hasOwnProperty(file);
+    },
+    getDependencies(file) {
+        return fileDependencies[file];
     },
     removeFileDepend: removeFileDepend,
     runFileDepend: runFileDepend,

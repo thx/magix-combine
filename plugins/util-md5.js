@@ -1,5 +1,5 @@
 let crypto = require('crypto');
-let configs = require('./util-config');
+let slog = require('./util-log');
 let md5Cache = {}; //md5 cache对象
 let md5ResultKey = '_$%'; //一个特殊前缀，因为要把源字符串结果及生成的3位md5存放在同一个对象里，加一个前缀以示区别
 module.exports = (text, len, configKey) => {
@@ -17,9 +17,7 @@ module.exports = (text, len, configKey) => {
     if (md5Cache[md5ResultKey + rstr] == 1) {
         if (!configKey) configKey = 'md5CssSelectorLen';
         let msg = 'generate "' + text + '" duplicate md5 result,please update config ' + configKey;
-        if (configs.log) {
-            console.log(msg.red);
-        }
+        slog.ever(msg.red);
         throw new Error(msg);
     }
     md5Cache[text] = rstr;

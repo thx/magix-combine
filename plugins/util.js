@@ -2,7 +2,7 @@
 //则抽取出来的模块id是 app/vies/default
 
 let path = require('path');
-
+let sutil = require('util');
 let configs = require('./util-config');
 
 let sep = path.sep;
@@ -20,6 +20,27 @@ let extractModuleId = (file) => {
     return id;
 };
 
+let clone = (object) => {
+    if (sutil.isArray(object)) {
+        let ta = [];
+        for (let i = 0; i < object.length; i++) {
+            ta[i] = clone(object[i]);
+        }
+        return ta;
+    } else if (sutil.isObject(object)) {
+        let temp = {};
+        for (let p in object) {
+            temp[p] = clone(object[p]);
+        }
+        return temp;
+    }
+    return object;
+};
+let cloneAssign = (dest, src) => {
+    Object.assign(dest, clone(src));
+};
 module.exports = {
-    extractModuleId: extractModuleId
+    clone,
+    cloneAssign,
+    extractModuleId
 };

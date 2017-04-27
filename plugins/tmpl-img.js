@@ -1,6 +1,7 @@
 //处理img标签
 let configs = require('./util-config');
 let tmplCmd = require('./tmpl-cmd');
+let slog = require('./util-log');
 let imgTagReg = /<img\s+[^>]*>/ig;
 let srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
 module.exports = {
@@ -13,7 +14,7 @@ module.exports = {
         let attrsProcessor = (attrs) => {
             attrs = attrs.replace(srcReg, (match, q, value) => {
                 if (configs.log) {
-                    console.log('tmpl-img match:', value);
+                    slog.ever('tmpl-img match:', value);
                 }
                 value = configs.tmplImgSrcMatched(value);
                 return 'src=' + q + value + q;

@@ -5,6 +5,7 @@ let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
 let tmplCmd = require('./tmpl-cmd');
 let configs = require('./util-config');
+let slog = require('./util-log');
 let Tmpl_Mathcer = /<%([@=!:~])?([\s\S]+?)%>|$/g;
 let TagReg = /<([^>\s\/]+)([^>]*)>/g;
 let BindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
@@ -17,7 +18,7 @@ let HReg = /([\u0001\u0002])\d+/g;
 let HtmlHolderReg = /\u0005\d+\u0005/g;
 let SCharReg = /(?:`;|;`)/g;
 let StringReg = /^['"]/;
-let BindFunctionsReg = /\{\s*([^\{\}]+)\}\s*$/;
+let BindFunctionsReg = /\s*\{\s*([^\{\}]+)\}\s*$/;
 let BindFunctionParamsReg = /,"([^"]+)"/;
 let CMap = {
     '用': '\u0001',
@@ -118,7 +119,6 @@ module.exports = {
             }
             return ' <%:' + expr + '%> ';
         });
-        //console.log(tmpl);
         tmpl.replace(Tmpl_Mathcer, (match, operate, content, offset) => {
             let start = 2;
             if (operate) {
@@ -144,11 +144,11 @@ module.exports = {
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
-            console.log('parse html cmd ast error:', ex.message.red);
+            slog.ever('parse html cmd ast error:', ex.message.red);
             let html = recoverHTML(fn.slice(Math.max(ex.loc.column - 5, 0)));
-            console.log('near html:', (html.slice(0, 200)).green);
-            console.log('html file:', sourceFile.red);
-            reject(ex.message);
+            slog.ever('near html:', (html.slice(0, 200)).green);
+            slog.ever('html file:', sourceFile.red);
+            reject(ex);
         }
         let globalExists = {};
         let globalTracker = {};
@@ -164,10 +164,14 @@ module.exports = {
         let recoverString = (tmpl) => {
             return tmpl.replace(/(['"])(\u0004\d+\u0004)\1/g, (m, q, c) => {
                 let str = stringStore[c].slice(1, -1);
+                let result;
                 if (str.charAt(0) == '\u0017') {
-                    return q + str.slice(1) + q;
+                    result = q + str.slice(1) + q;
+                } else {
+                    result = q + '\u0017' + str + '\u0017' + q;
                 }
-                return q + '\u0017' + str + '\u0017' + q;
+                //console.log(JSON.stringify(m), result, JSON.stringify(result));
+                return result;
             });
         };
         let fnProcessor = (node) => {
@@ -295,25 +299,47 @@ module.exports = {
             m = modifiers[i];
             fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
         }
-        //console.log(fn);
         ast = acorn.parse(fn);
         walker.simple(ast, {
             VariableDeclarator(node) {
+                let key = StripChar(node.id.name);
+                let pos = key.match(/\u0002(\d+)/)[1];
+                key = key.replace(/\u0002\d+/, '\u0001');
+                if (!globalTracker[key]) {
+                    globalTracker[key] = [];
+                }
+                let value = 'unassigned';
                 if (node.init) {
-                    let key = StripChar(node.id.name);
-                    let pos = key.match(/\u0002(\d+)/)[1];
-                    key = key.replace(/\u0002\d+/, '\u0001');
-                    let value = StripChar(fn.slice(node.init.start, node.init.end));
-                    if (!globalTracker[key]) {
-                        globalTracker[key] = [];
+                    value = StripChar(fn.slice(node.init.start, node.init.end));
+                }
+                globalTracker[key].push({
+                    pos: pos | 0,
+                    value: value
+                });
+            },
+            AssignmentExpression(node) {
+                let key = '\u0001' + node.left.name;
+                let value = StripChar(fn.slice(node.right.start, node.right.end));
+                let list = globalTracker[key];
+                if (list) {
+                    let found = false;
+                    for (let i = 0; i < list.length; i++) {
+                        if (list[i].value == 'unassigned') {
+                            list[i].value = value;
+                            found = true;
+                            break;
+                        }
                     }
-                    globalTracker[key].push({
-                        pos: pos | 0,
-                        value: value
-                    });
+                    if (!found) {
+                        list.push({
+                            pos: node.left.end,
+                            value: value
+                        });
+                    }
                 }
             }
         });
+        //console.log(globalTracker);
         //fn = StripChar(fn);
         fn = fn.replace(SCharReg, '');
         fn = StripChar(fn);
@@ -346,17 +372,19 @@ module.exports = {
             if (!srcExpr) {
                 srcExpr = expr;
             }
-            //console.log('expr', expr);
+            //slog.ever('expr', expr);
             let ps = SplitExpr(expr); //expr.match(SplitExprReg);
-            //console.log('ps', ps);
+            //slog.ever('ps', ps);
             let head = ps[0];
             if (head == '\u0003') {
                 return ps.slice(1);
             }
             let info = best(head);
             if (!info) {
-                console.log(('analyseExpr # can not analysis:' + srcExpr).red);
-                return ['analysisError'];
+                if (configs.log) {
+                    slog.ever(('analyseExpr # can not analysis:' + StripNum(srcExpr)).red, ' at ', sourceFile.magenta);
+                }
+                return ['analysisMissingRootVariableError'];
             }
             if (info != '\u0003') {
                 ps = find(info, srcExpr).concat(ps.slice(1));
@@ -364,9 +392,9 @@ module.exports = {
             return ps; //.join('.');
         };
         let analyseExpr = (expr) => {
-            //console.log('expr', expr);
+            //slog.ever('expr', expr);
             let result = find(expr);
-            //console.log('result', result);
+            //slog.ever('result', result);
             for (let i = 0, one; i < result.length; i++) {
                 one = result[i];
                 if (one.charAt(0) == '[' && one.charAt(one.length - 1) == ']') {
@@ -383,6 +411,7 @@ module.exports = {
             attr = tmplCmd.recover(attr, cmdStore);
             content = tmplCmd.recover(content, cmdStore);
             if (BindReg2.test(content)) {
+                BindReg2.lastIndex = 0;
                 let bind = '';
                 content = content.replace(BindReg2, (m) => {
                     bind = m;
@@ -399,7 +428,7 @@ module.exports = {
             let oldEvents = {};
             let e;
             let hasMagixView = MxViewAttrReg.test(attrs);
-            //console.log(cmdStore, attrs);
+            //slog.ever(cmdStore, attrs);
             attrs = tmplCmd.recover(attrs, cmdStore, recoverString);
             let replacement = (m, name, params) => {
                 let now = ',m:\'' + name + '\',a:' + (params || '{}');
@@ -436,7 +465,9 @@ module.exports = {
             attrs = attrs.replace(BindReg, (m, name, q, expr) => {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
+                    if (configs.log) {
+                        slog.ever('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
+                    }
                     return '';
                 }
                 findCount++;
@@ -453,7 +484,9 @@ module.exports = {
             }).replace(BindReg2, (m, expr) => {
                 expr = expr.trim();
                 if (findCount > 1) {
-                    console.log('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
+                    if (configs.log) {
+                        slog.ever('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
+                    }
                     return '';
                 }
                 findCount++;
@@ -462,6 +495,7 @@ module.exports = {
                 return now;
             }).replace(PathReg, (m, expr) => {
                 expr = expr.trim();
+                //console.log(JSON.stringify(expr));
                 expr = analyseExpr(expr);
                 return expr;
             }).replace(Tmpl_Mathcer, (m) => {
@@ -479,10 +513,11 @@ module.exports = {
         });
 
         let processCmd = (cmd) => {
+            //console.log(cmd, JSON.stringify(cmd), stringStore);
             return recoverString(StripNum(cmd));
         };
         fn = tmplCmd.recover(fn, cmdStore, processCmd);
-        //console.log(fn);
+        //slog.ever(fn);
         return fn;
     }
 };

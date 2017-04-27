@@ -4,6 +4,7 @@ let path = require('path');
 let less = require('less');
 let sass = require('node-sass');
 
+let slog = require('./util-log');
 let configs = require('./util-config');
 let fd = require('./util-fd');
 
@@ -14,8 +15,8 @@ let compileContent = (file, content, ext, resolve, reject) => {
         configs.sassOptions.data = content;
         sass.render(configs.sassOptions, (err, result) => {
             if (err) {
-                console.log('scss error:', err);
-                reject(err);
+                slog.ever('scss error:', (err + '').red);
+                return reject(err);
             }
             resolve({
                 exists: true,
@@ -26,8 +27,8 @@ let compileContent = (file, content, ext, resolve, reject) => {
     } else if (ext == '.less') {
         less.render(content, configs.lessOptions, (err, result) => {
             if (err) {
-                console.log('less error:', err, '----', content);
-                reject(err);
+                slog.ever('less error:', (err + '').red);
+                return reject(err);
             }
             resolve({
                 exists: true,
@@ -63,7 +64,9 @@ module.exports = (file, name, e) => {
         fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), (err) => {
             if (err) {
                 resolve({
-                    exists: false
+                    exists: false,
+                    file: file,
+                    content: ''
                 });
             } else {
                 let fileContent = fd.read(file);
