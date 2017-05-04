@@ -75,7 +75,9 @@ module.exports = {
                         });
                     }
                 });
-                slog.log(genMsg(++completed, total));
+                if (configs.log) {
+                    slog.log(genMsg(++completed, total));
+                }
                 let errorOccured = false;
                 let current = 0;
                 let run = () => {

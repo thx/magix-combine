@@ -12,6 +12,7 @@ let utils = require('./util');
 let cloneAssign = utils.cloneAssign;
 let {
     cssNameNewProcessor,
+    cssNameGlobalProcessor,
     genCssNamesKey,
     genCssSelector,
     cssRefReg,
@@ -163,17 +164,15 @@ module.exports = (e, inwatch) => {
                                 let unchecked = configs.uncheckGlobalCss;
                                 if (globals.indexOf(file) == -1) {
                                     if (unchecked.indexOf(file) == -1) {
-                                        addToGlobalCSS = true;
                                         fileContent.replace(cssRefReg, refProcessor);
                                         try {
-                                            cssNameNewProcessor(fileContent, {
+                                            cssNameGlobalProcessor(fileContent, {
                                                 shortFile: shortCssFile,
                                                 namesMap: gCSSNamesMap,
                                                 namesToFiles: gCSSNamesToFiles,
-                                                namesKey: cssNamesKey,
                                                 cNamesMap: cssNamesMap,
                                                 cNamesToFiles: cssNamesToFiles,
-                                                addToGlobalCSS: addToGlobalCSS,
+                                                lazyGlobal: true,
                                                 file: currentFile,
                                                 fileTags: cssTagsMap,
                                                 tagsToFiles: cssTagsToFiles

@@ -40,7 +40,6 @@ let processGlobal = (ctx) => {
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
                             cNamesMap: cssNamesMap,
-                            addToGlobalCSS: true,
                             file: currentFile,
                             fileTags: fileTags,
                             tagsToFiles: globalCssTagsInFiles

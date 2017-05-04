@@ -34,6 +34,7 @@ let processContent = (from, to, content, inwatch) => {
         contentInfo = jsMx.process(content, from);
         content = contentInfo.script;
     }
+    content = configs.beforeProcessContent(content, from);
     let execBeforeProcessor = true,
         execAfterProcessor = true;
     let exclude = false;

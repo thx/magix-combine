@@ -122,7 +122,7 @@ let cssNameGlobalProcessor = (css, ctx) => {
             }
         } else if (token.type == 'class') {
             ctx.cNamesMap[id] = id;
-            addGlobal(id, id, ctx.globalGuid, false, ctx.file, ctx.namesMap, ctx.namesToFiles);
+            addGlobal(id, id, ctx.globalGuid, ctx.lazyGlobal, ctx.file, ctx.namesMap, ctx.namesToFiles);
         } else if (token.type == 'id') {
             checker.markGlobal(ctx.file, '#' + id);
         }

@@ -16,7 +16,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
         }
         if (fs.existsSync(from)) {
             if (configs.compileFileExtNamesReg.test(from)) {
-                promise.then(function() {
+                promise.then(() => {
                     return jsContent.process(from, to, 0, inwatch);
                 }).then((e) => {
                     if (e.writeFile) {

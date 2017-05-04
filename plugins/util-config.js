@@ -39,7 +39,10 @@ module.exports = {
     tmplPadCallArguments(name) { //模板中某些函数的调用，我们可以动态添加一些参数。
         return '';
     },
-    beforeWriteFile: function(e) {
+    beforeProcessContent(content, from) {
+        return content;
+    },
+    beforeWriteFile(e) {
         return e;
     },
     compileBeforeProcessor(content) { //开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
