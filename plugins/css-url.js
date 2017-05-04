@@ -2,10 +2,10 @@
 let UrlReg = /url\(([^\)]+)\)/g;
 let configs = require('./util-config');
 let slog = require('./util-log');
-module.exports = (css) => {
+module.exports = (css, name) => {
     css = css.replace(UrlReg, (match, content) => {
         if (configs.log) {
-            slog.ever('css-url match:', content);
+            slog.ever('css-url match:', content, name.gray);
         }
         content = configs.cssUrlMatched(content);
         return 'url(' + content + ')';

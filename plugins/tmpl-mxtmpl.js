@@ -13,7 +13,7 @@ let BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
 let PathReg = /<%~([\s\S]+?)%>/g;
 let TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let MxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
-let CReg = /[用声全未]/g;
+let CReg = /[用声全固]/g;
 let HReg = /([\u0001\u0002])\d+/g;
 let HtmlHolderReg = /\u0005\d+\u0005/g;
 let SCharReg = /(?:`;|;`)/g;
@@ -24,7 +24,7 @@ let CMap = {
     '用': '\u0001',
     '声': '\u0002',
     '全': '\u0003',
-    '未': '\u0006'
+    '固': '\u0006'
 };
 let StripChar = (str) => str.replace(CReg, (m) => CMap[m]);
 let StripNum = (str) => str.replace(HReg, '$1');
@@ -98,7 +98,7 @@ let ExtractFunctions = (expr) => {
     \u0003  模板中全局变量  全
     \u0004  命令中的字符串
     \u0005  html中的字符串
-    \u0006  unchangableVars
+    \u0006  unchangableVars 固定不会变的变量
     \u0007  存储命令
     \u0008  压缩命令
     \u0011  精准识别rqeuire
@@ -265,7 +265,7 @@ module.exports = {
             Identifier(node) {
                 if (globalExists[node.name] !== 1) {
                     modifiers.push({
-                        key: (unchangableVars[node.name] ? '未' : '全') + '.',
+                        key: (unchangableVars[node.name] ? '固' : '全') + '.',
                         start: node.start,
                         end: node.end,
                         name: node.name
@@ -280,6 +280,9 @@ module.exports = {
                         });
                     }
                 }
+            },
+            AssignmentExpression(node) {
+                globalExists[node.left.name] = 1;
             },
             VariableDeclarator(node) {
                 globalExists[node.id.name] = 1;
@@ -320,6 +323,9 @@ module.exports = {
             AssignmentExpression(node) {
                 let key = '\u0001' + node.left.name;
                 let value = StripChar(fn.slice(node.right.start, node.right.end));
+                if (!globalTracker[key]) {
+                    globalTracker[key] = [];
+                }
                 let list = globalTracker[key];
                 if (list) {
                     let found = false;
@@ -343,7 +349,7 @@ module.exports = {
         //fn = StripChar(fn);
         fn = fn.replace(SCharReg, '');
         fn = StripChar(fn);
-
+        //console.log(JSON.stringify(fn));
         fn = fn.replace(HtmlHolderReg, (m) => htmlStore[m]);
         fn = fn.replace(Tmpl_Mathcer, (match, operate, content) => {
             if (operate) {

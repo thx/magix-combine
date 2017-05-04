@@ -15,6 +15,7 @@ require('colors');
 // let loading='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
 let genMsg = (completed, total) => {
     let len = 40;
+    if (completed > total) completed = total;
     let percent = completed / total;
     let cell = Math.round(percent * len);
     let barLeft = '';

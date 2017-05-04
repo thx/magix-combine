@@ -5,7 +5,7 @@ let slog = require('./util-log');
 let imgTagReg = /<img\s+[^>]*>/ig;
 let srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
 module.exports = {
-    process(tmpl) {
+    process(tmpl, e) {
         let cmdCache = {};
         tmpl = tmplCmd.store(tmpl, cmdCache);
         let restore = (tmpl) => {
@@ -14,7 +14,7 @@ module.exports = {
         let attrsProcessor = (attrs) => {
             attrs = attrs.replace(srcReg, (match, q, value) => {
                 if (configs.log) {
-                    slog.ever('tmpl-img match:', value);
+                    slog.ever('tmpl-img match:', value, e.shortHTMLFile.gray);
                 }
                 value = configs.tmplImgSrcMatched(value);
                 return 'src=' + q + value + q;

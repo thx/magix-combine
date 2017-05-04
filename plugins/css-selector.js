@@ -2,9 +2,9 @@ let util = require('./util');
 let md5 = require('./util-md5');
 let configs = require('./util-config');
 let checker = require('./css-checker');
+let cssParser = require('./css-parser');
 let slashReg = /[\/\.]/g;
-let cssCommentReg = /\s*\/\*[\s\S]+?\*\/\s*/g;
-let cssNameReg = /(?:@|global)?\.([\w\-]+)(\[[^\]]*?\])?(?=[^\{\}]*?\{)/g;
+let cssCommentReg = /\/\*[\s\S]+?\*\//g;
 let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.style):([\w\-]+)\1\]/g;
 let genCssNamesKey = (file, ignorePrefix) => {
     //获取模块的id
@@ -61,34 +61,79 @@ let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, name
         namesToFiles[name + '!r'] = [file];
     }
 };
-//处理css类名
-let cssNameProcessor = (m, name, attr, ctx) => {
-    attr = attr || '';
-    if (m.indexOf('global') === 0) {
-        name = m.slice(7);
-        addGlobal(name, name, 0, true, ctx.file, ctx.namesMap, ctx.namesToFiles);
-        return m.slice(6);
+
+let ignoreTags = {
+    html: 1,
+    body: 1
+};
+let cssNameNewProcessor = (css, ctx) => {
+    let pInfo = cssParser(css, ctx.shortFile);
+    if (pInfo.nests.length) {
+        checker.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
-    if (m.charAt(0) == '@') {
-        name = m.slice(2);
-        addGlobal(name, name, 0, true, ctx.file, ctx.namesMap, ctx.namesToFiles);
-        return m.slice(1);
+    let tokens = pInfo.tokens;
+    for (let i = tokens.length - 1; i >= 0; i--) {
+        let token = tokens[i];
+        let id = token.name;
+        if (token.type == 'tag' || token.type == 'sattr') {
+            if (token.type == 'sattr') {
+                id = '[' + id + ']';
+            }
+            if (!ignoreTags[id]) {
+                ctx.fileTags[id] = id;
+                if (!ctx.tagsToFiles[id]) {
+                    ctx.tagsToFiles[id] = {};
+                }
+                ctx.tagsToFiles[id][ctx.file] = id;
+            }
+        } else if (token.type == 'class') {
+            let mappedName = genCssSelector(id);
+            let result = (ctx.cNamesMap[id] = ctx.namesKey + '-' + mappedName);
+            if (ctx.addToGlobalCSS) {
+                addGlobal(id, result, 0, 0, ctx.file, ctx.namesMap, ctx.namesToFiles);
+            }
+            ctx.cNamesToFiles[id + '!r'] = [ctx.file];
+            css = css.slice(0, token.start) + result + css.slice(token.end);
+        } else if (token.type == 'id') {
+            checker.markGlobal(ctx.file, '#' + id);
+        }
     }
-    let mappedName = genCssSelector(name);
-    //只在原来的css类名前面加前缀
-    let result = (ctx.cNamesMap[name] = ctx.namesKey + '-' + mappedName);
-    if (ctx.addToGlobalCSS) { //是否增加到当前模块的全局css里，因为一个view.js可以依赖多个css文件
-        addGlobal(name, result, 0, 0, ctx.file, ctx.namesMap, ctx.namesToFiles);
+    return css;
+};
+let cssNameGlobalProcessor = (css, ctx) => {
+    let pInfo = cssParser(css, ctx.shortFile);
+    if (pInfo.nests.length) {
+        checker.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
-    ctx.cNamesToFiles[name + '!r'] = [ctx.file];
-    return '.' + result + attr;
+    let tokens = pInfo.tokens;
+    for (let i = tokens.length - 1; i >= 0; i--) {
+        let token = tokens[i];
+        let id = token.name;
+        if (token.type == 'tag' || token.type == 'sattr') {
+            if (token.type == 'sattr') {
+                id = '[' + id + ']';
+            }
+            if (!ignoreTags[id]) {
+                ctx.fileTags[id] = id;
+                if (!ctx.tagsToFiles[id]) {
+                    ctx.tagsToFiles[id] = {};
+                }
+                ctx.tagsToFiles[id][ctx.file] = id;
+            }
+        } else if (token.type == 'class') {
+            ctx.cNamesMap[id] = id;
+            addGlobal(id, id, ctx.globalGuid, false, ctx.file, ctx.namesMap, ctx.namesToFiles);
+        } else if (token.type == 'id') {
+            checker.markGlobal(ctx.file, '#' + id);
+        }
+    }
 };
 module.exports = {
     cssCommentReg,
-    cssNameReg,
     cssRefReg,
     genCssNamesKey,
     genCssSelector,
     addGlobal,
-    cssNameProcessor
+    cssNameNewProcessor,
+    cssNameGlobalProcessor
 };

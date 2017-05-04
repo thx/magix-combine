@@ -4,16 +4,18 @@ let configs = require('./util-config');
 let cssChecker = require('./css-checker');
 let classReg = /\bclass\s*=\s*(['"])([^'"]+)(?:\1)/g;
 let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
-let pureTagReg = /<[^>\s\/]+[^>]*>/g;
+let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
 let selfCssReg = /@:([\w\-]+)/g;
 let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let Tmpl_Mathcer = /<%([=!])?([\s\S]+?)%>/;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
+var attrReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?/g;
 let deps = require('./util-deps');
 module.exports = {
     process(tmpl, cssNamesMap, refTmplCommands, e) {
         let tempCache = {};
+        let tagsCache = {};
         let classResult = (m, h, key) => {
             if (numReg.test(key)) return m; //纯数字的是模板命令，选择器不可能是纯数字
             let r = cssNamesMap[key];
@@ -63,7 +65,24 @@ module.exports = {
             }
             return r || key;
         };
-        let pureProcessor = (match) => {
+        let pureProcessor = (match, tag, content) => {
+            content.replace(attrReg, (m, name) => {
+                let attr = '[' + name + ']';
+                if (!tagsCache[attr]) {
+                    tagsCache[attr] = 1;
+                    let files = e.cssTagsInFiles[attr];
+                    if (files) {
+                        cssChecker.markUsedTags(Object.keys(files), attr, e.from);
+                    }
+                }
+            });
+            if (!tagsCache[tag]) {
+                tagsCache[tag] = 1;
+                let files = e.cssTagsInFiles[tag];
+                if (files) {
+                    cssChecker.markUsedTags(Object.keys(files), tag, e.from);
+                }
+            }
             match = configs.cssNamesProcessor(match, cssNamesMap);
             match = match.replace(classReg, classProcessor); //保证是class属性
             return match.replace(selfCssReg, selfCssClass);

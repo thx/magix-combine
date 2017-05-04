@@ -38,12 +38,13 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         };
 
         e.srcHTMLFile = file;
+        e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
         fileContent = tmplMxTag.process(fileContent, extInfo);
 
         let refTmplCommands = {};
-        fileContent = tmplImg.process(fileContent);
+        fileContent = tmplImg.process(fileContent, e);
         if (!configs.disableMagixUpdater && !raw) {
-            fileContent = tmplMxTmpl.process(fileContent, reject, file);
+            fileContent = tmplMxTmpl.process(fileContent, reject, e.shortHTMLFile);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
@@ -54,11 +55,11 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
                 return match.replace(mxEventReg, '$&' + holder + magixHolder);
             });
         }
-        fileContent = tmplViewAttr.process(fileContent, e);
+        fileContent = tmplViewAttr.process(fileContent, e, refTmplCommands);
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
-            slog.ever('minify error : ' + ex, ('html file: ' + file).red);
+            slog.ever('minify error : ' + ex, ('html file: ' + e.shortHTMLFile).red);
             reject(ex);
         }
         if (prefix && !configs.disableMagixUpdater && !raw) {

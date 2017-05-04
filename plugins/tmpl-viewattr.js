@@ -1,10 +1,13 @@
 let atpath = require('./util-atpath');
 let configs = require('./util-config');
+let slog = require('./util-log');
+//let tmplCmd = require('./tmpl-cmd');
 
 let tagReg = /<[\w-]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
 let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
-let viewAttrReg = /\bview-(\w+)=(["'])([\s\S]*?)\2/g;
+let viewAttrReg = /\bview-([\w\-]+)=(["'])([\s\S]*?)\2/g;
 let cmdReg = /\u0007\d+\u0007/g;
+let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
 
 let htmlUnescapeMap = {
     'amp': '&',
@@ -25,12 +28,37 @@ let encodeMore = {
     ')': '%29',
     '*': '%2A'
 };
+
+//let escapeSlashRegExp = /\\|'/g;
+//let mathcerReg = /<%([@=!])?([\s\S]+?)%>|$/g;
+//let tmplCompiler = (text) => {
+//    let index = 0;
+//    let source = '\'';
+//    text.replace(mathcerReg, (match, operate, content, offset) => {
+//        source += text.slice(index, offset).replace(escapeSlashRegExp, '\\$&');
+//        index = offset + match.length;
+//        if (operate == '=' || operate == '@' || operate == '!') {
+//            source += '\'+' + content + '+\'';
+//        } else if (content) {
+//            throw new Error('unsupport');
+//        }
+//        // Adobe VMs need the match returned to produce the correct offset.
+//        return match;
+//    });
+//    source += '\'';
+//    source = source.replace(/^\s*''\+/, '').replace(/\+''\s*$/, '');
+//    return source;
+//};
+
+let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let encodeMoreReg = /[!')(*]/g;
 let encodeReplacor = (m) => {
     return encodeMore[m];
 };
+// http://mathiasbynens.be/notes/unquoted-attribute-values
+//let canRemoveQuotesReg = /^[^ \t\n\f\r"'`=<>]+$/;
 module.exports = {
-    process(fileContent, e) {
+    process(fileContent, e, refTmplCommands) {
         return fileContent.replace(tagReg, (match) => { //标签进入
             if (mxViewAttrReg.test(match)) { //带有mx-view属性才处理
                 if (configs.useAtPathConverter) { //如果启用@路径转换规则
@@ -54,8 +82,14 @@ module.exports = {
                         }
                         content = cs.join('');
                         attrs.push(name + '=' + content); //处理成最终的a=b形式
+                        // content = tmplCmd.recover(content, refTmplCommands);
+                        // content = tmplCompiler(content);
+                        // name = canRemoveQuotesReg.test(name) ? name : '\'' + name + '\'';
+                        // attrs.push(name + ':' + content);
                         return '';
                     });
+                    //attrs = '\u001ep=<%@{' + attrs.join(',') + '}%>';
+                    //attrs = tmplCmd.store(attrs, refTmplCommands);
                     match = match.replace(mxViewAttrReg, (m, q, content) => {
                         attrs = attrs.join('&'); //把参数加到mx-viewk中
                         if (content.indexOf('?') > -1) {
@@ -66,6 +100,26 @@ module.exports = {
                         return 'mx-view=' + q + content + q;
                     });
                 }
+                let testCmd = (m, q, content) => {
+                    q = content.indexOf('?');
+                    if (q >= 0) {
+                        content.slice(q + 1).replace(cmdReg, (cm) => {
+                            let cmd = refTmplCommands[cm];
+                            if (cmd) {
+                                cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
+                                    if (o === '=') {
+                                        m = m.replace(removeTempReg, '');
+                                        let nc = c.replace(removeTempReg, '');
+                                        slog.ever(('avoid use ' + m).red, 'at', e.shortHTMLFile.magenta, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
+                                    }
+                                    return '<%!$eu(' + c + ')%>';
+                                });
+                                refTmplCommands[cm] = cmd;
+                            }
+                        });
+                    }
+                };
+                match.replace(mxViewAttrReg, testCmd);
             }
             return match;
         });

@@ -2,42 +2,53 @@ let configs = require('./util-config');
 let checker = require('./css-checker');
 let cssFileRead = require('./css-read');
 let cssAtRule = require('./css-atrule');
+let cssParser = require('./css-parser');
 let {
     cssCommentReg,
-    cssNameReg,
     cssRefReg,
-    addGlobal,
     genCssNamesKey,
-    cssNameProcessor,
+    cssNameNewProcessor,
+    cssNameGlobalProcessor,
     genCssSelector
 } = require('./css-selector');
 let globalCssNamesMap = {};
 let globalCssNamesInFiles = {};
+let globalCssTagsInFiles = {};
 let scopedStyle = '';
 let globalPromise;
 let lazyGlobalInfo = {};
 let processGlobal = (ctx) => {
     globalCssNamesMap = {};
     globalCssNamesInFiles = {};
+    globalCssTagsInFiles = {};
     let globalGuid = Date.now();
     return new Promise((resolve, reject) => {
         let list = configs.globalCss;
         if (!list || !list.length) {
             resolve(ctx);
         } else {
-            let cssNamesMap = {};
-            let currentFile = '';
-            let namesToFiles = {};
-            let namesMap = {};
-            let addToGlobal = (m, name) => {
-                cssNamesMap[name] = name;
-                addGlobal(name, name, globalGuid, false, currentFile, namesMap, namesToFiles);
-            };
             let add = (info) => {
-                cssNamesMap = {};
+                let cssNamesMap = {};
+                let fileTags = {};
                 if (info.exists && info.content) {
-                    currentFile = info.file;
-                    info.content.replace(cssCommentReg, '').replace(cssNameReg, addToGlobal);
+                    let currentFile = info.file;
+                    let css = info.content.replace(cssCommentReg, '');
+                    try {
+                        cssNameGlobalProcessor(css, {
+                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1),
+                            globalGuid: globalGuid,
+                            namesMap: globalCssNamesMap,
+                            namesToFiles: globalCssNamesInFiles,
+                            cNamesMap: cssNamesMap,
+                            addToGlobalCSS: true,
+                            file: currentFile,
+                            fileTags: fileTags,
+                            tagsToFiles: globalCssTagsInFiles
+                        });
+                    } catch (e) {
+                        reject(e);
+                    }
+                    checker.fileToTags(currentFile, fileTags, ctx.inwatch);
                     checker.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                 }
             };
@@ -49,16 +60,14 @@ let processGlobal = (ctx) => {
                 for (let i = 0; i < rs.length; i++) {
                     add(rs[i]);
                 }
-                for (let p in namesToFiles) {
+                for (let p in globalCssNamesInFiles) {
                     if (p.slice(-2, -1) == '!') continue;
-                    let sameSelectors = namesToFiles[p];
+                    let sameSelectors = globalCssNamesInFiles[p];
                     let values = Object.keys(sameSelectors);
                     if (values.length > 1) {
-                        namesToFiles[p + '!r'] = values;
+                        globalCssNamesInFiles[p + '!r'] = values;
                     }
                 }
-                globalCssNamesMap = namesMap;
-                globalCssNamesInFiles = namesToFiles;
                 resolve(ctx);
             }).catch(reject);
         }
@@ -74,28 +83,34 @@ let processScope = (ctx) => {
         } else {
             let add = (i) => {
                 let cssNamesMap = {};
-                let currentFile = '';
-                let cssNamesKey = '';
+                let cssTagsMap = {};
                 if (i.exists && i.content) {
-                    currentFile = i.file;
-                    cssNamesKey = genCssNamesKey(currentFile);
+                    let currentFile = i.file;
+                    let cssNamesKey = genCssNamesKey(currentFile);
                     let c = i.content.replace(cssCommentReg, '');
                     c = c.replace(cssRefReg, ctx.refProcessor);
-                    c = c.replace(cssNameReg, (m, name, attr) => {
-                        return cssNameProcessor(m, name, attr, {
+                    try {
+                        c = cssNameNewProcessor(c, {
+                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1),
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
                             namesKey: cssNamesKey,
                             cNamesMap: cssNamesMap,
                             cNamesToFiles: globalCssNamesInFiles,
                             addToGlobalCSS: true,
-                            file: currentFile
+                            file: currentFile,
+                            fileTags: cssTagsMap,
+                            tagsToFiles: globalCssTagsInFiles
                         });
-                    });
-                    c = cssAtRule(c, genCssNamesKey(i.file)); //但处理at规则的时候，不同的文件，里面如果有相同的at规则不是能合并处理的，需要单独处理
+                    } catch (e) {
+                        reject(e);
+                    }
+                    c = cssAtRule(c, cssNamesKey);
                     checker.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
+                    checker.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
                     scopedStyle += c;
                 } else if (!i.exists) {
+                    checker.markUnexists(i.file, '/scoped.style');
                     scopedStyle += ' unfound-' + i.file;
                 }
             };
@@ -135,13 +150,16 @@ let processScope = (ctx) => {
                         }
                     }
                 }
-                scopedStyle = scopedStyle.replace(cssNameReg, (m, name, attr) => {
-                    if (sToKeys[name]) {
-                        attr = attr || '';
-                        return '.' + sToKeys[name] + attr;
+                let tokens = cssParser(scopedStyle).tokens;
+                for (let i = tokens.length - 1; i >= 0; i--) {
+                    let token = tokens[i];
+                    let id = token.name;
+                    if (token.type == 'class') {
+                        if (sToKeys[id]) {
+                            scopedStyle = scopedStyle.slice(0, token.start) + sToKeys[id] + scopedStyle.slice(token.end);
+                        }
                     }
-                    return m;
-                });
+                }
                 resolve(ctx);
             }).catch(reject);
         }
@@ -162,6 +180,7 @@ module.exports = {
                 return {
                     globalCssNamesMap,
                     globalCssNamesInFiles,
+                    globalCssTagsInFiles,
                     scopedStyle
                 };
             });

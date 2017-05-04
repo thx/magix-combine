@@ -6,11 +6,18 @@ let markUsedTemp = {};
 let existsSelectors = [];
 let fileSelectorsUsed = {};
 let fileGlobals = {};
+let filesToTags = {};
+let markUsedTempTags = {};
+let fileTagsUsed = {};
+let unexists = {};
+let rnReg = /[\r\n]/g;
 module.exports = {
     reset(all) {
         filesUndeclared = {};
         filesToSelectors = {};
         fileGlobals = {};
+        filesToTags = {};
+        unexists = {};
         if (all) {
             existsSelectors = [];
             fileSelectorsUsed = {};
@@ -29,11 +36,45 @@ module.exports = {
             }
         }
     },
+    clearUsedTags(from) {
+        if (!configs.logCssChecker) return;
+        for (let p in fileTagsUsed) {
+            let fInfo = fileTagsUsed[p];
+            if (fInfo) {
+                for (let z in fInfo) {
+                    let sInfo = fInfo[z];
+                    delete sInfo[from];
+                }
+            }
+        }
+    },
+    fileToTags(file, tags, processUsed) {
+        if (!configs.logCssChecker) return;
+        if (!filesToTags[file]) {
+            filesToTags[file] = Object.assign({}, tags);
+            let a = markUsedTempTags[file];
+            if (a && a.length) {
+                delete markUsedTempTags[file];
+                this.markUsedTags(file, a);
+            }
+            if (processUsed) {
+                let fInfo = fileTagsUsed[file];
+                if (fInfo) {
+                    for (let s in fInfo) {
+                        let sInfo = fInfo[s];
+                        let keys = Object.keys(sInfo);
+                        if (keys.length) {
+                            this.markUsedTags(file, s);
+                        }
+                    }
+                }
+            }
+        }
+    },
     fileToSelectors(file, selectors, processUsed) {
         if (!configs.logCssChecker) return;
         if (!filesToSelectors[file]) {
             filesToSelectors[file] = Object.assign({}, selectors);
-            //slog.ever('@@@@@@@@',file,selectors)
             let a = markUsedTemp[file];
             if (a && a.length) {
                 delete markUsedTemp[file];
@@ -65,6 +106,13 @@ module.exports = {
             });
         }
     },
+    markUnexists(name, currentFile) {
+        if (!configs.logCssChecker) return;
+        if (!unexists[currentFile]) {
+            unexists[currentFile] = {};
+        }
+        unexists[currentFile][name] = name;
+    },
     markUsed(files, selectors, host) {
         if (!configs.logCssChecker) return;
         if (!Array.isArray(files)) {
@@ -77,9 +125,6 @@ module.exports = {
             let info = filesToSelectors[file];
             if (info) {
                 selectors.forEach((selector) => {
-                    // if(selector=='store-query-footer'){
-                    //     console.log(host,info);
-                    // }
                     if (host) {
                         let fInfo = fileSelectorsUsed[file];
                         if (!fInfo) {
@@ -100,6 +145,39 @@ module.exports = {
             }
         });
     },
+    markUsedTags(files, tags, host) {
+        if (!configs.logCssChecker) return;
+        if (!Array.isArray(files)) {
+            files = [files];
+        }
+        if (!Array.isArray(tags)) {
+            tags = [tags];
+        }
+        //console.log(tags,filesToTags,files,'@@@@@@@@@@');
+        files.forEach((file) => {
+            let info = filesToTags[file];
+            if (info) {
+                tags.forEach((tag) => {
+                    if (host) {
+                        let fInfo = fileTagsUsed[file];
+                        if (!fInfo) {
+                            fInfo = fileTagsUsed[file] = {};
+                        }
+                        let sInfo = fInfo[tag];
+                        if (!sInfo) {
+                            sInfo = fInfo[tag] = {};
+                        }
+                        sInfo[host] = 1;
+                    }
+                    delete info[tag];
+                });
+            } else {
+                let a = markUsedTempTags[file];
+                if (!a) a = markUsedTempTags[file] = [];
+                a.push.apply(a, tags);
+            }
+        });
+    },
     markLazyDeclared(selector) {
         if (!configs.logCssChecker) return;
         for (let p in filesUndeclared) {
@@ -116,6 +194,7 @@ module.exports = {
         r[selector] = 1;
     },
     markGlobal(file, name) {
+        //name = name.replace(rnReg, '');
         let info = fileGlobals[file];
         if (!info) {
             info = fileGlobals[file] = {};
@@ -129,7 +208,8 @@ module.exports = {
                 outCss = true;
                 let info = fileGlobals[p];
                 let keys = Object.keys(info);
-                slog.ever(p.magenta + ' avoid use ' + (keys + '').red);
+                let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                slog.ever(short.magenta + ' avoid use ' + (keys + '').red);
             }
         }
         if (configs.logCssChecker) {
@@ -140,9 +220,39 @@ module.exports = {
             if (existsSelectors.length) {
                 outCss = true;
                 existsSelectors.forEach((item) => {
-                    slog.ever('css:already exists', item.name.red, 'current file', item.current.grey, 'prev files', item.prev.blue);
+                    let cShort = item.current.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    let pShort = item.prev.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    slog.ever('css:already exists', item.name.red, 'file', cShort.grey, 'prev files', pShort.blue);
                 });
                 existsSelectors = [];
+            }
+        }
+        if (configs.logCssChecker) {
+            if (outCss) {
+                slog.ever('──────────────────────────────'.gray);
+            }
+            outCss = false;
+            for (p in unexists) {
+                keys = Object.keys(unexists[p]);
+                if (keys.length) {
+                    outCss = true;
+                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    slog.ever(short.magenta + ' can not find', keys.reverse().join(',').red);
+                }
+            }
+        }
+        if (configs.logCssChecker) {
+            if (outCss) {
+                slog.ever('──────────────────────────────'.gray);
+            }
+            outCss = false;
+            for (p in filesToTags) {
+                keys = Object.keys(filesToTags[p]);
+                if (keys.length) {
+                    outCss = true;
+                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    slog.ever(short.magenta + ' never used', keys.reverse().join(' ').red);
+                }
             }
         }
         if (configs.logCssChecker) {
@@ -154,7 +264,8 @@ module.exports = {
                 keys = Object.keys(filesToSelectors[p]);
                 if (keys.length) {
                     outCss = true;
-                    slog.ever(p.magenta + ' never used', ('.' + keys.join(' .')).red);
+                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    slog.ever(short.magenta + ' never used', ('.' + keys.reverse().join(' .')).red);
                 }
             }
         }
@@ -165,7 +276,8 @@ module.exports = {
             for (p in filesUndeclared) {
                 keys = Object.keys(filesUndeclared[p]);
                 if (keys.length) {
-                    slog.ever(p.magenta + ' never declared', ('.' + keys.join(' .')).red);
+                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    slog.ever(short.magenta + ' never declared', ('.' + keys.join(' .')).red);
                 }
             }
         }
