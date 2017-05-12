@@ -38,7 +38,7 @@ let getLogger = (stream) => {
             }
             str = SHOW_CURSOR;
             // Clear screen
-            for (var i = 0; i < prevLineCount; i++) {
+            for (let i = 0; i < prevLineCount; i++) {
                 str += MOVE_LEFT + CLEAR_LINE + (i < prevLineCount - 1 ? MOVE_UP : '');
             }
             prevLineCount = 0;

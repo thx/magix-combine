@@ -72,7 +72,7 @@ module.exports = {
             return '<' + tag + tKey + attrs + (close ? close : '') + '>';
         });
         tmpl = tmpl.replace(emptyTag, (match) => {
-            var content = match.slice(0, -1).trim();
+            let content = match.slice(0, -1).trim();
             if (content.charAt(content.length - 1) != '/') {
                 return content + '/>';
             }

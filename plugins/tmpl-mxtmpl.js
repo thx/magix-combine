@@ -19,7 +19,9 @@ let HtmlHolderReg = /\u0005\d+\u0005/g;
 let SCharReg = /(?:`;|;`)/g;
 let StringReg = /^['"]/;
 let BindFunctionsReg = /\s*\{\s*([^\{\}]+)\}\s*$/;
-let BindFunctionParamsReg = /,"([^"]+)"/;
+let BindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
+let BindFunctionParamsReg = /,"([^"]+)"\s*$/;
+let BindEventParamsReg = /^\s*"([^"]+)",/;
 let CMap = {
     '用': '\u0001',
     '声': '\u0002',
@@ -80,14 +82,23 @@ let SplitExpr = (expr) => {
 };
 
 let ExtractFunctions = (expr) => {
-    let m = expr.match(BindFunctionParamsReg);
     let fns = '';
+    let evts = '';
+
+    let m = expr.match(BindEventParamsReg);
+    if (m) {
+        evts = m[1].split(',');
+        expr = expr.replace(BindEventParamsReg, '');
+    }
+
+    m = expr.match(BindFunctionParamsReg);
     if (m) {
         fns = m[1];
         expr = expr.replace(BindFunctionParamsReg, '');
     }
     return {
         expr,
+        evts,
         fns
     };
 };
@@ -116,6 +127,9 @@ module.exports = {
         tmpl = tmpl.replace(BindReg2, (m, expr) => {
             if (BindFunctionsReg.test(expr)) {
                 expr = expr.replace(BindFunctionsReg, ',"\u0017$1"');
+            }
+            if (BindEventsReg.test(expr)) {
+                expr = expr.replace(BindEventsReg, '"\u0017$1",');
             }
             return ' <%:' + expr + '%> ';
         });
@@ -388,7 +402,7 @@ module.exports = {
             let info = best(head);
             if (!info) {
                 if (configs.log) {
-                    slog.ever(('analyseExpr # can not analysis:' + StripNum(srcExpr)).red, ' at ', sourceFile.magenta);
+                    slog.ever(('can not resolve expr:' + StripNum(srcExpr.trim())).red, 'at', sourceFile.magenta);
                 }
                 return ['analysisMissingRootVariableError'];
             }
@@ -397,9 +411,9 @@ module.exports = {
             }
             return ps; //.join('.');
         };
-        let analyseExpr = (expr) => {
+        let analyseExpr = (expr, source) => {
             //slog.ever('expr', expr);
-            let result = find(expr);
+            let result = find(expr, source);
             //slog.ever('result', result);
             for (let i = 0, one; i < result.length; i++) {
                 one = result[i];
@@ -445,20 +459,26 @@ module.exports = {
                 };
                 return old;
             };
-            for (let i = 0; i < bindEvents.length; i++) {
-                e = bindEvents[i];
-                let reg = GenEventReg(e);
-                attrs = attrs.replace(reg, replacement);
-            }
+            let storeUserEvents = () => {
+                for (let i = 0; i < bindEvents.length; i++) {
+                    e = bindEvents[i];
+                    let reg = GenEventReg(e);
+                    attrs = attrs.replace(reg, replacement);
+                }
+            };
             let findCount = 0;
-            let transformEvent = (exprInfo) => {
+            let transformEvent = (exprInfo, source) => {
+                if (exprInfo.evts) {
+                    bindEvents = exprInfo.evts;
+                }
+                storeUserEvents();
                 let expr = exprInfo.expr;
                 let f = '';
                 let fns = exprInfo.fns;
                 if (fns.length) {
                     f = ',f:\'' + fns.replace(/[\u0001\u0003\u0006]\d*\.?/g, '') + '\'';
                 }
-                expr = analyseExpr(expr);
+                expr = analyseExpr(expr, source);
                 let now = '',
                     info;
                 for (let i = 0; i < bindEvents.length; i++) {
@@ -470,16 +490,15 @@ module.exports = {
             };
             attrs = attrs.replace(BindReg, (m, name, q, expr) => {
                 expr = expr.trim();
-                if (findCount > 1) {
+                if (findCount > 0) {
                     if (configs.log) {
-                        slog.ever('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
+                        slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
                     }
                     return '';
                 }
                 findCount++;
-
                 let exprInfo = ExtractFunctions(expr);
-                let now = transformEvent(exprInfo);
+                let now = transformEvent(exprInfo, m);
 
                 let replacement = '<%=';
                 if (hasMagixView && name.indexOf('view-') === 0) {
@@ -489,20 +508,20 @@ module.exports = {
                 return m + now;
             }).replace(BindReg2, (m, expr) => {
                 expr = expr.trim();
-                if (findCount > 1) {
+                if (findCount > 0) {
                     if (configs.log) {
-                        slog.ever('unsupport multi bind', expr, attrs, tmplCmd.recover(match, cmdStore, recoverString), ' relate file:', sourceFile.gray);
+                        slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
                     }
                     return '';
                 }
                 findCount++;
                 let exprInfo = ExtractFunctions(expr);
-                let now = transformEvent(exprInfo);
+                let now = transformEvent(exprInfo, m);
                 return now;
             }).replace(PathReg, (m, expr) => {
                 expr = expr.trim();
                 //console.log(JSON.stringify(expr));
-                expr = analyseExpr(expr);
+                expr = analyseExpr(expr, m);
                 return expr;
             }).replace(Tmpl_Mathcer, (m) => {
                 return StripNum(m);

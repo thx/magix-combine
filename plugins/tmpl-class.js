@@ -10,7 +10,7 @@ let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let Tmpl_Mathcer = /<%([=!])?([\s\S]+?)%>/;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
-var attrReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?/g;
+let attrReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?/g;
 let deps = require('./util-deps');
 module.exports = {
     process(tmpl, cssNamesMap, refTmplCommands, e) {
