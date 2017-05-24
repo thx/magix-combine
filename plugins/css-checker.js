@@ -232,6 +232,9 @@ module.exports = {
                 if (keys.length) {
                     outCss = true;
                     let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    keys = keys.map(key => {
+                        return key.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    });
                     slog.ever(short.magenta + ' can not find', keys.reverse().join(',').red);
                 }
             }

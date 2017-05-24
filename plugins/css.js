@@ -164,7 +164,7 @@ module.exports = (e, inwatch) => {
                                 let unchecked = configs.uncheckGlobalCss;
                                 if (globals.indexOf(file) == -1) {
                                     if (unchecked.indexOf(file) == -1) {
-                                        fileContent.replace(cssRefReg, refProcessor);
+                                        fileContent = fileContent.replace(cssRefReg, refProcessor);
                                         try {
                                             cssNameGlobalProcessor(fileContent, {
                                                 shortFile: shortCssFile,

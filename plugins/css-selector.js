@@ -123,6 +123,7 @@ let cssNameGlobalProcessor = (css, ctx) => {
         } else if (token.type == 'class') {
             ctx.cNamesMap[id] = id;
             addGlobal(id, id, ctx.globalGuid, ctx.lazyGlobal, ctx.file, ctx.namesMap, ctx.namesToFiles);
+            ctx.cNamesToFiles[id + '!r'] = ctx.namesToFiles[id + '!r'];
         } else if (token.type == 'id') {
             checker.markGlobal(ctx.file, '#' + id);
         }
