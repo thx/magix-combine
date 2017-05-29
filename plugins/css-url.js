@@ -4,7 +4,7 @@ let configs = require('./util-config');
 let slog = require('./util-log');
 module.exports = (css, name) => {
     css = css.replace(UrlReg, (match, content) => {
-        if (configs.log) {
+        if (configs.logUrl) {
             slog.ever('css-url match:', content, name.gray);
         }
         content = configs.cssUrlMatched(content);

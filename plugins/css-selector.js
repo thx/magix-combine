@@ -31,7 +31,7 @@ let genCssSelector = (selector) => {
 };
 let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, namesToFiles) => {
     if (configs.log && namesMap[name] && namesToFiles[name] && !namesToFiles[name][file]) {
-        checker.markExists(name, file, Object.keys(namesToFiles[name]) + '');
+        checker.markExists('.' + name, file, Object.keys(namesToFiles[name]) + '');
     }
     namesMap[name] = transformSelector;
     if (!namesToFiles[name]) {
@@ -94,8 +94,6 @@ let cssNameNewProcessor = (css, ctx) => {
             }
             ctx.cNamesToFiles[id + '!r'] = [ctx.file];
             css = css.slice(0, token.start) + result + css.slice(token.end);
-        } else if (token.type == 'id') {
-            checker.markGlobal(ctx.file, '#' + id);
         }
     }
     return css;
@@ -123,9 +121,9 @@ let cssNameGlobalProcessor = (css, ctx) => {
         } else if (token.type == 'class') {
             ctx.cNamesMap[id] = id;
             addGlobal(id, id, ctx.globalGuid, ctx.lazyGlobal, ctx.file, ctx.namesMap, ctx.namesToFiles);
-            ctx.cNamesToFiles[id + '!r'] = ctx.namesToFiles[id + '!r'];
-        } else if (token.type == 'id') {
-            checker.markGlobal(ctx.file, '#' + id);
+            if (ctx.cNamesToFiles) {
+                ctx.cNamesToFiles[id + '!r'] = ctx.namesToFiles[id + '!r'];
+            }
         }
     }
 };

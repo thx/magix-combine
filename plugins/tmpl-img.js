@@ -13,7 +13,7 @@ module.exports = {
         };
         let attrsProcessor = (attrs) => {
             attrs = attrs.replace(srcReg, (match, q, value) => {
-                if (configs.log) {
+                if (configs.logUrl) {
                     slog.ever('tmpl-img match:', value, e.shortHTMLFile.gray);
                 }
                 value = configs.tmplImgSrcMatched(value);

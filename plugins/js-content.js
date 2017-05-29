@@ -21,8 +21,8 @@ let moduleIdReg = /(['"])(@moduleId)\1/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
 let htmlFileReg = /(['"])(?:raw)?@[^'"]+\.html(:data|:keys|:events)?\1/;
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
-let snippetReg = /(?:^|[\r\n])\s*(['"])#snippet(?:[\w+\-])?\1\s*;?/g;
-let excludeReg = /(?:^|[\r\n])\s*(['"])#exclude\(([\w,]+)\)\1\s*;?/g;
+let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])#snippet(?:[\w+\-])?\1\s*;?/g;
+let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])#exclude\(([\w,]+)\)\1\s*;?/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';

@@ -110,7 +110,7 @@ module.exports = {
                                     if (o === '=') {
                                         m = m.replace(removeTempReg, '');
                                         let nc = c.replace(removeTempReg, '');
-                                        slog.ever(('avoid use ' + m).red, 'at', e.shortHTMLFile.magenta, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
+                                        slog.ever(('avoid use ' + m).red, 'at', e.shortHTMLFile.gray, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
                                     }
                                     return '<%!$eu(' + c + ')%>';
                                 });

@@ -208,7 +208,7 @@ module.exports = {
                 let info = fileGlobals[p];
                 let keys = Object.keys(info);
                 let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
-                slog.ever(short.magenta + ' avoid use ' + (keys + '').red);
+                slog.ever(short.gray + ' avoid use ' + (keys + '').red);
             }
             if (outCss) {
                 slog.ever('──────────────────────────────'.gray);
@@ -235,7 +235,7 @@ module.exports = {
                     keys = keys.map(key => {
                         return key.replace(configs.moduleIdRemovedPath, '').slice(1);
                     });
-                    slog.ever(short.magenta + ' can not find', keys.reverse().join(',').red);
+                    slog.ever(short.gray + ' can not find', keys.reverse().join(',').red);
                 }
             }
             outCss = false;
@@ -264,7 +264,7 @@ module.exports = {
             if (outCss) {
                 for (p in composeTagsAndSelectors) {
                     keys = composeTagsAndSelectors[p];
-                    slog.ever(p.magenta + ' never used', keys.red);
+                    slog.ever(p.gray + ' never used', keys.red);
                 }
                 slog.ever('──────────────────────────────'.gray);
             }
@@ -272,7 +272,7 @@ module.exports = {
                 keys = Object.keys(filesUndeclared[p]);
                 if (keys.length) {
                     let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
-                    slog.ever(short.magenta + ' never declared', ('.' + keys.join(' .')).red);
+                    slog.ever(short.gray + ' never declared', ('.' + keys.join(' .')).red);
                 }
             }
         }

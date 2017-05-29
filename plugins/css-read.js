@@ -51,32 +51,28 @@ let compileContent = (file, content, ext, resolve, reject) => {
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
 module.exports = (file, name, e) => {
     return new Promise((resolve, reject) => {
-        let ext = path.extname(file);
-        if (e.contentInfo && name == 'style') {
-            let info = e.contentInfo;
-            let type = info.styleType;
-            if (type == '.css' && ext != '.css') {
-                type = ext;
-            }
+        let info = e.contentInfo;
+        if (info && name == 'style') {
             compileContent(file, info.style, info.styleType, resolve, reject);
-            return;
-        }
-        fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), (err) => {
-            if (err) {
-                resolve({
-                    exists: false,
-                    file: file,
-                    content: ''
-                });
-            } else {
-                let fileContent = fd.read(file);
-                if (ext == '.less') {
-                    configs.lessOptions.paths = [path.dirname(file)];
-                } else if (ext == '.scss') {
-                    configs.sassOptions.file = file;
+        } else {
+            fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), (err) => {
+                let ext = path.extname(file);
+                if (err) {
+                    resolve({
+                        exists: false,
+                        file: file,
+                        content: ''
+                    });
+                } else {
+                    let fileContent = fd.read(file);
+                    if (ext == '.less') {
+                        configs.lessOptions.paths = [path.dirname(file)];
+                    } else if (ext == '.scss') {
+                        configs.sassOptions.file = file;
+                    }
+                    compileContent(file, fileContent, ext, resolve, reject);
                 }
-                compileContent(file, fileContent, ext, resolve, reject);
-            }
-        });
+            });
+        }
     });
 };

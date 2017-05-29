@@ -20,6 +20,7 @@ module.exports = {
         caseSensitive: true
     },
     log: true,
+    logUrl: false,
     logCssChecker: true,
     compressCss: true, //是否压缩css内容
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
@@ -45,7 +46,7 @@ module.exports = {
     beforeWriteFile(e) {
         return e;
     },
-    compileBeforeProcessor(content) { //开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
+    compileBeforeProcessor(content, from) { //开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
         return content;
     },
     compileAfterProcessor(e) { //结束编译

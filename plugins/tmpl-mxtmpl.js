@@ -119,7 +119,7 @@ let ExtractFunctions = (expr) => {
     第二遍用不可见字符
  */
 module.exports = {
-    process: (tmpl, reject, sourceFile) => {
+    process: (tmpl, reject, sourceFile, refGlobalLeak) => {
         let fn = [];
         let index = 0;
         let htmlStore = {};
@@ -161,7 +161,7 @@ module.exports = {
             slog.ever('parse html cmd ast error:', ex.message.red);
             let html = recoverHTML(fn.slice(Math.max(ex.loc.column - 5, 0)));
             slog.ever('near html:', (html.slice(0, 200)).green);
-            slog.ever('html file:', sourceFile.red);
+            slog.ever('html file:', sourceFile.gray);
             reject(ex);
         }
         let globalExists = {};
@@ -190,7 +190,7 @@ module.exports = {
         };
         let fnProcessor = (node) => {
             if (node.type == 'FunctionDeclaration') {
-                globalExists[node.id.name] = 1;
+                globalExists[node.id.name] = 2;
             }
             let params = {};
             for (let i = 0, p; i < node.params.length; i++) {
@@ -277,7 +277,7 @@ module.exports = {
             },
             Literal: processString,
             Identifier(node) {
-                if (globalExists[node.name] !== 1) {
+                if (!globalExists.hasOwnProperty(node.name)) {
                     modifiers.push({
                         key: (unchangableVars[node.name] ? '固' : '全') + '.',
                         start: node.start,
@@ -285,7 +285,7 @@ module.exports = {
                         name: node.name
                     });
                 } else {
-                    if (!configs.tmplGlobalVars[node.name]) {
+                    if (!configs.tmplGlobalVars.hasOwnProperty(node.name)) {
                         modifiers.push({
                             key: '用' + node.end,
                             start: node.start,
@@ -296,10 +296,17 @@ module.exports = {
                 }
             },
             AssignmentExpression(node) {
-                globalExists[node.left.name] = 1;
+                let name = node.left.name;
+                globalExists[name] = (globalExists[name] || 0) + 1;
+                if (globalExists[name] > 2) {
+                    if (refGlobalLeak && !refGlobalLeak['_' + name]) {
+                        refGlobalLeak['_' + name] = 1;
+                        refGlobalLeak.reassigns.push(('avoid reassign variable:' + name).red + ' at ' + sourceFile.gray);
+                    }
+                }
             },
             VariableDeclarator(node) {
-                globalExists[node.id.name] = 1;
+                globalExists[node.id.name] = node.init ? 2 : 1;
                 modifiers.push({
                     key: '声' + node.start,
                     start: node.id.start,
@@ -402,7 +409,7 @@ module.exports = {
             let info = best(head);
             if (!info) {
                 if (configs.log) {
-                    slog.ever(('can not resolve expr:' + StripNum(srcExpr.trim())).red, 'at', sourceFile.magenta);
+                    slog.ever(('can not resolve expr:' + StripNum(srcExpr.trim())).red, 'at', sourceFile.gray);
                 }
                 return ['analysisMissingRootVariableError'];
             }

@@ -5,6 +5,14 @@ let md5 = require('./util-md5');
 let cssAtNamesKeyReg = /(?:^|[\s\}])@([a-z\-]+)\s*(?:[\w\-]+)?\{([^\{\}]*)\}/g;
 //keyframes，如@-webkit-keyframes xx
 let cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+(['"])?([\w\-]+)\3/g;
+let genCssContentReg = (key) => {
+    let reg = genCssContentReg[key];
+    if (!reg) {
+        reg = new RegExp(':\\s*([\'"])?' + key.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
+        genCssContentReg[key] = reg;
+    }
+    return reg;
+};
 //css @规则的处理
 module.exports = (fileContent, cssNamesKey) => {
     let contents = [];
@@ -34,8 +42,7 @@ module.exports = (fileContent, cssNamesKey) => {
     });
     while (contents.length) {
         let t = contents.pop();
-        //修改使用到的地方
-        let reg = new RegExp(':\\s*([\'"])?' + t.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
+        let reg = genCssContentReg(t);
         if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
             if (t.length > configs.md5CssSelectorLen) {
                 t = md5(t, configs.md5CssSelectorLen);

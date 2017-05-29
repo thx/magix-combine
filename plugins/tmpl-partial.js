@@ -560,7 +560,6 @@ let buildTmpl = (tmpl, refTmplCommands, e, list, parentOwnKeys, globalKeys) => {
         tmpl = tmpl.replace(' ' + removeGuids[i], '');
     }
     tmpl = tmpl.replace(slashAnchorReg, '/');
-    //console.log('xxx',tmpl);
     return {
         list: list,
         tmpl: tmpl,

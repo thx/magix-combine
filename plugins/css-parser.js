@@ -18,6 +18,10 @@ let atRuleSearchContent = {
 };
 let atRuleIgnoreContent = {
     page: 1,
+    '-webkit-keyframes': 1,
+    '-moz-keyframes': 1,
+    '-ms-keyframes': 1,
+    '-o-keyframes': 1,
     keyframes: 1,
     'font-face': 1,
     viewport: 1,
@@ -32,12 +36,6 @@ let unpackPseudos = {
 let quotes = {
     '"': 1,
     '\'': 1
-};
-let ignoreTags = {
-    tbody: 1,
-    thead: 1,
-    tfoot: 1,
-    tr: 1
 };
 let parse = (css, file) => {
     let tokens = [];
@@ -100,7 +98,7 @@ let parse = (css, file) => {
         let count = 0;
         //let sc = current;
         current = css.indexOf('{', current);
-        while (current < max) {
+        while (current >= 0 && current < max) {
             let tc = css.charAt(current);
             if (tc == '{') {
                 count++;
@@ -116,11 +114,23 @@ let parse = (css, file) => {
         //let ec = current;
         //console.log('ignore content', css.substring(sc, ec));
     };
-    let maxNest = 3;
+    let selector = '';
+    let overSelectors = 0;
+    let takeSelector = () => {
+        if (overSelectors > 0) {
+            if (overSelectors != 1 && //标签
+                overSelectors != 11 && //input[type=text]
+                overSelectors != 100 && // .input
+                overSelectors != 200 // .focus .input 2个类
+            ) {
+                nests.push(selector.trim());
+            }
+        }
+    };
     let processRules = () => {
         let prev = '';
-        let selector = '';
-        let overSelectors = 0;
+        selector = '';
+        overSelectors = 0;
         while (current < max) {
             let sc = current;
             stripWhitespaceAndGo(0);
@@ -130,9 +140,7 @@ let parse = (css, file) => {
                 break;
             } else if (tc == ',' || tc == ')') {
                 prev = '';
-                if (overSelectors >= maxNest) {
-                    nests.push(selector.trim());
-                }
+                takeSelector();
                 selector = '';
                 overSelectors = 0;
                 current++;
@@ -149,9 +157,7 @@ let parse = (css, file) => {
                     };
                 }
             } else if (tc == '}') {
-                if (overSelectors >= maxNest) {
-                    nests.push(selector.trim());
-                }
+                takeSelector();
                 current++;
                 break;
             } else if (tc === '.' || tc === '#') {
@@ -159,7 +165,7 @@ let parse = (css, file) => {
                 let sc = current;
                 let id = getNameAndGo();
                 selector += tc + id;
-                overSelectors++;
+                overSelectors += tc === '.' ? 100 : 1000;
                 if (tc == '.') {
                     tokens.push({
                         type: prev = 'class',
@@ -194,7 +200,7 @@ let parse = (css, file) => {
                         end: current + matches[0].length
                     });
                 }
-                overSelectors++;
+                overSelectors += 10;
                 prev = 'attr';
                 selector += '[' + matches[0];
                 current += matches[0].length;
@@ -215,9 +221,7 @@ let parse = (css, file) => {
                         let quoted = quot in quotes;
                         current += quoted + 1;
                         prev = '';
-                        if (overSelectors >= maxNest) {
-                            nests.push(selector.trim());
-                        }
+                        takeSelector();
                         overSelectors = 0;
                         selector = '';
                     } else {
@@ -237,9 +241,7 @@ let parse = (css, file) => {
                     start: sc,
                     end: current
                 });
-                if (!ignoreTags[id]) {
-                    overSelectors++;
-                }
+                overSelectors++;
                 selector += id;
             } else {
                 current++;

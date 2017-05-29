@@ -42,9 +42,12 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         fileContent = tmplMxTag.process(fileContent, extInfo);
 
         let refTmplCommands = {};
+        let refLeakGlobal = {
+            reassigns: []
+        };
         fileContent = tmplImg.process(fileContent, e);
         if (!configs.disableMagixUpdater && !raw) {
-            fileContent = tmplMxTmpl.process(fileContent, reject, e.shortHTMLFile);
+            fileContent = tmplMxTmpl.process(fileContent, reject, e.shortHTMLFile, refLeakGlobal);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
@@ -63,7 +66,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
             reject(ex);
         }
         if (prefix && !configs.disableMagixUpdater && !raw) {
-            fileContent = tmplGuid.add(fileContent, refTmplCommands);
+            fileContent = tmplGuid.add(fileContent, refTmplCommands, refLeakGlobal);
+            if (refLeakGlobal.exists) {
+                if (refLeakGlobal.reassigns) {
+                    refLeakGlobal.reassigns.forEach((it) => {
+                        slog.ever(it);
+                    });
+                }
+                slog.ever(e.shortHTMLFile.magenta, 'segment failed'.red, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
+            }
         }
 
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
