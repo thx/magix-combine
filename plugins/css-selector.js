@@ -1,7 +1,7 @@
 let util = require('./util');
 let md5 = require('./util-md5');
 let configs = require('./util-config');
-let checker = require('./css-checker');
+let checker = require('./checker');
 let cssParser = require('./css-parser');
 let slashReg = /[\/\.]/g;
 let cssCommentReg = /\/\*[\s\S]+?\*\//g;
@@ -31,7 +31,7 @@ let genCssSelector = (selector) => {
 };
 let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, namesToFiles) => {
     if (configs.log && namesMap[name] && namesToFiles[name] && !namesToFiles[name][file]) {
-        checker.markExists('.' + name, file, Object.keys(namesToFiles[name]) + '');
+        checker.CSS.markExists('.' + name, file, Object.keys(namesToFiles[name]) + '');
     }
     namesMap[name] = transformSelector;
     if (!namesToFiles[name]) {
@@ -56,7 +56,7 @@ let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, name
         } else {
             namesToFiles[name + '!r'] = [file];
         }
-        checker.markLazyDeclared(name);
+        checker.CSS.markLazyDeclared(name);
     } else {
         namesToFiles[name + '!r'] = [file];
     }
@@ -69,7 +69,7 @@ let ignoreTags = {
 let cssNameNewProcessor = (css, ctx) => {
     let pInfo = cssParser(css, ctx.shortFile);
     if (pInfo.nests.length) {
-        checker.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
+        checker.CSS.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
     let tokens = pInfo.tokens;
     for (let i = tokens.length - 1; i >= 0; i--) {
@@ -101,7 +101,7 @@ let cssNameNewProcessor = (css, ctx) => {
 let cssNameGlobalProcessor = (css, ctx) => {
     let pInfo = cssParser(css, ctx.shortFile);
     if (pInfo.nests.length) {
-        checker.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
+        checker.CSS.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
     let tokens = pInfo.tokens;
     for (let i = tokens.length - 1; i >= 0; i--) {

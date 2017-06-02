@@ -37,9 +37,14 @@ let quotes = {
     '"': 1,
     '\'': 1
 };
+let ignoreTags = {
+    html: 1,
+    body: 1
+};
 let parse = (css, file) => {
     let tokens = [];
     let nests = [];
+    let nestsLocker = {};
     let current = 0;
     let max = css.length;
     let c;
@@ -123,7 +128,19 @@ let parse = (css, file) => {
                 overSelectors != 100 && // .input
                 overSelectors != 200 // .focus .input 2个类
             ) {
-                nests.push(selector.trim());
+                let s = selector.trim();
+                if (!nestsLocker[s]) {
+                    let temp = s.split('.'); //忽略label.disable
+                    if (temp.length == 2 &&
+                        temp[0].trim() == temp[0] &&
+                        temp[1].trim() == temp[1] &&
+                        nameReg.test(temp[0]) &&
+                        nameReg.test(temp[1])) {
+                        return;
+                    }
+                    nestsLocker[s] = 1;
+                    nests.push(s);
+                }
             }
         }
     };
@@ -241,7 +258,9 @@ let parse = (css, file) => {
                     start: sc,
                     end: current
                 });
-                overSelectors++;
+                if (!ignoreTags[id]) {
+                    overSelectors++;
+                }
                 selector += id;
             } else {
                 current++;

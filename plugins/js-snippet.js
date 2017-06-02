@@ -4,7 +4,7 @@ let path = require('path');
 let fs = require('fs');
 let sep = path.sep;
 let fileReg = /(['"])\u0012@([^'"]+)\.([a-z]{2,})\1;?/g;
-let cssChecker = require('./css-checker');
+let checker = require('./checker');
 module.exports = (e) => {
     return new Promise((resolve, reject) => {
         let contentCache = {},
@@ -31,7 +31,7 @@ module.exports = (e) => {
                     }
                 }).catch(reject);
             } else {
-                cssChecker.markUnexists(file, e.from);
+                checker.CSS.markUnexists(file, e.from);
                 contentCache[key] = 'throw new Error("unfound:' + file + '");';
                 count--;
                 if (!count) {

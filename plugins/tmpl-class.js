@@ -1,7 +1,7 @@
 //模板，处理class名称，前面我们把css文件处理完后，再自动处理掉模板文件中的class属性中的名称，不需要开发者界入处理
 
 let configs = require('./util-config');
-let cssChecker = require('./css-checker');
+let checker = require('./checker');
 let classReg = /\bclass\s*=\s*(['"])([^'"]+)(?:\1)/g;
 let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
@@ -23,12 +23,12 @@ module.exports = {
                 tempCache[key] = 1;
                 if (r) {
                     let files = e.cssNamesInFiles[key + '!r'];
-                    cssChecker.markUsed(files, key, e.from);
+                    checker.CSS.markUsed(files, key, e.from);
                     files.forEach((f) => {
                         deps.addFileDepend(f, e.from, e.to);
                     });
                 } else {
-                    cssChecker.markUndeclared(e.srcHTMLFile, key);
+                    checker.CSS.markUndeclared(e.srcHTMLFile, key);
                 }
             }
             return h + (r || key);
@@ -58,9 +58,9 @@ module.exports = {
                 tempCache[key] = 1;
                 if (r) {
                     let files = e.cssNamesInFiles[key + '!r'];
-                    cssChecker.markUsed(files, key, e.from);
+                    checker.CSS.markUsed(files, key, e.from);
                 } else {
-                    cssChecker.markUndeclared(e.srcHTMLFile, key);
+                    checker.CSS.markUndeclared(e.srcHTMLFile, key);
                 }
             }
             return r || key;
@@ -72,7 +72,7 @@ module.exports = {
                     tagsCache[attr] = 1;
                     let files = e.cssTagsInFiles[attr];
                     if (files) {
-                        cssChecker.markUsedTags(Object.keys(files), attr, e.from);
+                        checker.CSS.markUsedTags(Object.keys(files), attr, e.from);
                     }
                 }
             });
@@ -80,7 +80,7 @@ module.exports = {
                 tagsCache[tag] = 1;
                 let files = e.cssTagsInFiles[tag];
                 if (files) {
-                    cssChecker.markUsedTags(Object.keys(files), tag, e.from);
+                    checker.CSS.markUsedTags(Object.keys(files), tag, e.from);
                 }
             }
             match = configs.cssNamesProcessor(match, cssNamesMap);

@@ -1,5 +1,5 @@
 let configs = require('./util-config');
-let checker = require('./css-checker');
+let checker = require('./checker');
 let cssFileRead = require('./css-read');
 let cssAtRule = require('./css-atrule');
 let cssParser = require('./css-parser');
@@ -47,8 +47,8 @@ let processGlobal = (ctx) => {
                     } catch (e) {
                         reject(e);
                     }
-                    checker.fileToTags(currentFile, fileTags, ctx.inwatch);
-                    checker.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
+                    checker.CSS.fileToTags(currentFile, fileTags, ctx.inwatch);
+                    checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                 }
             };
             let ps = [];
@@ -105,11 +105,11 @@ let processScope = (ctx) => {
                         reject(e);
                     }
                     c = cssAtRule(c, cssNamesKey);
-                    checker.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
-                    checker.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
+                    checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
+                    checker.CSS.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
                     scopedStyle += c;
                 } else if (!i.exists) {
-                    checker.markUnexists(i.file, '/scoped.style');
+                    checker.CSS.markUnexists(i.file, '/scoped.style');
                     scopedStyle += ' unfound-' + i.file;
                 }
             };

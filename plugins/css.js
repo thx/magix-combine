@@ -6,7 +6,7 @@ let cssAtRule = require('./css-atrule');
 let cssFileRead = require('./css-read');
 let cssUrl = require('./css-url');
 let deps = require('./util-deps');
-let checker = require('./css-checker');
+let checker = require('./checker');
 let cssGlobal = require('./css-global');
 let utils = require('./util');
 let cloneAssign = utils.cloneAssign;
@@ -32,8 +32,8 @@ let sep = path.sep;
 
 module.exports = (e, inwatch) => {
     if (inwatch) {
-        checker.clearUsed(e.from);
-        checker.clearUsedTags(e.from);
+        checker.CSS.clearUsed(e.from);
+        checker.CSS.clearUsedTags(e.from);
     }
     let cssNamesMap = {};
     let cssNamesToFiles = {};
@@ -50,7 +50,7 @@ module.exports = (e, inwatch) => {
         file = path.resolve(path.dirname(e.from) + sep + file + ext);
         q = genCssNamesKey(file);
         name = genCssSelector(name);
-        checker.markUsed(file, name, e.from);
+        checker.CSS.markUsed(file, name, e.from);
         return '@.' + q + '-' + name;
     };
     return cssGlobal.process({
@@ -99,7 +99,7 @@ module.exports = (e, inwatch) => {
                         //从缓存中获取当前文件的信息
                         //如果不存在就返回一个不存在的提示
                         if (!r.exists) {
-                            checker.markUnexists(m, e.from);
+                            checker.CSS.markUnexists(m, e.from);
                             return q + 'unfound:' + name + ext + q;
                         }
                         let fileContent = r.css;
@@ -144,8 +144,8 @@ module.exports = (e, inwatch) => {
                                     r.tagsToFiles = cssTagsToFiles;
                                     r.cssTags = cssTagsMap;
                                     cloneAssign(gCSSTagToFiles, cssTagsToFiles);
-                                    checker.fileToTags(file, cssTagsMap, inwatch);
-                                    checker.fileToSelectors(file, cssNamesMap, inwatch);
+                                    checker.CSS.fileToTags(file, cssTagsMap, inwatch);
+                                    checker.CSS.fileToSelectors(file, cssNamesMap, inwatch);
                                     //}
                                 } else {
                                     cssNamesMap = r.cssNames;
@@ -183,30 +183,30 @@ module.exports = (e, inwatch) => {
                                         cssGlobal.add(file, cssNamesMap, cssNamesToFiles);
                                         cloneAssign(gCSSNamesMap, cssNamesMap);
                                         cloneAssign(gCSSTagToFiles, cssTagsToFiles);
-                                        checker.fileToSelectors(file, cssNamesMap, inwatch);
-                                        checker.fileToTags(file, cssTagsMap, inwatch);
+                                        checker.CSS.fileToSelectors(file, cssNamesMap, inwatch);
+                                        checker.CSS.fileToTags(file, cssTagsMap, inwatch);
                                     }
-                                    checker.markGlobal(e.from, 'global@' + name + ext);
+                                    checker.CSS.markGlobal(e.from, 'global@' + name + ext);
                                 }
                             }
                         }
                         let replacement;
                         if (prefix == 'names') { //如果是读取css选择器名称对象
                             if (keys) { //从对象中只挑取某几个key
-                                checker.markUsed(markUsedFiles, keys.split(','), e.from);
+                                checker.CSS.markUsed(markUsedFiles, keys.split(','), e.from);
                                 replacement = JSON.stringify(cssNamesMap, keys.split(','));
                             } else { //全部名称对象
-                                checker.markUsed(markUsedFiles, Object.keys(cssNamesMap), e.from);
+                                checker.CSS.markUsed(markUsedFiles, Object.keys(cssNamesMap), e.from);
                                 replacement = JSON.stringify(cssNamesMap);
                             }
                         } else if (prefix == 'ref') { //如果是引用css则什么都不用做
                             replacement = '';
                             tail = '';
                         } else if (key) { //仅读取文件中的某个名称
-                            checker.markUsed(markUsedFiles, key, e.from);
+                            checker.CSS.markUsed(markUsedFiles, key, e.from);
                             let c = cssNamesMap[key];
                             if (!c) {
-                                checker.markUnexists(m, e.from);
+                                checker.CSS.markUnexists(m, e.from);
                                 c = 'unfound-[' + key + ']-from-' + fileName;
                             }
                             replacement = q + c + q;

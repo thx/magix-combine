@@ -189,6 +189,15 @@ module.exports = {
             });
         };
         let fnProcessor = (node) => {
+            let fns = ['function('];
+            if (node.params && node.params.length) {
+                node.params.forEach(p => {
+                    fns.push(p.name, ',');
+                });
+                fns.pop();
+            }
+            fns.push('){}');
+            slog.ever(sourceFile.gray, 'avoid use', fns.join('').red);
             if (node.type == 'FunctionDeclaration') {
                 globalExists[node.id.name] = 2;
             }
@@ -408,9 +417,7 @@ module.exports = {
             }
             let info = best(head);
             if (!info) {
-                if (configs.log) {
-                    slog.ever(('can not resolve expr:' + StripNum(srcExpr.trim())).red, 'at', sourceFile.gray);
-                }
+                slog.ever(('can not resolve expr:' + StripNum(srcExpr.trim())).red, 'at', sourceFile.gray);
                 return ['analysisMissingRootVariableError'];
             }
             if (info != '\u0003') {
@@ -498,9 +505,7 @@ module.exports = {
             attrs = attrs.replace(BindReg, (m, name, q, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
-                    if (configs.log) {
-                        slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
-                    }
+                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -516,9 +521,7 @@ module.exports = {
             }).replace(BindReg2, (m, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
-                    if (configs.log) {
-                        slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
-                    }
+                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
                     return '';
                 }
                 findCount++;

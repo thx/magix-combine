@@ -13,10 +13,10 @@ module.exports = {
         };
         let attrsProcessor = (attrs) => {
             attrs = attrs.replace(srcReg, (match, q, value) => {
-                if (configs.logUrl) {
+                value = configs.tmplImgSrcMatched(value);
+                if (configs.check) {
                     slog.ever('tmpl-img match:', value, e.shortHTMLFile.gray);
                 }
-                value = configs.tmplImgSrcMatched(value);
                 return 'src=' + q + value + q;
             });
             return attrs;

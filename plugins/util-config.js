@@ -20,8 +20,7 @@ module.exports = {
         caseSensitive: true
     },
     log: true,
-    logUrl: false,
-    logCssChecker: true,
+    check: true,
     compressCss: true, //是否压缩css内容
     compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
     addEventPrefix: true, //mx事件增加前缀

@@ -24,7 +24,7 @@ module.exports = {
         }
     },
     clearUsed(from) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         for (let p in fileSelectorsUsed) {
             let fInfo = fileSelectorsUsed[p];
             if (fInfo) {
@@ -36,7 +36,7 @@ module.exports = {
         }
     },
     clearUsedTags(from) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         for (let p in fileTagsUsed) {
             let fInfo = fileTagsUsed[p];
             if (fInfo) {
@@ -48,7 +48,7 @@ module.exports = {
         }
     },
     fileToTags(file, tags, processUsed) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         if (!filesToTags[file]) {
             filesToTags[file] = Object.assign({}, tags);
             let a = markUsedTempTags[file];
@@ -71,7 +71,7 @@ module.exports = {
         }
     },
     fileToSelectors(file, selectors, processUsed) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         if (!filesToSelectors[file]) {
             filesToSelectors[file] = Object.assign({}, selectors);
             let a = markUsedTemp[file];
@@ -94,7 +94,7 @@ module.exports = {
         }
     },
     markExists(name, currentFile, prevFiles) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         let key = [name, currentFile, prevFiles].join('\u0000');
         if (!existsSelectors[key]) {
             existsSelectors[key] = true;
@@ -106,14 +106,14 @@ module.exports = {
         }
     },
     markUnexists(name, currentFile) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         if (!unexists[currentFile]) {
             unexists[currentFile] = {};
         }
         unexists[currentFile][name] = name;
     },
     markUsed(files, selectors, host) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -145,7 +145,7 @@ module.exports = {
         });
     },
     markUsedTags(files, tags, host) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -178,14 +178,14 @@ module.exports = {
         });
     },
     markLazyDeclared(selector) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         for (let p in filesUndeclared) {
             let info = filesUndeclared[p];
             delete info[selector];
         }
     },
     markUndeclared(file, selector) {
-        if (!configs.logCssChecker) return;
+        if (!configs.check) return;
         let r = filesUndeclared[file];
         if (!r) {
             r = filesUndeclared[file] = {};
@@ -202,7 +202,7 @@ module.exports = {
     },
     output() {
         let p, keys, outCss = false;
-        if (configs.logCssChecker) {
+        if (configs.check) {
             for (let p in fileGlobals) {
                 outCss = true;
                 let info = fileGlobals[p];

@@ -11,7 +11,7 @@ let tmplMxTag = require('./tmpl-mxtag');
 let tmplGuid = require('./tmpl-guid');
 let tmplClass = require('./tmpl-class');
 let tmplPartial = require('./tmpl-partial');
-let tmplMxTmpl = require('./tmpl-mxtmpl');
+let tmplVars = require('./tmpl-vars');
 let tmplImg = require('./tmpl-img');
 let tmplViewAttr = require('./tmpl-viewattr');
 let slog = require('./util-log');
@@ -36,7 +36,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         let extInfo = {
             file: file
         };
-
+        e.shortFrom = e.from.replace(configs.moduleIdRemovedPath, '').slice(1);
         e.srcHTMLFile = file;
         e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
         fileContent = tmplMxTag.process(fileContent, extInfo);
@@ -47,7 +47,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         };
         fileContent = tmplImg.process(fileContent, e);
         if (!configs.disableMagixUpdater && !raw) {
-            fileContent = tmplMxTmpl.process(fileContent, reject, e.shortHTMLFile, refLeakGlobal);
+            fileContent = tmplVars.process(fileContent, reject, e.shortHTMLFile, refLeakGlobal);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
@@ -68,12 +68,12 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         if (prefix && !configs.disableMagixUpdater && !raw) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, refLeakGlobal);
             if (refLeakGlobal.exists) {
+                slog.ever(e.shortHTMLFile.magenta, 'segment failed'.red, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
                 if (refLeakGlobal.reassigns) {
                     refLeakGlobal.reassigns.forEach((it) => {
                         slog.ever(it);
                     });
                 }
-                slog.ever(e.shortHTMLFile.magenta, 'segment failed'.red, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
             }
         }
 

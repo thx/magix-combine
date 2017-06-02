@@ -1,6 +1,5 @@
 let tmplCmd = require('./tmpl-cmd');
-let slog = require('./util-log');
-let configs = require('./util-config');
+let checker = require('./checker');
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
 let subReg = (() => {
@@ -318,9 +317,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         for (let i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
-                if (configs.log) {
-                    slog.ever('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.from.gray);
-                }
+                checker.Tmpl.markNodeAttr('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.shortFrom.gray);
                 continue;
             }
             let t = {};
@@ -390,8 +387,8 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
             //console.log(info.keys);
             if (attrsKeys[info.keys[i]] || (m && info.hasView)) m = m ? m | 2 : 2;
             mask += m + '';
-            if (m === 0 && configs.log) {
-                slog.ever('check key word:', info.keys[i].red, ' relate file:', e.from.gray);
+            if (m === 0) {
+                checker.Tmpl.markNodeAttr('check key word:', info.keys[i].red, ' relate file:', e.shortFrom.gray);
             }
         }
         //最后产出的结果可能如：

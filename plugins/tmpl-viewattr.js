@@ -1,6 +1,6 @@
 let atpath = require('./util-atpath');
 let configs = require('./util-config');
-let slog = require('./util-log');
+let checker = require('./checker');
 //let tmplCmd = require('./tmpl-cmd');
 
 let tagReg = /<[\w-]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
@@ -110,7 +110,7 @@ module.exports = {
                                     if (o === '=') {
                                         m = m.replace(removeTempReg, '');
                                         let nc = c.replace(removeTempReg, '');
-                                        slog.ever(('avoid use ' + m).red, 'at', e.shortHTMLFile.gray, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
+                                        checker.Tmpl.markViewAttr(('avoid use ' + m).red, 'at', e.shortHTMLFile.gray, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
                                     }
                                     return '<%!$eu(' + c + ')%>';
                                 });

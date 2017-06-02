@@ -2,11 +2,11 @@ let fs = require('fs');
 let path = require('path');
 let configs = require('./plugins/util-config');
 let fd = require('./plugins/util-fd');
-let initFolder = require('./plugins/util-init');
+let initEnv = require('./plugins/util-init');
 let js = require('./plugins/js');
 let jsContent = require('./plugins/js-content');
 let deps = require('./plugins/util-deps');
-let cssChecker = require('./plugins/css-checker');
+let checker = require('./plugins/checker');
 let cssGlobal = require('./plugins/css-global');
 let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
@@ -50,14 +50,14 @@ module.exports = {
         for (let p in cfg) {
             configs[p] = cfg[p];
         }
-        configs.globalCss = configs.globalCss.map((p) => path.resolve(p));
-        configs.scopedCss = configs.scopedCss.map((p) => path.resolve(p));
-        configs.uncheckGlobalCss = configs.uncheckGlobalCss.map((p) => path.resolve(p));
+        configs.globalCss = configs.globalCss.map(p => path.resolve(p));
+        configs.scopedCss = configs.scopedCss.map(p => path.resolve(p));
+        configs.uncheckGlobalCss = configs.uncheckGlobalCss.map(p => path.resolve(p));
         configs.resetCss = configs.globalCss.concat(configs.scopedCss);
     },
     combine() {
         return new Promise((resolve, reject) => {
-            initFolder();
+            initEnv();
             setTimeout(() => {
                 let ps = [];
                 let total = 0;
@@ -99,7 +99,7 @@ module.exports = {
                         });
                     } else {
                         setTimeout(() => {
-                            cssChecker.output();
+                            checker.output();
                             slog.clear(true);
                             resolve();
                         }, 100);
@@ -110,31 +110,25 @@ module.exports = {
         });
     },
     processFile(from) {
-        // if (configs.resetCss.indexOf(from) > -1) {
-        //     cssChecker.reset(true);
-        //     jsFileCache.reset();
-        //     cssGlobal.reset();
-        //     return this.combine();
-        // }
-        initFolder();
+        initEnv();
         from = path.resolve(from);
-        cssChecker.reset();
+        checker.CSS.reset();
         jsFileCache.clear(from);
         cssGlobal.reset(from);
         let to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
         return js.process(from, to, true).then(() => {
-            cssChecker.output();
+            checker.output();
             return Promise.resolve();
         });
     },
     processContent(from, to, content) {
-        initFolder();
+        initEnv();
         jsFileCache.clear(from);
         return jsContent.process(from, to, content, false, false);
     },
     processTmpl() {
         return new Promise((resolve, reject) => {
-            initFolder();
+            initEnv();
             let ps = [];
             let total = 0;
             let completed = 0;
@@ -175,5 +169,14 @@ module.exports = {
             };
             run();
         });
+    },
+    stripCmd(tmpl) {
+        initEnv();
+        if (configs.tmplCommand) {
+            return tmpl.replace(configs.tmplCommand, () => {
+                return '';
+            });
+        }
+        return tmpl;
     }
 };

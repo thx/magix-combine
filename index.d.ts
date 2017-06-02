@@ -123,7 +123,7 @@ declare module "magix-combine" {
         /**
          * 加载器类型，该选项决定如何添加包装，如添加define函数。默认为cmd加载器
          */
-        loaderType?: string
+        loaderType?: "amd" | "cmd" | "iife" | "none" | "webpack" | "kissy"
         /**
          * html压缩选项
          */
@@ -133,13 +133,9 @@ declare module "magix-combine" {
          */
         log?: boolean
         /**
-         * 是否输出css中识别到的url及html中识别出的img的src。默认为true
+         * 是否输出项目检测信息。默认为true
          */
-        logUrl?: boolean
-        /**
-         * 是否输出样式检测信息。默认为true
-         */
-        logCssChecker?: boolean
+        check?: boolean
         /**
          * 是否压缩css内容。默认为true
          */
@@ -308,4 +304,9 @@ declare module "magix-combine" {
      * 处理tmpl文件夹中的模板文件，通常向节点添加spm等属性
      */
     function processTmpl(): Promise<void>
+    /**
+     * 移除模板中的命令语句
+     * @param tmpl 源模板
+     */
+    function stripCmd(tmpl: string): string
 }
