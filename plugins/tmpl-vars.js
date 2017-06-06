@@ -306,6 +306,9 @@ module.exports = {
             },
             AssignmentExpression(node) {
                 let name = node.left.name;
+                if (!globalExists[name]) {
+                    slog.ever(('undeclare variable:' + name).red, 'at', sourceFile.gray);
+                }
                 globalExists[name] = (globalExists[name] || 0) + 1;
                 if (globalExists[name] > 2) {
                     if (refGlobalLeak && !refGlobalLeak['_' + name]) {

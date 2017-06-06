@@ -25,6 +25,7 @@ module.exports = {
                 let info = str.match(anchorReg);
                 if (!info) return match;
                 str = info[1] + info[2] + info[1];
+                let originalId = str;
                 if (configs.useAtPathConverter) {
                     str = atpath.resolvePath(str, moduleId);
                 }
@@ -32,6 +33,7 @@ module.exports = {
                 let reqInfo = {
                     prefix: prefix,
                     tail: tail || '',
+                    originalDependedId: originalId.slice(1, -1),
                     dependedId: depId,
                     variable: key
                 };

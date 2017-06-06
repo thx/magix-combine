@@ -71,6 +71,10 @@ declare module "magix-combine" {
          */
         tail: string
         /**
+         * 未经任何处理的原始模块id
+         */
+        originalDependedId: string
+        /**
          * 依赖的id
          */
         dependedId: string
