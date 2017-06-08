@@ -271,6 +271,7 @@ let parse = (css, file) => {
         stripWhitespaceAndGo(0);
         c = css.charAt(current);
         if (c === '@') {
+            let start = current;
             current++;
             let name = getNameAndGo();
             if (atRuleSearchContent.hasOwnProperty(name)) {
@@ -280,6 +281,9 @@ let parse = (css, file) => {
                 skipAtRuleContent();
             } else {
                 skipAtRule();
+                if (name == 'import') {
+                    nests.push(css.slice(start, current));
+                }
             }
         } else {
             processRules();

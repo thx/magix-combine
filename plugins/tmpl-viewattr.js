@@ -69,6 +69,14 @@ module.exports = {
                     let attrs = [];
                     match = match.replace(viewAttrReg, (m, name, q, content) => {
                         let cmdTemp = []; //处理属性中带命令的情况
+                        let tmplChecker = checker.Tmpl;
+                        if (tmplChecker.upperCaseReg.test(name)) {
+                            tmplChecker.upperCaseReg.lastIndex = 0;
+                            let hname = tmplChecker.hyphenate(name);
+                            checker.Tmpl.markAttr(('avoid use view-' + name).red, 'at', e.shortHTMLFile.gray, 'use', ('view-' + hname).red, 'instead', 'more info:', 'https://github.com/thx/magix/issues/35'.magenta);
+                            name = hname;
+                        }
+                        name = tmplChecker.camelize(name);
                         content.replace(cmdReg, (cm) => {
                             cmdTemp.push(cm); //把命令暂存下来
                         });
@@ -110,7 +118,7 @@ module.exports = {
                                     if (o === '=') {
                                         m = m.replace(removeTempReg, '');
                                         let nc = c.replace(removeTempReg, '');
-                                        checker.Tmpl.markViewAttr(('avoid use ' + m).red, 'at', e.shortHTMLFile.gray, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
+                                        checker.Tmpl.markAttr(('avoid use ' + m).red, 'at', e.shortHTMLFile.gray, 'near', ('mx-view="' + content.slice(0, q) + '"').magenta, 'use', ('<%!' + nc + '%>').red, 'or', ('<%@' + nc + '%>').red, 'instead');
                                     }
                                     return '<%!$eu(' + c + ')%>';
                                 });
