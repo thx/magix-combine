@@ -7,6 +7,7 @@ let tmplProcessor = require('./tmpl');
 let atpath = require('./util-atpath');
 let jsLoader = require('./js-loader');
 let configs = require('./util-config');
+let checker = require('./checker');
 
 let slog = require('./util-log');
 let acorn = require('acorn');
@@ -80,17 +81,18 @@ let processContent = (from, to, content, inwatch) => {
     if (configs.log && inwatch) {
         slog.ever('compile:', from.blue);
     }
-    return before.then((content) => {
+    return before.then(content => {
         return jsRequire.process({
             fileDeps: {},
             exclude: exclude,
             to: to,
             from: from,
+            shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
             content: content,
             writeFile: !isSnippet,
             processContent: processContent
         });
-    }).then((e) => {
+    }).then(e => {
         let tmpl = e.exclude ? e.content : jsLoader(e);
         let ast;
         try {
@@ -108,7 +110,7 @@ let processContent = (from, to, content, inwatch) => {
         let modifiers = [];
         let toTops = [];
         let toBottoms = [];
-        let processString = (node) => { //存储字符串，减少分析干扰
+        let processString = node => { //存储字符串，减少分析干扰
             StringReg.lastIndex = 0;
             let add = false;
             if (StringReg.test(node.raw)) {
@@ -165,6 +167,10 @@ let processContent = (from, to, content, inwatch) => {
             },
             Literal: processString
         });
+        if (configs.check) {
+            let walkerProcessor = checker.JS.getWalker(tmpl, e);
+            walker.simple(ast, walkerProcessor);
+        }
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });
@@ -180,15 +186,15 @@ let processContent = (from, to, content, inwatch) => {
         }
         e.content = tmpl;
         return Promise.resolve(e);
-    }).then((e) => {
+    }).then(e => {
         if (contentInfo) e.contentInfo = contentInfo;
         return cssProcessor(e, inwatch);
-    }).then(tmplProcessor).then(jsSnippet).then((e) => {
+    }).then(tmplProcessor).then(jsSnippet).then(e => {
         if (execAfterProcessor) {
             return configs.compileAfterProcessor(e);
         }
         return e;
-    }).then((e) => {
+    }).then(e => {
         fileCache.add(e.from, key, e);
         return e;
     });

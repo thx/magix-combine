@@ -5,8 +5,8 @@ let header = '/*\r\n    generate by magix-combine: https://github.com/thx/magix-
 let tmpls = {
     cmd: 'define(\'${moduleId}\',[${requires}],function(require,exports,module){\r\n/*${vars}*/\r\n${content}\r\n});',
     cmd1: 'define(\'${moduleId}\',function(require,exports,module){\r\n${content}\r\n});',
-    amd: 'define(\'${moduleId}\',[\'require\',\'module\',\'exports\',${requires}],function(require,module,exports){\r\n${content}\r\n});',
-    amd1: 'define(\'${moduleId}\',[\'module\',\'exports\'],function(module,exports){\r\n${content}\r\n});',
+    amd: 'define(\'${moduleId}\',[\'require\',\'exports\',\'module\',${requires}],function(require,exports,module){\r\n${content}\r\n});',
+    amd1: 'define(\'${moduleId}\',[\'exports\',\'module\'],function(exports,module){\r\n${content}\r\n});',
     kissy: 'KISSY.add(\'${moduleId}\',function(S,${vars}){\r\n${content}\r\n},\r\n{requires:[${requires}]});',
     kissy1: 'KISSY.add(\'${moduleId}\',function(S){\r\n${content}\r\n});',
     webpack: '${content}',
@@ -15,7 +15,7 @@ let tmpls = {
     none1: '${content}',
     iife: '(function(){\r\n${content}\r\n})();'
 };
-module.exports = (e) => {
+module.exports = e => {
     let key = configs.loaderType + (e.requires.length ? '' : '1');
     let tmpl = header + (tmpls[key] || tmpls.iife);
     for (let p in e) {

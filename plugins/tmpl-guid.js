@@ -35,8 +35,8 @@ let vdMatchId = (tmpl, tmplCommands) => {
     if (!globalRegTest.test(c)) { //不存在全局的变量，不用局部刷新
         return false;
     }
-    let vds = {};
-    let ids = {};
+    let vds = Object.create(null);
+    let ids = Object.create(null);
     c.replace(vdReg, (m, key) => { //变量声明
         vds[key] = 1;
     });
@@ -73,7 +73,7 @@ module.exports = {
             }
             return '<' + tag + tKey + attrs + (close ? close : '') + '>';
         });
-        tmpl = tmpl.replace(emptyTag, (match) => {
+        tmpl = tmpl.replace(emptyTag, match => {
             let content = match.slice(0, -1).trim();
             if (content.charAt(content.length - 1) != '/') {
                 return content + '/>';
@@ -82,7 +82,7 @@ module.exports = {
         });
 
         g = 0;
-        let removeGuid = (tmpl) => {
+        let removeGuid = tmpl => {
             //如果移除子节点后无模板命令和属性中的模板命令，则移除guid
             //如果剩余内容+属性配对，则保留guid
             //如果剩余内容+属性不配对，则删除guid
@@ -107,7 +107,7 @@ module.exports = {
                     //console.log('origin content',content,'---',tContent);
                     // let removeGuids = tContent.match(guidReg);
                     // if (removeGuids) {
-                    //     removeGuids.forEach((g) => {
+                    //     removeGuids.forEach(g => {
                     //         content = content.replace(g, '');
                     //     });
                     // }

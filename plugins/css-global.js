@@ -11,51 +11,58 @@ let {
     cssNameGlobalProcessor,
     genCssSelector
 } = require('./css-selector');
-let globalCssNamesMap = {};
-let globalCssNamesInFiles = {};
-let globalCssTagsInFiles = {};
+let globalCssNamesMap = Object.create(null);
+let globalCssNamesInFiles = Object.create(null);
+let globalCssTagsInFiles = Object.create(null);
 let scopedStyle = '';
 let globalPromise;
-let lazyGlobalInfo = {};
-let processGlobal = (ctx) => {
-    globalCssNamesMap = {};
-    globalCssNamesInFiles = {};
-    globalCssTagsInFiles = {};
-    let globalGuid = Date.now();
+let lazyGlobalInfo = Object.create(null);
+let processGlobal = ctx => { //处理全局样式，因全局样式过于自由，不建议使用
+    globalCssNamesMap = Object.create(null); //样式名映射，原始到压缩的映射
+    globalCssNamesInFiles = Object.create(null); //样式名到文件的映射
+    globalCssTagsInFiles = Object.create(null); //标签名到样式的映射
+    let globalGuid = Date.now(); //guid
+    /*
+        guid 2种情况
+        1.　全局样式在多个文件中出现重名时，合并这些全局样式
+        2.　局部样式与全局重名时，只使用局部样式
+        该guid只有全局的情况下才会传递，因此通过该guid识别如何处理样式规则
+     */
     return new Promise((resolve, reject) => {
-        let list = configs.globalCss;
-        if (!list || !list.length) {
+        let list = configs.globalCss; //全局配置
+        if (!list || !list.length) { //没有配置
             resolve(ctx);
         } else {
-            let add = (info) => {
-                let cssNamesMap = {};
-                let fileTags = {};
+            let add = info => {
+                let cssNamesMap = Object.create(null);
+                let fileTags = Object.create(null);
                 if (info.exists && info.content) {
                     let currentFile = info.file;
                     let css = info.content.replace(cssCommentReg, '');
                     try {
                         cssNameGlobalProcessor(css, {
-                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1),
+                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1), //短文件名
                             globalGuid: globalGuid,
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
-                            cNamesMap: cssNamesMap,
+                            cNamesMap: cssNamesMap, //单个文件中名称映射
                             file: currentFile,
-                            fileTags: fileTags,
-                            tagsToFiles: globalCssTagsInFiles
+                            fileTags: fileTags, //文件中声明了哪些标签样式
+                            tagsToFiles: globalCssTagsInFiles //标签在哪些文件里
                         });
                     } catch (e) {
                         reject(e);
                     }
+                    //添加到检测信息中，编译完成时统一检测
                     checker.CSS.fileToTags(currentFile, fileTags, ctx.inwatch);
                     checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                 }
             };
             let ps = [];
             for (let i = 0; i < list.length; i++) {
-                ps.push(cssFileRead(list[i], '', ctx.context));
+                ps.push(cssFileRead(list[i], '', ctx.context)); //读取
             }
-            Promise.all(ps).then((rs) => {
+            Promise.all(ps).then(rs => {
                 for (let i = 0; i < rs.length; i++) {
                     add(rs[i]);
                 }
@@ -63,7 +70,7 @@ let processGlobal = (ctx) => {
                     if (p.slice(-2, -1) == '!') continue;
                     let sameSelectors = globalCssNamesInFiles[p];
                     let values = Object.keys(sameSelectors);
-                    if (values.length > 1) {
+                    if (values.length > 1) { //处理同一个样式名存在多个文件中，即重名的情况
                         globalCssNamesInFiles[p + '!r'] = values;
                     }
                 }
@@ -72,17 +79,17 @@ let processGlobal = (ctx) => {
         }
     });
 };
-let processScope = (ctx) => {
+let processScope = ctx => {
     scopedStyle = '';
     //console.log('process scoped'.red);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => { //处理scoped样式
         let list = configs.scopedCss;
         if (!list || !list.length) {
             resolve(ctx);
         } else {
-            let add = (i) => {
-                let cssNamesMap = {};
-                let cssTagsMap = {};
+            let add = i => {
+                let cssNamesMap = Object.create(null);
+                let cssTagsMap = Object.create(null);
                 if (i.exists && i.content) {
                     let currentFile = i.file;
                     let cssNamesKey = genCssNamesKey(currentFile);
@@ -108,7 +115,7 @@ let processScope = (ctx) => {
                     checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                     checker.CSS.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
                     scopedStyle += c;
-                } else if (!i.exists) {
+                } else if (!i.exists) { //未找到
                     checker.CSS.markUnexists(i.file, '/scoped.style');
                     scopedStyle += ' unfound-' + i.file;
                 }
@@ -117,24 +124,24 @@ let processScope = (ctx) => {
             for (let i = 0; i < list.length; i++) {
                 ps.push(cssFileRead(list[i], '', ctx.context));
             }
-            Promise.all(ps).then((rs) => {
+            Promise.all(ps).then(rs => {
                 for (let i = 0; i < rs.length; i++) {
                     add(rs[i]);
                 }
                 //if (!configs.compressCss) {
-                let sToKeys = {};
+                let sToKeys = Object.create(null); //重名
                 let namesToFiles = globalCssNamesInFiles;
                 let namesMap = globalCssNamesMap;
                 for (let p in namesToFiles) {
                     if (p.slice(-2, -1) == '!') continue;
                     let sameSelectors = namesToFiles[p + '!s'];
-                    let values = Object.values(sameSelectors);
+                    let values = Object.values(sameSelectors); //处理重名的情况
                     if (values.length > 1) {
                         namesToFiles[p + '!r'] = values;
                         let key = '';
-                        if (configs.compressCss) {
+                        if (configs.compressCss) { //压缩
                             key = genCssNamesKey(values[0]) + '-' + genCssSelector(p);
-                        } else {
+                        } else { //非压缩时，采用这个重名在这几个文件中的路径做为key,如 mx-app-snippets-list-and-app-snippets-form
                             let keys = [],
                                 k;
                             for (let i = 0; i < values.length; i++) {
@@ -145,7 +152,7 @@ let processScope = (ctx) => {
                         }
                         namesMap[p] = key;
                         for (let z in sameSelectors) {
-                            sToKeys[z] = namesMap[p];
+                            sToKeys[z] = namesMap[p]; //重名的特殊处理
                         }
                     }
                 }
@@ -154,7 +161,7 @@ let processScope = (ctx) => {
                     let token = tokens[i];
                     let id = token.name;
                     if (token.type == 'class') {
-                        if (sToKeys[id]) {
+                        if (sToKeys[id]) { //修改样式，只处理重名的，因为要对重名的样式重新命名
                             scopedStyle = scopedStyle.slice(0, token.start) + sToKeys[id] + scopedStyle.slice(token.end);
                         }
                     }

@@ -36,6 +36,7 @@ module.exports = {
     tmplGlobalVars: {}, //模板中全局变量
     outputTmplWithEvents: false, //输出事件
     disableMagixUpdater: false,
+    compressTmplVariable: true, //是否压缩模板中的变量
     tmplPadCallArguments(name) { //模板中某些函数的调用，我们可以动态添加一些参数。
         return '';
     },
@@ -60,7 +61,7 @@ module.exports = {
     cssNamesProcessor(tmpl, cssNamesMap) { //模板中class名称的处理器
         return tmpl;
     },
-    compressTmplCommand(tmpl) { //压缩模板命令，扩展用
+    compileTmplCommand(tmpl) {
         return tmpl;
     },
     cssUrlMatched(url) { //样式中匹配到url时的处理器

@@ -18,7 +18,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
             if (configs.compileFileExtNamesReg.test(from)) {
                 promise.then(() => {
                     return jsContent.process(from, to, 0, inwatch);
-                }).then((e) => {
+                }).then(e => {
                     if (e.writeFile) {
                         to = to.replace(configs.compileFileExtNamesReg, '.js');
                         configs.beforeWriteFile(e);

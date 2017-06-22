@@ -1,6 +1,6 @@
-module.exports = (fn) => {
+module.exports = fn => {
     let cache = Object.create(null);
-    return (str) => {
+    return str => {
         let hit = cache[str];
         return hit || (cache[str] = fn(str));
     };

@@ -35,16 +35,16 @@ module.exports = (e, inwatch) => {
         checker.CSS.clearUsed(e.from);
         checker.CSS.clearUsedTags(e.from);
     }
-    let cssNamesMap = {};
-    let cssNamesToFiles = {};
+    let cssNamesMap = Object.create(null);
+    let cssNamesToFiles = Object.create(null);
     let cssNamesKey;
     let addToGlobalCSS = true;
 
-    let gCSSNamesMap = {};
-    let gCSSNamesToFiles = {};
+    let gCSSNamesMap = Object.create(null);
+    let gCSSNamesToFiles = Object.create(null);
     let currentFile = '';
-    let cssContentCache = {};
-    let gCSSTagToFiles = {};
+    let cssContentCache = Object.create(null);
+    let gCSSTagToFiles = Object.create(null);
 
     let refProcessor = (m, q, file, ext, name) => {
         file = path.resolve(path.dirname(e.from) + sep + file + ext);
@@ -57,7 +57,7 @@ module.exports = (e, inwatch) => {
         context: e,
         inwatch: inwatch,
         refProcessor: refProcessor
-    }).then((gInfo) => {
+    }).then(gInfo => {
         //console.log(e.cssNamesInFiles);
         //console.log('global', gCSSNamesMap);
         return new Promise((resolve, reject) => {
@@ -107,11 +107,11 @@ module.exports = (e, inwatch) => {
                         if (scopedStyle) {
                             cssNamesMap = gCSSNamesMap;
                         } else {
-                            cssNamesMap = {};
-                            cssNamesToFiles = {};
+                            cssNamesMap = Object.create(null);
+                            cssNamesToFiles = Object.create(null);
                             currentFile = file;
-                            let cssTagsToFiles = {};
-                            let cssTagsMap = {};
+                            let cssTagsToFiles = Object.create(null);
+                            let cssTagsMap = Object.create(null);
                             if (prefix != 'global') { //如果不是项目中全局使用的
                                 addToGlobalCSS = prefix != 'names'; //不是读取css名称对象的
                                 if (keys || key) { //有后缀时也不添加到全局
@@ -234,7 +234,7 @@ module.exports = (e, inwatch) => {
                     if (name == 'scoped' && ext == '.style') {
                         file = name + ext;
                         scopedStyle = true;
-                        configs.scopedCss.forEach((sc) => {
+                        configs.scopedCss.forEach(sc => {
                             deps.addFileDepend(sc, e.from, e.to);
                         });
                     } else {
@@ -258,7 +258,7 @@ module.exports = (e, inwatch) => {
                         } else {
                             promise = cssFileRead(file, name, e);
                         }
-                        promise.then((info) => {
+                        promise.then(info => {
                             //写入缓存，因为同一个view.js中可能对同一个css文件多次引用
                             cssContentCache[file] = {
                                 exists: info.exists,
@@ -266,10 +266,10 @@ module.exports = (e, inwatch) => {
                             };
                             if (info.exists && info.content) {
                                 if (configs.compressCss) {
-                                    cssnano.process(info.content, configs.cssnanoOptions).then((r) => {
+                                    cssnano.process(info.content, configs.cssnanoOptions).then(r => {
                                         cssContentCache[file].css = r.css;
                                         check();
-                                    }, (error) => {
+                                    }, error => {
                                         if (e.contentInfo) {
                                             file += '@' + e.contentInfo.fileName;
                                         }

@@ -14,8 +14,8 @@ let attrReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?/g;
 let deps = require('./util-deps');
 module.exports = {
     process(tmpl, cssNamesMap, refTmplCommands, e) {
-        let tempCache = {};
-        let tagsCache = {};
+        let tempCache = Object.create(null);
+        let tagsCache = Object.create(null);
         let classResult = (m, h, key) => {
             if (numReg.test(key)) return m; //纯数字的是模板命令，选择器不可能是纯数字
             let r = cssNamesMap[key];
@@ -24,7 +24,7 @@ module.exports = {
                 if (r) {
                     let files = e.cssNamesInFiles[key + '!r'];
                     checker.CSS.markUsed(files, key, e.from);
-                    files.forEach((f) => {
+                    files.forEach(f => {
                         deps.addFileDepend(f, e.from, e.to);
                     });
                 } else {
@@ -42,7 +42,7 @@ module.exports = {
         let classProcessor = (m, q, c) => {
             if (tmplCommandAnchorReg.test(m)) {
                 tmplCommandAnchorReg.lastIndex = 0;
-                m.replace(tmplCommandAnchorReg, (tm) => {
+                m.replace(tmplCommandAnchorReg, tm => {
                     let cmd = refTmplCommands[tm];
                     if (Tmpl_Mathcer.test(cmd)) {
                         refTmplCommands[tm] = cmd.replace(stringReg, cmdProcessor);

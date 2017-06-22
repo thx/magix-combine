@@ -6,13 +6,13 @@ let addFileDepend = (file, dependFrom, dependTo) => {
     if (file != dependFrom) {
         let list = fileDependencies[file];
         if (!list) {
-            list = fileDependencies[file] = {};
+            list = fileDependencies[file] = Object.create(null);
         }
         list[dependFrom] = dependTo;
     }
 };
 //运行依赖列表
-let runFileDepend = (file) => {
+let runFileDepend = file => {
     let list = fileDependencies[file];
     let promises = [];
     if (list) {
@@ -23,7 +23,7 @@ let runFileDepend = (file) => {
     return Promise.all(promises);
 };
 //移除文件依赖
-let removeFileDepend = (file) => {
+let removeFileDepend = file => {
     delete fileDependencies[file];
 };
 

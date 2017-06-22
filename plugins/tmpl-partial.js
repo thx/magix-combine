@@ -23,10 +23,10 @@ let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
-let escape$ = (str) => {
+let escape$ = str => {
     return str.replace(/\$/g, '$$$$');
 };
-let escapeQ = (str) => {
+let escapeQ = str => {
     return str.replace(/"/g, '&quot;');
 };
 //恢复被替换的模板引擎命令
@@ -35,8 +35,8 @@ let commandAnchorRecover = (tmpl, refTmplCommands) => {
 };
 let dataKeysReg = /\u0003\.([\w$]+)\.?/g;
 let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
-    let attrKeys = {};
-    let tmplKeys = {};
+    let attrKeys = Object.create(null);
+    let tmplKeys = Object.create(null);
     tmpl = tmpl.replace(content, ''); //标签加内容，移除内容，只剩标签
     //console.log('--------',tmpl,'======',content);
     while (subReg.test(content) || selfCloseTag.test(content)) { //清除子模板
@@ -45,7 +45,7 @@ let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
         //break;
     }
     //console.log('=====', tmpl, '-----', content);
-    tmpl.replace(tmplCommandAnchorReg, (m) => {
+    tmpl.replace(tmplCommandAnchorReg, m => {
         let temp = refTmplCommands[m];
         //console.log(temp);
         temp.replace(dataKeysReg, (m, name) => { //数据key
@@ -54,7 +54,7 @@ let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
             }
         });
     });
-    content.replace(tmplCommandAnchorReg, (m) => { //查找模板命令
+    content.replace(tmplCommandAnchorReg, m => { //查找模板命令
         let temp = refTmplCommands[m];
         temp.replace(dataKeysReg, (m, name) => { //数据key
             if (!pKeys || !pKeys[name]) { //不在父作用域内
@@ -250,7 +250,7 @@ let globalProps = {
     //contenteditable: 'contentEditable',//这个比较特殊
     tabindex: 'tabIndex'
 };
-let mayBeAttrs = {};
+let mayBeAttrs = Object.create(null);
 let trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007|$)/g;
 let trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
 let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
@@ -265,8 +265,8 @@ for (let p in tagsProps) {
 }
 //添加属性信息
 let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
-    let attrsKeys = {},
-        tmplKeys = {};
+    let attrsKeys = Object.create(null),
+        tmplKeys = Object.create(null);
     tmpl.replace(extractAttrsReg, (match, attr) => {
         let originAttr = attr;
         while (trimAttrsStart.test(attr)) {
@@ -277,19 +277,19 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         }
         if (!attr) return;
         //console.log(attr);
-        attr.replace(tmplCommandAnchorReg, (match) => {
+        attr.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];
             value.replace(dataKeysReg, (m, vname) => {
                 attrsKeys[vname] = 1;
             });
         });
-        let hasProps = {};
+        let hasProps = Object.create(null);
         originAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, (match, name) => {
             //console.log(name);
             hasProps[name] = 1;
         });
         let attrs = [];
-        let attrsMap = {};
+        let attrsMap = Object.create(null);
         let type = '';
         if (tag == 'input') { //特殊处理input
             //console.log(originAttr);
@@ -300,7 +300,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         }
 
         let props = [];
-        let extractProps = attr.replace(tmplCommandAnchorReg, (match) => {
+        let extractProps = attr.replace(tmplCommandAnchorReg, match => {
             let temp = commandAnchorRecover(match, refTmplCommands);
             temp.replace(stringReg, (match, q, content) => {
                 if (!hasProps[content] && mayBeAttrs[content]) {
@@ -317,10 +317,10 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         for (let i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
-                checker.Tmpl.markNodeAttr('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.shortFrom.gray);
+                checker.Tmpl.markAttr('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.shortFrom.gray);
                 continue;
             }
-            let t = {};
+            let t = Object.create(null);
             t.n = prop;
             attrsMap[prop] = 1;
 
@@ -371,7 +371,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
     });
     if (info.tmpl && info.attr) { //有模板及属性
         //接下来我们处理前面的属性和内容更新问题
-        info.tmpl.replace(tmplCommandAnchorReg, (match) => {
+        info.tmpl.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];
             value.replace(dataKeysReg, (m, vname) => {
                 tmplKeys[vname] = 1;
@@ -388,7 +388,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
             if (attrsKeys[info.keys[i]] || (m && info.hasView)) m = m ? m | 2 : 2;
             mask += m + '';
             if (m === 0) {
-                checker.Tmpl.markNodeAttr('check key word:', info.keys[i].red, ' relate file:', e.shortFrom.gray);
+                checker.Tmpl.markAttr('check key word:', info.keys[i].red, ' relate file:', e.shortFrom.gray);
             }
         }
         //最后产出的结果可能如：
@@ -410,7 +410,7 @@ let buildTmpl = (tmpl, refTmplCommands, e, list, parentOwnKeys, globalKeys) => {
     if (!list) {
         list = [];
         g = 0;
-        globalKeys = {};
+        globalKeys = Object.create(null);
     }
     let subs = [];
     let removeGuids = []; //经过tmpl-guid插件之后，所有的标签都会加上guid，但只有具备局部刷新的标签才保留guid，其它的移除，这里用来记录要移除的guid
@@ -419,7 +419,7 @@ let buildTmpl = (tmpl, refTmplCommands, e, list, parentOwnKeys, globalKeys) => {
     tmpl = tmpl.replace(subReg, (match, tag, guid, content) => { //清除子模板后
         //match = match.replace(slashAnchorReg, '/');
         //console.log('match',match,tag,guid,'=======',content);
-        let ownKeys = {};
+        let ownKeys = Object.create(null);
         for (let p in parentOwnKeys) { //继承父结构的keys
             ownKeys[p] = parentOwnKeys[p];
         }

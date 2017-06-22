@@ -27,7 +27,7 @@ let copyFile = (from, to) => { //复制文件
 };
 let walk = (folder, callback) => { //遍历文件夹及子、孙文件夹下的文件
     let files = fs.readdirSync(folder);
-    files.forEach((file) => {
+    files.forEach(file => {
         let p = folder + sep + file;
         let stat = fs.lstatSync(p);
         if (stat.isDirectory()) {

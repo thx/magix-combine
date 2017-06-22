@@ -1,12 +1,12 @@
 let deps = require('./util-deps');
-let fileCache = {};
+let fileCache = Object.create(null);
 let clearDeps = (f, locker) => {
     delete fileCache[f];
     let dep = deps.inDependencies(f);
     if (dep && !locker[f]) {
         locker[f] = 1;
         let files = deps.getDependencies(f);
-        Object.keys(files).forEach((it) => {
+        Object.keys(files).forEach(it => {
             clearDeps(it, locker);
         });
     }
@@ -15,7 +15,7 @@ module.exports = {
     add(file, key, info) {
         let fInfo = fileCache[file];
         if (!fInfo) {
-            fInfo = fileCache[file] = {};
+            fInfo = fileCache[file] = Object.create(null);
         }
         fInfo[key] = info;
     },
@@ -28,9 +28,9 @@ module.exports = {
     },
     clear(file) {
         //delete fileCache[file];
-        clearDeps(file, {});
+        clearDeps(file, Object.create(null));
     },
     reset() {
-        fileCache = {};
+        fileCache = Object.create(null);
     }
 };

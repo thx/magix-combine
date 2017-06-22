@@ -5,7 +5,7 @@ let md5 = require('./util-md5');
 let cssAtNamesKeyReg = /(?:^|[\s\}])@([a-z\-]+)\s*(?:[\w\-]+)?\{([^\{\}]*)\}/g;
 //keyframes，如@-webkit-keyframes xx
 let cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+(['"])?([\w\-]+)\3/g;
-let genCssContentReg = (key) => {
+let genCssContentReg = key => {
     let reg = genCssContentReg[key];
     if (!reg) {
         reg = new RegExp(':\\s*([\'"])?' + key.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');

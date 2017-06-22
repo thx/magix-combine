@@ -135,9 +135,11 @@ module.exports = {
             let tasks = [];
             let once = 3;
             fd.walk(configs.tmplFolder, (filepath) => {
+                //if (filepath.indexOf('/nav') >= 0) {
                 let from = path.resolve(filepath);
                 total++;
                 tasks.push(from);
+                //}
             });
             let errorOccured = false;
             let current = 0;

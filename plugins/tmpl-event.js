@@ -4,8 +4,8 @@ let attrsNameValueReg = /([^\s]+)=(["'])[\s\S]+?\2/ig;
 let eventReg = /mx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+/;
 module.exports = {
     extract(tmpl) {
-        let map = {};
-        tmpl.replace(pureTagReg, (match) => {
+        let map = Object.create(null);
+        tmpl.replace(pureTagReg, match => {
             match.replace(attrsNameValueReg, (m, key) => {
                 if (eventReg.test(key)) {
                     map[key.slice(3)] = 1;

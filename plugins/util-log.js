@@ -4,7 +4,7 @@ let CLEAR_LINE = '\x1b[0K';
 let HIDE_CURSOR = '\x1b[?25l';
 let SHOW_CURSOR = '\x1b[?25h';
 let stringWidth = require('string-width');
-let getLogger = (stream) => {
+let getLogger = stream => {
     let str = '';
     let prevLineCount = 0;
     let last = '';

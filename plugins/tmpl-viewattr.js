@@ -31,7 +31,7 @@ let encodeMore = {
 
 //let escapeSlashRegExp = /\\|'/g;
 //let mathcerReg = /<%([@=!])?([\s\S]+?)%>|$/g;
-//let tmplCompiler = (text) => {
+//let tmplCompiler = text => {
 //    let index = 0;
 //    let source = '\'';
 //    text.replace(mathcerReg, (match, operate, content, offset) => {
@@ -52,14 +52,14 @@ let encodeMore = {
 
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let encodeMoreReg = /[!')(*]/g;
-let encodeReplacor = (m) => {
+let encodeReplacor = m => {
     return encodeMore[m];
 };
 // http://mathiasbynens.be/notes/unquoted-attribute-values
 //let canRemoveQuotesReg = /^[^ \t\n\f\r"'`=<>]+$/;
 module.exports = {
     process(fileContent, e, refTmplCommands) {
-        return fileContent.replace(tagReg, (match) => { //标签进入
+        return fileContent.replace(tagReg, match => { //标签进入
             if (mxViewAttrReg.test(match)) { //带有mx-view属性才处理
                 if (configs.useAtPathConverter) { //如果启用@路径转换规则
                     match = atpath.resolvePath(match, e.moduleId); //先把view对应的路径转换过来
@@ -77,7 +77,7 @@ module.exports = {
                             name = hname;
                         }
                         name = tmplChecker.camelize(name);
-                        content.replace(cmdReg, (cm) => {
+                        content.replace(cmdReg, cm => {
                             cmdTemp.push(cm); //把命令暂存下来
                         });
                         let cs = content.split(cmdReg); //按命令拆分，则剩余的都是普通字符串
@@ -111,7 +111,7 @@ module.exports = {
                 let testCmd = (m, q, content) => {
                     q = content.indexOf('?');
                     if (q >= 0) {
-                        content.slice(q + 1).replace(cmdReg, (cm) => {
+                        content.slice(q + 1).replace(cmdReg, cm => {
                             let cmd = refTmplCommands[cm];
                             if (cmd) {
                                 cmd = cmd.replace(dOutCmdReg, (m, o, c) => {

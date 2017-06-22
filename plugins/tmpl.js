@@ -18,7 +18,7 @@ let slog = require('./util-log');
 let checker = require('./checker');
 let tmplChecker = checker.Tmpl;
 //模板处理，即处理view.html文件
-let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html(:data|:keys|:events)?\2/g;
+let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html\2/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let sep = path.sep;
 let tagReg = /<[\w-]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
@@ -28,22 +28,26 @@ let magixHolder = '\u001e';
 let removeVdReg = /\u0002/g;
 let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
+
+
 let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file) => {
     let key = prefix + holder + raw + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
-        let temp = {};
+        let temp = Object.create(null);
         cache[key] = temp;
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
+
+        fileContent = tmplCmd.compile(fileContent);
+        //console.log(fileContent);
         let extInfo = {
             file: file
         };
-        e.shortFrom = e.from.replace(configs.moduleIdRemovedPath, '').slice(1);
         e.srcHTMLFile = file;
         e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
         fileContent = tmplMxTag.process(fileContent, extInfo);
 
-        let refTmplCommands = {};
+        let refTmplCommands = Object.create(null);
         let refLeakGlobal = {
             reassigns: []
         };
@@ -53,10 +57,12 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
-        let tmplEvents = tmplEvent.extract(fileContent);
-        temp.events = tmplEvents;
+        if (configs.outputTmplWithEvents) {
+            let tmplEvents = tmplEvent.extract(fileContent);
+            temp.events = tmplEvents;
+        }
         if (configs.addEventPrefix) {
-            fileContent = fileContent.replace(tagReg, (match) => {
+            fileContent = fileContent.replace(tagReg, match => {
                 return match.replace(mxEventReg, (m, name) => {
                     if (tmplChecker.upperCaseReg.test(name)) {
                         name = 'mx-' + name;
@@ -79,7 +85,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
             if (refLeakGlobal.exists) {
                 slog.ever(e.shortHTMLFile.magenta, 'segment failed'.red, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
                 if (refLeakGlobal.reassigns) {
-                    refLeakGlobal.reassigns.forEach((it) => {
+                    refLeakGlobal.reassigns.forEach(it => {
                         slog.ever(it);
                     });
                 }
@@ -87,7 +93,6 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         }
 
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
-
         for (let p in refTmplCommands) {
             let cmd = refTmplCommands[p];
             if (util.isString(cmd)) {
@@ -101,15 +106,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
     }
     return fCache;
 };
-module.exports = (e) => {
+module.exports = e => {
     return new Promise((resolve, reject) => {
         let cssNamesMap = e.cssNamesMap,
             from = e.from,
             moduleId = e.moduleId,
-            fileContentCache = {};
+            fileContentCache = Object.create(null);
 
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
-        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, raw, name, ext) => {
+        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, raw, name) => {
             name = atpath.resolvePath(name, moduleId);
             //console.log(raw,name,prefix,configs.outputTmplWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.html');
@@ -124,23 +129,20 @@ module.exports = (e) => {
             if (singleFile || fs.existsSync(file)) {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject, prefix, file);
-                if (ext == ':events') { //事件
-                    return JSON.stringify(fcInfo.events);
-                }
-                if (ext == ':subs') {
-                    return JSON.stringify(fcInfo.info.list);
-                }
-                if (ext == ':keys') {
-                    return JSON.stringify(fcInfo.info.keys);
-                }
+                //if (ext == ':events') { //事件
+                //    return JSON.stringify(fcInfo.events);
+                //}
+                //if (ext == ':subs') {
+                //    return JSON.stringify(fcInfo.info.list);
+                //}
+                //if (ext == ':keys') {
+                //    return JSON.stringify(fcInfo.info.keys);
+                //}
                 if (prefix && !configs.disableMagixUpdater && !raw) {
                     let temp = {
                         html: fcInfo.info.tmpl,
                         subs: fcInfo.info.list
                     };
-                    if (configs.outputTmplWithEvents) {
-                        temp.events = fcInfo.events;
-                    }
                     return prefix + JSON.stringify(temp);
                 }
                 if (prefix && configs.outputTmplWithEvents) {

@@ -5,15 +5,15 @@ let fs = require('fs');
 let sep = path.sep;
 let fileReg = /(['"])\u0012@([^'"]+)\.([a-z]{2,})\1;?/g;
 let checker = require('./checker');
-module.exports = (e) => {
+module.exports = e => {
     return new Promise((resolve, reject) => {
-        let contentCache = {},
+        let contentCache = Object.create(null),
             count = 0,
             resumed = false;
         let resume = () => {
             if (!resumed) {
                 resumed = true;
-                e.content = e.content.replace(fileReg, (m) => {
+                e.content = e.content.replace(fileReg, m => {
                     return contentCache[m] || m;
                 });
                 resolve(e);
@@ -23,7 +23,7 @@ module.exports = (e) => {
             count++;
             let to = path.resolve(configs.srcFolder + file.replace(configs.moduleIdRemovedPath, ''));
             if (fs.existsSync(file)) {
-                e.processContent(file, to, '', false).then((info) => {
+                e.processContent(file, to, '', false).then(info => {
                     contentCache[key] = info.content;
                     count--;
                     if (!count) {

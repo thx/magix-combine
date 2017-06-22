@@ -55,7 +55,7 @@ module.exports = (file, name, e) => {
         if (info && name == 'style') {
             compileContent(file, info.style, info.styleType, resolve, reject);
         } else {
-            fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), (err) => {
+            fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
                 let ext = path.extname(file);
                 if (err) {
                     resolve({

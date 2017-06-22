@@ -7,7 +7,7 @@ let tmplCmd = require('./tmpl-cmd');
 let configs = require('./util-config');
 let slog = require('./util-log');
 let Tmpl_Mathcer = /<%([@=!:~])?([\s\S]+?)%>|$/g;
-let TagReg = /<([^>\s\/]+)([^>]*)>/g;
+let TagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
 let BindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
 let BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
 let PathReg = /<%~([\s\S]+?)%>/g;
@@ -15,11 +15,10 @@ let TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let MxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
 let CReg = /[用声全固]/g;
 let HReg = /([\u0001\u0002])\d+/g;
+let CompressVarReg = /\u0001\d+[a-zA-Z\_$]+/g;
 let HtmlHolderReg = /\u0005\d+\u0005/g;
 let SCharReg = /(?:`;|;`)/g;
 let StringReg = /^['"]/;
-let BindFunctionsReg = /\s*\{\s*([^\{\}]+)\}\s*$/;
-let BindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
 let BindFunctionParamsReg = /,"([^"]+)"\s*$/;
 let BindEventParamsReg = /^\s*"([^"]+)",/;
 let CMap = {
@@ -28,9 +27,9 @@ let CMap = {
     '全': '\u0003',
     '固': '\u0006'
 };
-let StripChar = (str) => str.replace(CReg, (m) => CMap[m]);
-let StripNum = (str) => str.replace(HReg, '$1');
-let GenEventReg = (type) => {
+let StripChar = str => str.replace(CReg, m => CMap[m]);
+let StripNum = str => str.replace(HReg, '$1');
+let GenEventReg = type => { //获取事件正则，做绑定时，当原来已经存在如change,input等事件时，原来的事件仍需调用
     let reg = GenEventReg[type];
     if (!reg) {
         reg = new RegExp('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)\\)"');
@@ -39,7 +38,7 @@ let GenEventReg = (type) => {
     reg.lastIndex = 0;
     return reg;
 };
-let SplitExpr = (expr) => {
+let SplitExpr = expr => { //拆分表达式，如"list[i].name[object[key[value]]]" => ["list", "[i]", "name", "[object[key[value]]]"]
     let stack = [];
     let temp = '';
     let max = expr.length;
@@ -81,7 +80,7 @@ let SplitExpr = (expr) => {
     return stack;
 };
 
-let ExtractFunctions = (expr) => {
+let ExtractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[change,input] user.name {refresh}%>  =>  evts:change,input  expr user.name  fns  refresh
     let fns = '';
     let evts = '';
 
@@ -101,6 +100,18 @@ let ExtractFunctions = (expr) => {
         evts,
         fns
     };
+};
+let Vkeys = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$';
+let Variable = count => { //压缩变量
+    let result = '',
+        temp;
+    do {
+        temp = count % Vkeys.length;
+        result = Vkeys.charAt(temp) + result;
+        count = (count - temp) / Vkeys.length;
+    }
+    while (count);
+    return result;
 };
 /*
     \u0000  `反撇
@@ -122,17 +133,8 @@ module.exports = {
     process: (tmpl, reject, sourceFile, refGlobalLeak) => {
         let fn = [];
         let index = 0;
-        let htmlStore = {};
+        let htmlStore = Object.create(null);
         let htmlIndex = 0;
-        tmpl = tmpl.replace(BindReg2, (m, expr) => {
-            if (BindFunctionsReg.test(expr)) {
-                expr = expr.replace(BindFunctionsReg, ',"\u0017$1"');
-            }
-            if (BindEventsReg.test(expr)) {
-                expr = expr.replace(BindEventsReg, '"\u0017$1",');
-            }
-            return ' <%:' + expr + '%> ';
-        });
         tmpl.replace(Tmpl_Mathcer, (match, operate, content, offset) => {
             let start = 2;
             if (operate) {
@@ -147,12 +149,11 @@ module.exports = {
         });
         fn = fn.join(''); //移除<%%> 使用`变成标签模板分析
         let ast;
-        let recoverHTML = (fn) => {
+        let recoverHTML = fn => {
             fn = fn.replace(SCharReg, '');
-            fn = fn.replace(HtmlHolderReg, (m) => htmlStore[m]);
+            fn = fn.replace(HtmlHolderReg, m => htmlStore[m]);
             return fn;
         };
-        //console.log('x', fn);
         //return;
 
         try {
@@ -165,7 +166,7 @@ module.exports = {
             reject(ex);
         }
         let globalExists = {};
-        let globalTracker = {};
+        let globalTracker = Object.create(null);
         for (let key in configs.tmplGlobalVars) {
             globalExists[key] = 1;
         }
@@ -173,79 +174,56 @@ module.exports = {
             变量和变量声明在ast里面遍历的顺序不一致，需要对位置信息保存后再修改fn
          */
         let modifiers = [];
-        let stringStore = {};
+        let stringStore = Object.create(null);
         let stringIndex = 0;
-        let recoverString = (tmpl) => {
+        let compressVarsMap = Object.create(null);
+        let varCount = 0;
+        let recoverString = tmpl => {
+            //还原代码中的字符串，代码中的字符串占位符使用\u0004包裹
             return tmpl.replace(/(['"])(\u0004\d+\u0004)\1/g, (m, q, c) => {
-                let str = stringStore[c].slice(1, -1);
+                let str = stringStore[c].slice(1, -1); //获取源字符串
                 let result;
-                if (str.charAt(0) == '\u0017') {
+                if (str.charAt(0) == '\u0017') { //如果是\u0017，这个是绑定时的特殊字符串
                     result = q + str.slice(1) + q;
-                } else {
+                } else { //其它情况再使用\u0017包裹
                     result = q + '\u0017' + str + '\u0017' + q;
                 }
                 //console.log(JSON.stringify(m), result, JSON.stringify(result));
                 return result;
             });
         };
-        let fnProcessor = (node) => {
-            let fns = ['function('];
-            if (node.params && node.params.length) {
-                node.params.forEach(p => {
-                    fns.push(p.name, ',');
-                });
-                fns.pop();
-            }
-            fns.push('){}');
-            slog.ever(sourceFile.gray, 'avoid use', fns.join('').red);
-            if (node.type == 'FunctionDeclaration') {
-                globalExists[node.id.name] = 2;
-            }
-            let params = {};
-            for (let i = 0, p; i < node.params.length; i++) {
-                p = node.params[i];
-                params[p.name] = 1;
-            }
-            let walk = (expr) => {
-                if (expr) {
-                    if (expr.type == 'Identifier') {
-                        if (params[expr.name]) { //如果在参数里，移除修改器里面的，该参数保持不变
-                            for (let j = modifiers.length - 1; j >= 0; j--) {
-                                let m = modifiers[j];
-                                if (expr.start == m.start) {
-                                    modifiers.splice(j, 1);
-                                    break;
-                                }
-                            }
-                        }
-                    } else if (Array.isArray(expr)) {
-                        for (let i = 0; i < expr.length; i++) {
-                            walk(expr[i]);
-                        }
-                    } else if (expr instanceof Object) {
-                        for (let p in expr) {
-                            walk(expr[p]);
-                        }
-                    }
-                }
-            };
-            walk(node.body.body);
-        };
-        let unchangableVars = Object.assign({}, configs.tmplUnchangableVars);
+        let fnRange = [];
+        let compressVarToOrigional = Object.create(null);
+        let unchangableVars = Object.assign(Object.create(null), configs.tmplUnchangableVars);
         walker.simple(ast, {
-            CallExpression(node) {
+            CallExpression(node) { //方法调用
                 let vname = '';
                 let callee = node.callee;
-                if (callee.name) {
+                if (callee.name) { //只处理模板中 <%=fn(a,b)%> 这种，不处理<%=x.fn()%>，后者x对象上除了挂方法外，还有可能挂普通数据。对于方法我们不把它当做变量处理，因为给定同样的参数，方法需要返回同样的结果
                     vname = callee.name;
+                    unchangableVars[vname] = 1;
                 } else {
-                    let start = callee.object;
-                    while (start.object) {
-                        start = start.object;
-                    }
-                    vname = start.name;
+                    //以下是记录，如user.name.get('key');某个方法在深层对象中，需要把整个路径给还原出来。
+                    vname = fn.slice(callee.start, callee.end);
+                    //let vpath = [];
+                    //let start = callee;
+                    //console.log(callee);
+                    //while (start) {
+                    //    if (start.property) {
+                    //        vpath.push(start.property.name);
+                    //    }
+                    //    if (start.object) {
+                    //        start = start.object;
+                    //    } else {
+                    //        break;
+                    //    }
+                    //}
+                    //if (!start.name) { //连调情况，如a.replace().replace();
+                    //    return;
+                    //}
+                    //vpath.push(start.name);
+                    //vname = vpath.reverse().join('.'); //路径如user.name.get
                 }
-                unchangableVars[vname] = 1;
                 let args = configs.tmplPadCallArguments(vname, sourceFile);
                 if (args && args.length) {
                     if (!Array.isArray(args)) {
@@ -263,8 +241,8 @@ module.exports = {
                 }
             }
         });
-        let processString = (node) => { //存储字符串，减少分析干扰
-            StringReg.lastIndex = 0;
+        let processString = node => { //存储字符串，减少分析干扰
+            StringReg.lastIndex = 0; //把代码中的字符串存储起来，换成占位符
             if (StringReg.test(node.raw)) {
                 let q = node.raw.match(StringReg)[0];
                 let key = '\u0004' + (stringIndex++) + '\u0004';
@@ -286,72 +264,329 @@ module.exports = {
             },
             Literal: processString,
             Identifier(node) {
-                if (!globalExists.hasOwnProperty(node.name)) {
-                    modifiers.push({
-                        key: (unchangableVars[node.name] ? '固' : '全') + '.',
+                let tname = node.name; // compressVarsMap[node.name] || node.name;
+                //console.log(compressVarsMap,node.name,node.start,fnRange);
+                if (!globalExists.hasOwnProperty(tname)) { //模板中全局不存在这个变量
+                    modifiers.push({ //如果是指定不会改变的变量，则加固定前缀，否则会全局前缀
+                        key: (unchangableVars[tname] ? '固' : '全') + '.',
                         start: node.start,
                         end: node.end,
-                        name: node.name
+                        name: tname
                     });
-                } else {
-                    if (!configs.tmplGlobalVars.hasOwnProperty(node.name)) {
+                } else { //如果变量不在全局变量里，则增加使用前缀
+                    if (!configs.tmplGlobalVars.hasOwnProperty(tname)) {
+                        //console.log(node.name, compressVarsMap);
                         modifiers.push({
                             key: '用' + node.end,
                             start: node.start,
                             end: node.end,
-                            name: node.name
+                            name: tname,
+                            type: 'ui'
                         });
                     }
                 }
             },
-            AssignmentExpression(node) {
-                let name = node.left.name;
-                if (!globalExists[name]) {
-                    slog.ever(('undeclare variable:' + name).red, 'at', sourceFile.gray);
+            AssignmentExpression(node) { //赋值语句
+                let lname = node.left.name;
+                let tname = lname; // compressVarsMap[lname] || lname;
+                if (configs.compressTmplVariable) { //如果压缩，则压缩变量
+                    modifiers.push({
+                        key: '',
+                        start: node.left.start,
+                        end: node.left.end,
+                        name: tname,
+                        type: 'ae'
+                    });
                 }
-                globalExists[name] = (globalExists[name] || 0) + 1;
-                if (globalExists[name] > 2) {
-                    if (refGlobalLeak && !refGlobalLeak['_' + name]) {
-                        refGlobalLeak['_' + name] = 1;
-                        refGlobalLeak.reassigns.push(('avoid reassign variable:' + name).red + ' at ' + sourceFile.gray);
+                if (!globalExists[tname]) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
+                    slog.ever(('undeclare variable:' + lname).red, 'at', sourceFile.gray);
+                }
+                globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
+                if (globalExists[tname] > 2) {
+                    if (refGlobalLeak && !refGlobalLeak['_' + lname]) {
+                        refGlobalLeak['_' + lname] = 1;
+                        refGlobalLeak.reassigns.push(('avoid reassign variable:' + lname).red + ' at ' + sourceFile.gray);
                     }
                 }
             },
-            VariableDeclarator(node) {
-                globalExists[node.id.name] = node.init ? 2 : 1;
+            VariableDeclarator(node) { //变量声明
+                let tname = node.id.name;
+                if (configs.compressTmplVariable) {
+                    let cname = Variable(varCount++);
+                    if (!compressVarsMap[tname]) { //可能使用同一个key进行多次声明，我们要处理这种情况
+                        compressVarsMap[tname] = [];
+                    }
+                    compressVarsMap[tname].push({
+                        name: cname,
+                        pos: node.start
+                    });
+                }
+                globalExists[tname] = node.init ? 2 : 1; //每次到变量声明的地方都重新记录这个变量的赋值次数
                 modifiers.push({
                     key: '声' + node.start,
                     start: node.id.start,
                     end: node.id.end,
-                    name: node.id.name
+                    name: tname,
+                    type: 'vd',
                 });
             },
-            FunctionDeclaration: fnProcessor,
-            FunctionExpression: fnProcessor
+            FunctionDeclaration: node => { //函数声明
+                globalExists[node.id.name] = 2;
+                fnRange.push(node);
+            },
+            FunctionExpression: node => fnRange.push(node),
+            ArrowFunctionExpression: node => fnRange.push(node),
+            ForOfStatement: node => {
+                slog.ever(('avoid use: ' + fn.slice(node.start, node.right.end + 1)).red, 'at', sourceFile.gray, 'more info:', 'https://github.com/thx/magix/issues/37'.magenta);
+            }
         });
+
+        fnRange.sort((a, b) => {
+            return a.start - b.start;
+        });
+        let fnProcessor = () => { //函数在遍历时要特殊处理
+            let processOne = (node, pInfo) => {
+                let fns = [node.type == 'ArrowFunctionExpression' ? '(' : 'function('];
+                if (node.params && node.params.length) { //还原成function(args1,args){}，用于控制台的提示
+                    node.params.forEach(p => {
+                        fns.push(p.name, ',');
+                    });
+                    fns.pop();
+                }
+                if (node.type == 'ArrowFunctionExpression') {
+                    fns.push(')=>{}');
+                } else {
+                    fns.push('){}');
+                }
+                slog.ever(('avoid use: ' + fns.join('')).red, 'at', sourceFile.gray, 'more info:', 'https://github.com/thx/magix/issues/37'.magenta); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
+                let params = Object.create(null);
+                let pVarsMap = Object.create(null);
+                /*
+                    1. 记录参数，函数体内的与参数同名的变量不做任何处理
+                    2. 压缩参数
+                 */
+                for (let i = 0, p; i < node.params.length; i++) { //处理参数
+                    p = node.params[i];
+                    params[p.name] = 1; //记录有哪些参数
+                    if (configs.compressTmplVariable) { //如果启用变量压缩
+                        modifiers.push({ //压缩参数
+                            key: '',
+                            start: p.start,
+                            end: p.end,
+                            name: pVarsMap[p.name] = Variable(varCount++)　 //压缩参数
+                        });
+                    }
+                }
+                let walk = expr => { //遍历函数体
+                    if (expr) {
+                        if (expr.type == 'Identifier') {
+                            //该标识在参数里，且在函数体内没有声明过，即考虑这样的情况
+                            /*
+                                function(aaa){
+                                    //...
+                                    var aaa=20;
+                                }
+                                函数参数中有aaa,但函数体内又重新声明了aaa，则忽略参数的aaa压缩
+                             */
+                            if (pInfo.params[expr.name] && !pInfo.vd[expr.name]) {
+                                //如果在参数里，移除修改器里面的，该参数保持不变
+                                let find = false;
+                                //修改器中的标识优先于函数，该处把修改器中的与当前函数有关的移除
+                                for (let j = modifiers.length - 1; j >= 0; j--) {
+                                    let m = modifiers[j];
+                                    if (expr.start == m.start) {
+                                        find = modifiers.splice(j, 1);
+                                        break;
+                                    }
+                                }
+                                //如果该参数从修改器中移除，则表示是当前方法的形参，如果启用压缩，则使用压缩后的变量
+                                if (find && configs.compressTmplVariable) {
+                                    modifiers.push({
+                                        key: '',
+                                        start: expr.start,
+                                        end: expr.end,
+                                        name: pVarsMap[expr.name] || expr.name
+                                    });
+                                }
+                            }
+                        } else if (Array.isArray(expr)) {
+                            for (let i = 0; i < expr.length; i++) {
+                                walk(expr[i]);
+                            }
+                        } else if (expr instanceof Object) {
+                            for (let p in expr) {
+                                walk(expr[p]);
+                            }
+                        }
+                    }
+                };
+                walk(node.body.body);
+            };
+            let getParentParamsAndVD = node => { //获取所有父级的函数参数及当前函数内的声明
+                /*
+                    _.each(function(a,b){
+                        var a=20;
+                        _.each(b,function(c,d){
+                            var d=20;
+                            //在处理该函数体的标识时，比如
+                            <%=a%>
+                            //该处的a来源于外层函数的形参，如果压缩，则需要与外层对应上
+                        });
+                    })
+                 */
+                let p = [node];
+                for (let i = 0, r; i < fnRange.length; i++) { //查找在哪些个函数体内，因为函数可以一直嵌套
+                    r = fnRange[i];
+                    if (r != node && r.start < node.start && r.end > node.end) {
+                        p.push(r);
+                    }
+                }
+                let params = Object.create(null),
+                    vd = Object.create(null);
+                if (p.length) { //打平参数
+                    for (let i = 0, n; i < p.length; i++) {
+                        n = p[i];
+                        for (let j = 0, a; j < n.params.length; j++) {
+                            a = n.params[j];
+                            params[a.name] = 1;
+                        }
+                    }
+                }
+                //获取当前函数体内的声明语句
+                for (let z = modifiers.length - 1, m; z >= 0; z--) {
+                    m = modifiers[z];
+                    if (m.type == 'vd' && node.start < m.start && node.end > m.end) {
+                        vd[m.name] = 1;
+                    }
+                }
+                return {
+                    params,
+                    vd
+                };
+            };
+            let start = 0;
+            let paramsAndVD = [];
+            while (start < fnRange.length) {
+                paramsAndVD[start] = getParentParamsAndVD(fnRange[start]);
+                start++;
+            }
+            while (--start > -1) {
+                processOne(fnRange[start], paramsAndVD[start]);
+            }
+            //console.log(paramsAndVD);
+        };
+        let getFnRangeByPos = pos => { //根据位置获取在哪个函数体内
+            for (let i = 0, r; i < fnRange.length; i++) {
+                r = fnRange[i];
+                if (r.start < pos && pos < r.end) {
+                    return r;
+                }
+            }
+        };
+        let getCompressVar = (vname, pos) => { //获取压缩后的变量
+            let list = compressVarsMap[vname]; //获取同一个key对应的列表
+            if (!list) {
+                return vname;
+            }
+            if (list.length == 1) { //如果只有一个，则不查找直接返回
+                return list[0].name;
+            }
+            if (fnRange.length) {
+                let range = getFnRangeByPos(pos); //获取当前变量对应的函数体
+                if (range) {
+                    let tlist = [];
+                    //获取当前函数体内对应的都有哪些声明
+                    for (let i = 0, r; i < list.length; i++) {
+                        r = list[i];
+                        if (r.pos > range.start && r.pos < range.end) {
+                            tlist.push(r);
+                        }
+                    }
+                    list = tlist;
+                } else { //如果位置不在函数体内，则需要把函数体内的声明清除，避免影响分析
+                    /*
+                        <%var aaa=20%>
+
+                        <%_.each(function(a){%>
+                            <%var aaa=30%>
+                        <%})%>
+
+                        <%=aaa%>  //函数体内有aaa声明，但该处需要外部声明的aaa
+                     */
+                    let tlist = list.slice();
+                    for (let i = tlist.length - 1, r; i >= 0; i--) {
+                        r = tlist[i];
+                        for (let j = 0, rj; j < fnRange.length; j++) {
+                            rj = fnRange[j];
+                            if (r.pos > rj.start && r.pos < rj.end) {
+                                tlist.splice(i, 1);
+                            }
+                        }
+                    }
+                    list = tlist;
+                }
+            }
+            /*
+                考虑这样的情况
+                <%var a=20%>
+                ...
+                <%=a%>
+
+                <%var a=30%>
+                ...
+                <%=a%>
+                输出a时，即变量压缩时，需要从列表中查找当前a对应的最佳的压缩对象
+             */
+            for (let i = 0, v, n; i < list.length; i++) {
+                v = list[i];
+                n = list[i + 1];
+                if (v.pos <= pos && (!n || pos < n.pos)) {
+                    return v.name;
+                }
+            }
+            return vname;
+        };
+        fnProcessor();
+        //console.log(compressVarsMap, fnRange);
         //根据start大小排序，这样修改后的fn才是正确的
         modifiers.sort((a, b) => a.start - b.start);
+        if (configs.compressTmplVariable) { //直接修改修改器中的值即可
+            for (let i = 0, m; i < modifiers.length; i++) {
+                m = modifiers[i];
+                if (m.type) {
+                    let oname = m.name;
+                    m.name = getCompressVar(m.name, m.start);
+                    compressVarToOrigional['\u0001' + m.end + m.name] = oname;
+                }
+            }
+        }
+        //console.log(modifiers);
         for (let i = modifiers.length - 1, m; i >= 0; i--) {
             m = modifiers[i];
             fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
         }
+        //console.log(fn,compressVarToOrigional,modifiers);
+        //重新遍历变量带前缀的代码
         ast = acorn.parse(fn);
         walker.simple(ast, {
             VariableDeclarator(node) {
-                let key = StripChar(node.id.name);
-                let pos = key.match(/\u0002(\d+)/)[1];
-                key = key.replace(/\u0002\d+/, '\u0001');
-                if (!globalTracker[key]) {
-                    globalTracker[key] = [];
+                let key = StripChar(node.id.name); //把汉字前缀换成代码前缀
+                var m = key.match(/\u0002(\d+)/);
+                if (m) {
+                    let pos = m[1]; //获取这个变量在代码中的位置
+                    key = key.replace(/\u0002\d+/, '\u0001'); //转换变量标记，统一变成使用的标记
+                    if (!globalTracker[key]) { //全局追踪
+                        globalTracker[key] = [];
+                    }
+                    let value = 'unassigned';
+                    if (node.init) { //如果有赋值
+                        value = StripChar(fn.slice(node.init.start, node.init.end));
+                    }
+                    globalTracker[key].push({
+                        pos: pos | 0,
+                        value: value
+                    });
                 }
-                let value = 'unassigned';
-                if (node.init) {
-                    value = StripChar(fn.slice(node.init.start, node.init.end));
-                }
-                globalTracker[key].push({
-                    pos: pos | 0,
-                    value: value
-                });
             },
             AssignmentExpression(node) {
                 let key = '\u0001' + node.left.name;
@@ -362,14 +597,14 @@ module.exports = {
                 let list = globalTracker[key];
                 if (list) {
                     let found = false;
-                    for (let i = 0; i < list.length; i++) {
+                    for (let i = 0; i < list.length; i++) { //如果是首次赋值，则直接把原来的变成新值
                         if (list[i].value == 'unassigned') {
                             list[i].value = value;
                             found = true;
                             break;
                         }
                     }
-                    if (!found) {
+                    if (!found) { //该变量存在重复赋值，记录这些重复赋值的地方，后续在变量分析追踪时有用，如<%var a=name%>...<%~a%> ....<%a=age%>...<%~a%>  两次<%~a%>输出的结果对应不同的根变量
                         list.push({
                             pos: node.left.end,
                             value: value
@@ -382,24 +617,70 @@ module.exports = {
         //fn = StripChar(fn);
         fn = fn.replace(SCharReg, '');
         fn = StripChar(fn);
-        //console.log(JSON.stringify(fn));
-        fn = fn.replace(HtmlHolderReg, (m) => htmlStore[m]);
+        //console.log(JSON.stringify(fn),htmlStore);
+        fn = fn.replace(HtmlHolderReg, m => htmlStore[m]);
         fn = fn.replace(Tmpl_Mathcer, (match, operate, content) => {
             if (operate) {
                 return '<%' + operate + content.slice(1, -1) + '%>';
             }
-            return match; //移除代码中的汉字
-        });
-        let cmdStore = {};
-        let best = (head) => {
-            let match = head.match(/\u0001(\d+)/);
+            return match;
+        }); //把合法的js代码转换成原来的模板代码
+        //console.log(fn);
+        //console.log(globalTracker, fnRange);
+        let cmdStore = Object.create(null);
+        let getTrackerList = (key, pos) => {
+            let list = globalTracker[key];
+            if (!list) return null;
+            if (fnRange.length) { //处理带函数的情况
+                /*
+                    <%var a=usr.name%>
+                    <%_.each(function(){%>
+                        <%var a=usr.age%>
+                        <input <%:a%> />
+                        <%x(function(){%>
+                            <%var a=usr.sex%>
+                            <input <%:a%> />
+                        <%})%>
+                    <%})%>
+                    <input <%:a%> />
+
+                    思路：接函数划分区间，找出当前变量落在哪个函数范围内，在该范围内再搜索对应的变量
+                 */
+                let range = getFnRangeByPos(pos);
+                if (range) {
+                    let tlist = [];
+                    for (let i = 0, r; i < list.length; i++) {
+                        r = list[i];
+                        if (r.pos > range.start && r.pos < range.end) {
+                            tlist.push(r);
+                        }
+                    }
+                    list = tlist;
+                } else {
+                    let tlist = list.slice();
+                    for (let i = tlist.length - 1, r; i >= 0; i--) {
+                        r = tlist[i];
+                        for (let j = 0, rj; j < fnRange.length; j++) {
+                            rj = fnRange[j];
+                            if (r.pos > rj.start && r.pos < rj.end) {
+                                tlist.splice(i, 1);
+                            }
+                        }
+                    }
+                    list = tlist;
+                }
+            }
+            return list;
+        };
+        let best = head => {
+            let match = head.match(/\u0001(\d+)/); //获取使用这个变量时的位置信息
             if (!match) return null;
             let pos = match[1];
             pos = pos | 0;
-            let key = head.replace(/\u0001\d+/, '\u0001');
-            let list = globalTracker[key];
+            let key = head.replace(/\u0001\d+/, '\u0001'); //获取这个变量对应的赋值信息
+            let list = getTrackerList(key, pos); //获取追踪列表
             if (!list) return null;
-            for (let i = list.length - 1, item; i >= 0; i--) {
+            for (let i = list.length - 1, item; i >= 0; i--) { //根据赋值时的位置查找最优的对应
                 item = list[i];
                 if (item.pos < pos) {
                     return item.value;
@@ -412,26 +693,39 @@ module.exports = {
                 srcExpr = expr;
             }
             //slog.ever('expr', expr);
-            let ps = SplitExpr(expr); //expr.match(SplitExprReg);
-            //slog.ever('ps', ps);
-            let head = ps[0];
-            if (head == '\u0003') {
+            let ps = SplitExpr(expr); //表达式拆分，如user[name][key[value]]=>["user","[name]","[key[value]"]
+            /*
+                1. <%:user.name%>
+                2. <%var a=user.name%>...<%:a%>
+                3. <%var a=user%> ...<%var b=a.name%> ....<%:b%>
+             */
+            let head = ps[0]; //获取第一个
+            if (head == '\u0003') { //如果是根变量，则直接返回  第1种情况
                 return ps.slice(1);
             }
-            let info = best(head);
+            let info = best(head); //根据第一个变量查找最优的对应的根变量，第2种情况
             if (!info) {
-                slog.ever(('can not resolve expr:' + StripNum(srcExpr.trim())).red, 'at', sourceFile.gray);
+                let tipExpr;
+                if (configs.compressTmplVariable) {
+                    tipExpr = srcExpr.trim().replace(CompressVarReg, m => {
+                        return compressVarToOrigional[m] || m;
+                    });
+                } else {
+                    tipExpr = StripNum(srcExpr.trim());
+                }
+                slog.ever(('can not resolve expr: ' + tipExpr).red, 'at', sourceFile.gray);
                 return ['analysisMissingRootVariableError'];
             }
-            if (info != '\u0003') {
+            if (info != '\u0003') { //递归查找,第3种情况
                 ps = find(info, srcExpr).concat(ps.slice(1));
             }
             return ps; //.join('.');
         };
         let analyseExpr = (expr, source) => {
-            //slog.ever('expr', expr);
-            let result = find(expr, source);
+            //slog.ever('expr', JSON.stringify(expr));
+            let result = find(expr, source); //获取表达式信息
             //slog.ever('result', result);
+            //把形如 ["user","[name]","[key[value]"]=> user.<%=name%>.<%=key[value]%>
             for (let i = 0, one; i < result.length; i++) {
                 one = result[i];
                 if (one.charAt(0) == '[' && one.charAt(one.length - 1) == ']') {
@@ -443,14 +737,15 @@ module.exports = {
             result = result.join('.');
             return result;
         };
-        fn = tmplCmd.store(fn, cmdStore);
+        fn = tmplCmd.store(fn, cmdStore); //存储代码，只分析模板
+        //textarea情况：<textarea><%:taValue%></textarea>处理成=><textarea <%:taValue%>><%=taValue%></textarea>
         fn = fn.replace(TextaraReg, (match, attr, content) => {
             attr = tmplCmd.recover(attr, cmdStore);
             content = tmplCmd.recover(content, cmdStore);
             if (BindReg2.test(content)) {
                 BindReg2.lastIndex = 0;
                 let bind = '';
-                content = content.replace(BindReg2, (m) => {
+                content = content.replace(BindReg2, m => {
                     bind = m;
                     return m.replace('<%:', '<%=');
                 });
@@ -462,11 +757,11 @@ module.exports = {
         });
         fn = fn.replace(TagReg, (match, tag, attrs) => {
             let bindEvents = configs.bindEvents;
-            let oldEvents = {};
+            let oldEvents = Object.create(null);
             let e;
-            let hasMagixView = MxViewAttrReg.test(attrs);
+            let hasMagixView = MxViewAttrReg.test(attrs); //是否有mx-view属性
             //slog.ever(cmdStore, attrs);
-            attrs = tmplCmd.recover(attrs, cmdStore, recoverString);
+            attrs = tmplCmd.recover(attrs, cmdStore, recoverString); //还原
             let replacement = (m, name, params) => {
                 let now = ',m:\'' + name + '\',a:' + (params || '{}');
                 let old = m; //tmplCmd.recover(m, cmdStore);
@@ -476,7 +771,7 @@ module.exports = {
                 };
                 return old;
             };
-            let storeUserEvents = () => {
+            let storeUserEvents = () => { //存储用户的事件
                 for (let i = 0; i < bindEvents.length; i++) {
                     e = bindEvents[i];
                     let reg = GenEventReg(e);
@@ -484,18 +779,18 @@ module.exports = {
                 }
             };
             let findCount = 0;
-            let transformEvent = (exprInfo, source) => {
-                if (exprInfo.evts) {
+            let transformEvent = (exprInfo, source) => { //转换事件
+                if (exprInfo.evts) { //如果提供了绑定的事件，则使用提供的事件列表
                     bindEvents = exprInfo.evts;
                 }
-                storeUserEvents();
+                storeUserEvents(); //存储用户的事件
                 let expr = exprInfo.expr;
                 let f = '';
                 let fns = exprInfo.fns;
-                if (fns.length) {
+                if (fns.length) { //传递的参数
                     f = ',f:\'' + fns.replace(/[\u0001\u0003\u0006]\d*\.?/g, '') + '\'';
                 }
-                expr = analyseExpr(expr, source);
+                expr = analyseExpr(expr, source); //分析表达式
                 let now = '',
                     info;
                 for (let i = 0; i < bindEvents.length; i++) {
@@ -505,6 +800,7 @@ module.exports = {
                 }
                 return now;
             };
+            //console.log(match,JSON.stringify(tag),attrs);
             attrs = attrs.replace(BindReg, (m, name, q, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
@@ -536,9 +832,7 @@ module.exports = {
                 //console.log(JSON.stringify(expr));
                 expr = analyseExpr(expr, m);
                 return expr;
-            }).replace(Tmpl_Mathcer, (m) => {
-                return StripNum(m);
-            });
+            }).replace(Tmpl_Mathcer, StripNum);
             if (findCount > 0) {
                 for (let i = 0; i < bindEvents.length; i++) {
                     e = oldEvents[bindEvents[i]];
@@ -550,7 +844,7 @@ module.exports = {
             return '<' + tag + attrs + '>';
         });
 
-        let processCmd = (cmd) => {
+        let processCmd = cmd => {
             //console.log(cmd, JSON.stringify(cmd), stringStore);
             return recoverString(StripNum(cmd));
         };

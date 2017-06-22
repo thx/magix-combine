@@ -1,14 +1,13 @@
 let configs = require('./util-config');
 let tmplCmd = require('./tmpl-cmd');
-//模板代码片断的处理，较少用
 let snippetReg = /<mx-([\w-]+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;
 let snippetReg1 = /<mx-([\w-]+)([^>]*)\/>/g;
 module.exports = {
     process(tmpl, extInfo) {
         let compare;
-        let cmdCache = {};
+        let cmdCache = Object.create(null);
         tmpl = tmplCmd.store(tmpl, cmdCache);
-        let restore = (tmpl) => {
+        let restore = tmpl => {
             return tmplCmd.recover(tmpl, cmdCache);
         };
         let tagProcessor = (match, tag, attrs, content) => {

@@ -6,12 +6,12 @@ let imgTagReg = /<img\s+[^>]*>/ig;
 let srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
 module.exports = {
     process(tmpl, e) {
-        let cmdCache = {};
+        let cmdCache = Object.create(null);
         tmpl = tmplCmd.store(tmpl, cmdCache);
-        let restore = (tmpl) => {
+        let restore = tmpl => {
             return tmplCmd.recover(tmpl, cmdCache);
         };
-        let attrsProcessor = (attrs) => {
+        let attrsProcessor = attrs => {
             attrs = attrs.replace(srcReg, (match, q, value) => {
                 value = configs.tmplImgSrcMatched(value);
                 if (configs.check) {
@@ -21,7 +21,7 @@ module.exports = {
             });
             return attrs;
         };
-        let tagProcessor = (match) => {
+        let tagProcessor = match => {
             match = restore(match);
             match = attrsProcessor(match);
             return match;

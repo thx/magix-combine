@@ -20,7 +20,7 @@ let genCssNamesKey = (file, ignorePrefix) => {
     }
     return cssId;
 };
-let genCssSelector = (selector) => {
+let genCssSelector = selector => {
     let mappedName = selector;
     if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
         if (selector.length > configs.md5CssSelectorLen) {
@@ -29,16 +29,27 @@ let genCssSelector = (selector) => {
     }
     return mappedName;
 };
+/**
+ * 添加到全局样式
+ * @param  {string} name 原始样式名
+ * @param  {string} transformSelector 变化后的，即可能是压缩后的样式
+ * @param  {number} guid 目前仅标记是否全局的标识
+ * @param  {boolean} lazyGlobal 是否在文件中标记全局的
+ * @param  {string} file 所在文件
+ * @param  {object} namesMap 名称映射对象
+ * @param  {object} namesToFiles 名称到文件映射对象
+ */
 let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, namesToFiles) => {
+    //记录重名的
     if (configs.log && namesMap[name] && namesToFiles[name] && !namesToFiles[name][file]) {
         checker.CSS.markExists('.' + name, file, Object.keys(namesToFiles[name]) + '');
     }
     namesMap[name] = transformSelector;
-    if (!namesToFiles[name]) {
-        namesToFiles[name] = {};
-        namesToFiles[name + '!s'] = {};
-    } else if (!lazyGlobal && namesToFiles[name + '!g'] != guid) {
-        namesToFiles[name + '!s'] = {};
+    if (!namesToFiles[name]) { //不存在
+        namesToFiles[name] = Object.create(null);
+        namesToFiles[name + '!s'] = Object.create(null);
+    } else if (!lazyGlobal && namesToFiles[name + '!g'] != guid) { //是否全局
+        namesToFiles[name + '!s'] = Object.create(null);
     }
 
     namesToFiles[name + '!g'] = guid;
@@ -46,7 +57,7 @@ let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, name
     if (!lazyGlobal) {
         namesToFiles[name + '!s'][transformSelector] = file;
     }
-    if (lazyGlobal) {
+    if (lazyGlobal) { //在文件中才标识的
         let list = namesToFiles[name + '!r'];
         if (list && list.length >= 0) {
             if (!list[file]) {
@@ -68,7 +79,7 @@ let ignoreTags = {
 };
 let cssNameNewProcessor = (css, ctx) => {
     let pInfo = cssParser(css, ctx.shortFile);
-    if (pInfo.nests.length) {
+    if (pInfo.nests.length) { //标记过于复杂的样式规则
         checker.CSS.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
     let tokens = pInfo.tokens;
@@ -79,10 +90,10 @@ let cssNameNewProcessor = (css, ctx) => {
             if (token.type == 'sattr') {
                 id = '[' + id + ']';
             }
-            if (!ignoreTags[id]) {
+            if (!ignoreTags[id]) { //标签或属性选择器
                 ctx.fileTags[id] = id;
                 if (!ctx.tagsToFiles[id]) {
-                    ctx.tagsToFiles[id] = {};
+                    ctx.tagsToFiles[id] = Object.create(null);
                 }
                 ctx.tagsToFiles[id][ctx.file] = id;
             }
@@ -114,7 +125,7 @@ let cssNameGlobalProcessor = (css, ctx) => {
             if (!ignoreTags[id]) {
                 ctx.fileTags[id] = id;
                 if (!ctx.tagsToFiles[id]) {
-                    ctx.tagsToFiles[id] = {};
+                    ctx.tagsToFiles[id] = Object.create(null);
                 }
                 ctx.tagsToFiles[id][ctx.file] = id;
             }

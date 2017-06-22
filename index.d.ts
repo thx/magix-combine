@@ -233,9 +233,9 @@ declare module "magix-combine" {
          */
         cssNamesProcessor?: (tmpl: string, cssNamesMap?: object) => string
         /**
-         * 压缩模板中的命令字符串
+         * 编辑转换模板中的命令字符串
          */
-        compressTmplCommand?: (tmpl: string) => string
+        compileTmplCommand?: (tmpl: string, config: IConfig) => string
         /**
          * 对css中匹配到的url做处理
          */

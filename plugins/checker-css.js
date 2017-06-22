@@ -1,26 +1,26 @@
 let configs = require('./util-config');
 let slog = require('./util-log');
-let filesToSelectors = {};
-let filesUndeclared = {};
-let markUsedTemp = {};
+let filesToSelectors = Object.create(null);
+let filesUndeclared = Object.create(null);
+let markUsedTemp = Object.create(null);
 let existsSelectors = [];
-let fileSelectorsUsed = {};
-let fileGlobals = {};
-let filesToTags = {};
-let markUsedTempTags = {};
-let fileTagsUsed = {};
-let unexists = {};
+let fileSelectorsUsed = Object.create(null);
+let fileGlobals = Object.create(null);
+let filesToTags = Object.create(null);
+let markUsedTempTags = Object.create(null);
+let fileTagsUsed = Object.create(null);
+let unexists = Object.create(null);
 module.exports = {
     reset(all) {
-        filesUndeclared = {};
-        filesToSelectors = {};
-        fileGlobals = {};
-        filesToTags = {};
-        unexists = {};
+        filesUndeclared = Object.create(null);
+        filesToSelectors = Object.create(null);
+        fileGlobals = Object.create(null);
+        filesToTags = Object.create(null);
+        unexists = Object.create(null);
         if (all) {
             existsSelectors = [];
-            fileSelectorsUsed = {};
-            markUsedTemp = {};
+            fileSelectorsUsed = Object.create(null);
+            markUsedTemp = Object.create(null);
         }
     },
     clearUsed(from) {
@@ -50,7 +50,7 @@ module.exports = {
     fileToTags(file, tags, processUsed) {
         if (!configs.check) return;
         if (!filesToTags[file]) {
-            filesToTags[file] = Object.assign({}, tags);
+            filesToTags[file] = Object.assign(Object.create(null), tags);
             let a = markUsedTempTags[file];
             if (a && a.length) {
                 delete markUsedTempTags[file];
@@ -73,7 +73,7 @@ module.exports = {
     fileToSelectors(file, selectors, processUsed) {
         if (!configs.check) return;
         if (!filesToSelectors[file]) {
-            filesToSelectors[file] = Object.assign({}, selectors);
+            filesToSelectors[file] = Object.assign(Object.create(null), selectors);
             let a = markUsedTemp[file];
             if (a && a.length) {
                 delete markUsedTemp[file];
@@ -108,7 +108,7 @@ module.exports = {
     markUnexists(name, currentFile) {
         if (!configs.check) return;
         if (!unexists[currentFile]) {
-            unexists[currentFile] = {};
+            unexists[currentFile] = Object.create(null);
         }
         unexists[currentFile][name] = name;
     },
@@ -120,18 +120,18 @@ module.exports = {
         if (!Array.isArray(selectors)) {
             selectors = [selectors];
         }
-        files.forEach((file) => {
+        files.forEach(file => {
             let info = filesToSelectors[file];
             if (info) {
-                selectors.forEach((selector) => {
+                selectors.forEach(selector => {
                     if (host) {
                         let fInfo = fileSelectorsUsed[file];
                         if (!fInfo) {
-                            fInfo = fileSelectorsUsed[file] = {};
+                            fInfo = fileSelectorsUsed[file] = Object.create(null);
                         }
                         let sInfo = fInfo[selector];
                         if (!sInfo) {
-                            sInfo = fInfo[selector] = {};
+                            sInfo = fInfo[selector] = Object.create(null);
                         }
                         sInfo[host] = 1;
                     }
@@ -153,18 +153,18 @@ module.exports = {
             tags = [tags];
         }
         //console.log(tags,filesToTags,files,'@@@@@@@@@@');
-        files.forEach((file) => {
+        files.forEach(file => {
             let info = filesToTags[file];
             if (info) {
-                tags.forEach((tag) => {
+                tags.forEach(tag => {
                     if (host) {
                         let fInfo = fileTagsUsed[file];
                         if (!fInfo) {
-                            fInfo = fileTagsUsed[file] = {};
+                            fInfo = fileTagsUsed[file] = Object.create(null);
                         }
                         let sInfo = fInfo[tag];
                         if (!sInfo) {
-                            sInfo = fInfo[tag] = {};
+                            sInfo = fInfo[tag] = Object.create(null);
                         }
                         sInfo[host] = 1;
                     }
@@ -188,7 +188,7 @@ module.exports = {
         if (!configs.check) return;
         let r = filesUndeclared[file];
         if (!r) {
-            r = filesUndeclared[file] = {};
+            r = filesUndeclared[file] = Object.create(null);
         }
         r[selector] = 1;
     },
@@ -196,7 +196,7 @@ module.exports = {
         //name = name.replace(rnReg, '');
         let info = fileGlobals[file];
         if (!info) {
-            info = fileGlobals[file] = {};
+            info = fileGlobals[file] = Object.create(null);
         }
         info[name] = 1;
     },
@@ -216,7 +216,7 @@ module.exports = {
             outCss = false;
             if (existsSelectors.length) {
                 outCss = true;
-                existsSelectors.forEach((item) => {
+                existsSelectors.forEach(item => {
                     let cShort = item.current.replace(configs.moduleIdRemovedPath, '').slice(1);
                     let pShort = item.prev.replace(configs.moduleIdRemovedPath, '').slice(1);
                     slog.ever('css:already exists', item.name.red, 'file', cShort.grey, 'prev files', pShort.blue);
@@ -239,7 +239,7 @@ module.exports = {
                 }
             }
             outCss = false;
-            let composeTagsAndSelectors = {};
+            let composeTagsAndSelectors = Object.create(null);
             for (p in filesToTags) {
                 keys = Object.keys(filesToTags[p]);
                 if (keys.length) {

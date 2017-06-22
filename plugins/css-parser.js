@@ -2,13 +2,13 @@
     http://www.w3school.com.cn/cssref/css_selectors.asp
     简易parser，只处理类与标签，其中
     processRules 参考了这个：https://github.com/fb55/css-what/blob/master/index.js
-    思路：跳过不必要处理的css，在处理规则时，跳过{}
+    思路：跳过不必要处理的css，在处理规则时，跳过{ }
  */
 
 let nameReg = /^(?:\\.|[\w\-\u00c0-\uFFFF])+/;
 //modified version of https://github.com/jquery/sizzle/blob/master/src/sizzle.js#L87
 let attrReg = /^\s*((?:\\.|[\w\u00c0-\uFFFF\-])+)\s*(?:(\S?)=\s*(?:(['"])(.*?)\3|(#?(?:\\.|[\w\u00c0-\uFFFF\-])*)|)|)\s*(i)?\]/;
-let isWhitespace = (c) => {
+let isWhitespace = c => {
     return c === ' ' || c === '\n' || c === '\t' || c === '\f' || c === '\r';
 };
 let atRuleSearchContent = {
@@ -44,11 +44,11 @@ let ignoreTags = {
 let parse = (css, file) => {
     let tokens = [];
     let nests = [];
-    let nestsLocker = {};
+    let nestsLocker = Object.create(null);
     let current = 0;
     let max = css.length;
     let c;
-    let stripWhitespaceAndGo = (offset) => {
+    let stripWhitespaceAndGo = offset => {
         while (isWhitespace(css.charAt(current))) current++;
         current += offset;
     };

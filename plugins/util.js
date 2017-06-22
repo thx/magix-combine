@@ -10,7 +10,7 @@ let sepRegTmpl = sep.replace(/\\/g, '\\\\');
 let sepReg = new RegExp(sepRegTmpl, 'g');
 let cssTailReg = /\.(?:css|less|scss)/i;
 let startSlashReg = /^\//;
-let extractModuleId = (file) => {
+let extractModuleId = file => {
     let id = file.replace(configs.moduleIdRemovedPath, '')
         .replace(configs.compileFileExtNamesReg, '')
         .replace(cssTailReg, '')
@@ -20,7 +20,7 @@ let extractModuleId = (file) => {
     return id;
 };
 
-let clone = (object) => {
+let clone = object => {
     if (sutil.isArray(object)) {
         let ta = [];
         for (let i = 0; i < object.length; i++) {
@@ -28,7 +28,7 @@ let clone = (object) => {
         }
         return ta;
     } else if (sutil.isObject(object)) {
-        let temp = {};
+        let temp = Object.create(null);
         for (let p in object) {
             temp[p] = clone(object[p]);
         }
