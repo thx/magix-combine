@@ -13,7 +13,11 @@ let BindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
 let PathReg = /<%~([\s\S]+?)%>/g;
 let TextaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let MxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
-let CReg = /[用声全固]/g;
+let VPHUse = String.fromCharCode(0x7528); //用
+let VPHDcd = String.fromCharCode(0x58f0); //声
+let VPHCst = String.fromCharCode(0x56fa); //固
+let VPHGlb = String.fromCharCode(0x5168); //全
+let CReg = /[\u7528\u58f0\u56fa\u5168]/g;
 let HReg = /([\u0001\u0002])\d+/g;
 let CompressVarReg = /\u0001\d+[a-zA-Z\_$]+/g;
 let HtmlHolderReg = /\u0005\d+\u0005/g;
@@ -22,10 +26,10 @@ let StringReg = /^['"]/;
 let BindFunctionParamsReg = /,"([^"]+)"\s*$/;
 let BindEventParamsReg = /^\s*"([^"]+)",/;
 let CMap = {
-    '用': '\u0001',
-    '声': '\u0002',
-    '全': '\u0003',
-    '固': '\u0006'
+    [VPHUse]: '\u0001',
+    [VPHDcd]: '\u0002',
+    [VPHGlb]: '\u0003',
+    [VPHCst]: '\u0006'
 };
 let StripChar = str => str.replace(CReg, m => CMap[m]);
 let StripNum = str => str.replace(HReg, '$1');
@@ -230,7 +234,7 @@ module.exports = {
                         args = [args];
                     }
                     for (let i = 0; i < args.length; i++) {
-                        args[i] = '全.' + args[i];
+                        args[i] = VPHGlb + '.' + args[i];
                     }
                     modifiers.push({
                         key: '',
@@ -268,7 +272,7 @@ module.exports = {
                 //console.log(compressVarsMap,node.name,node.start,fnRange);
                 if (!globalExists.hasOwnProperty(tname)) { //模板中全局不存在这个变量
                     modifiers.push({ //如果是指定不会改变的变量，则加固定前缀，否则会全局前缀
-                        key: (unchangableVars[tname] ? '固' : '全') + '.',
+                        key: (unchangableVars[tname] ? VPHCst : VPHGlb) + '.',
                         start: node.start,
                         end: node.end,
                         name: tname
@@ -277,7 +281,7 @@ module.exports = {
                     if (!configs.tmplGlobalVars.hasOwnProperty(tname)) {
                         //console.log(node.name, compressVarsMap);
                         modifiers.push({
-                            key: '用' + node.end,
+                            key: VPHUse + node.end,
                             start: node.start,
                             end: node.end,
                             name: tname,
@@ -323,7 +327,7 @@ module.exports = {
                 }
                 globalExists[tname] = node.init ? 2 : 1; //每次到变量声明的地方都重新记录这个变量的赋值次数
                 modifiers.push({
-                    key: '声' + node.start,
+                    key: VPHDcd + node.start,
                     start: node.id.start,
                     end: node.id.end,
                     name: tname,
@@ -804,7 +808,7 @@ module.exports = {
             attrs = attrs.replace(BindReg, (m, name, q, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
-                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
+                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString).replace(/\u0003\./g, '')).red, 'at', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -820,7 +824,7 @@ module.exports = {
             }).replace(BindReg2, (m, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
-                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString)).red, 'at', sourceFile.gray);
+                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString).replace(/\u0003\./g, '')).red, 'at', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -849,6 +853,7 @@ module.exports = {
             return recoverString(StripNum(cmd));
         };
         fn = tmplCmd.recover(fn, cmdStore, processCmd);
+
         //slog.ever(fn);
         return fn;
     }

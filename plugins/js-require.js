@@ -1,5 +1,4 @@
-let util = require('./util');
-let atpath = require('./util-atpath');
+let utils = require('./util');
 let jsRequireParser = require('./js-require-parser');
 let path = require('path');
 //分析js中的require命令
@@ -14,7 +13,7 @@ module.exports = {
         let deps = [];
         let vars = [];
         let noKeyDeps = [];
-        let moduleId = util.extractModuleId(e.from);
+        let moduleId = utils.extractModuleId(e.from);
         if (!e.exclude) {
             let depsInfo = jsRequireParser.process(e.content);
             for (let i = 0, start; i < depsInfo.length; i++) {
@@ -25,15 +24,10 @@ module.exports = {
                 let info = str.match(anchorReg);
                 if (!info) return match;
                 str = info[1] + info[2] + info[1];
-                let originalId = str;
-                if (configs.useAtPathConverter) {
-                    str = atpath.resolvePath(str, moduleId);
-                }
                 let depId = str.slice(1, -1);
                 let reqInfo = {
                     prefix: prefix,
                     tail: tail || '',
-                    originalDependedId: originalId.slice(1, -1),
                     dependedId: depId,
                     variable: key
                 };

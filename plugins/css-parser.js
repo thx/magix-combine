@@ -11,6 +11,7 @@ let attrReg = /^\s*((?:\\.|[\w\u00c0-\uFFFF\-])+)\s*(?:(\S?)=\s*(?:(['"])(.*?)\3
 let isWhitespace = c => {
     return c === ' ' || c === '\n' || c === '\t' || c === '\f' || c === '\r';
 };
+let nonEmptyReg = /^\S+$/;
 let atRuleSearchContent = {
     document: 1,
     supports: 1,
@@ -39,7 +40,22 @@ let quotes = {
 };
 let ignoreTags = {
     html: 1,
-    body: 1
+    body: 1,
+    tbody: 1,
+    thead: 1,
+    tfoot: 1,
+    tr: 1,
+    th: 1,
+    td: 1,
+    col: 1,
+    caption: 1,
+    colgroup: 1
+};
+let selectorPower = {
+    TAG: 1,
+    ATTR: 100,
+    CLASS: 10000,
+    ID: 1000000
 };
 let parse = (css, file) => {
     let tokens = [];
@@ -119,25 +135,32 @@ let parse = (css, file) => {
         //let ec = current;
         //console.log('ignore content', css.substring(sc, ec));
     };
-    let selector = '';
-    let overSelectors = 0;
-    let takeSelector = () => {
-        if (overSelectors > 0) {
-            if (overSelectors != 1 && //标签
-                overSelectors != 11 && //input[type=text]
-                overSelectors != 100 && // .input
-                overSelectors != 200 // .focus .input 2个类
-            ) {
-                let s = selector.trim();
+    let overSelectors = 0,
+        selectorStart = 0;
+    let takeSelector = (offset) => {
+        if (overSelectors > 0) { //1 标签　　100属性　10000类　1000000　id
+            //debugger;
+            if (!offset) offset = 0;
+            let s = css.slice(selectorStart, current + offset).trim(); //
+            if (nonEmptyReg.test(s)) { //无空格写法　如a.b.c  a[text][href] a.span.red
+                if (overSelectors < 300) { //3*ATTR;
+                    return;
+                } else if (overSelectors > selectorPower.CLASS && overSelectors < 3 * selectorPower.CLASS) {
+                    return;
+                }
+            }
+            if (overSelectors <= 303) { //3*selectorPower.ATTR + 3*selectorPower.TAG
+                overSelectors %= selectorPower.ATTR;
+            } else if (overSelectors >= selectorPower.CLASS && overSelectors <= 20200) {
+                //2*selectorPower.CLASS+2*selectorPower.ATTR
+                overSelectors %= selectorPower.CLASS;
+                overSelectors %= selectorPower.ATTR;
+                if (overSelectors && overSelectors <= 3) { //类与标签混用
+                    overSelectors = 4; //不建议混用
+                }
+            }
+            if (overSelectors && overSelectors > 3 * selectorPower.TAG) {
                 if (!nestsLocker[s]) {
-                    let temp = s.split('.'); //忽略label.disable
-                    if (temp.length == 2 &&
-                        temp[0].trim() == temp[0] &&
-                        temp[1].trim() == temp[1] &&
-                        nameReg.test(temp[0]) &&
-                        nameReg.test(temp[1])) {
-                        return;
-                    }
                     nestsLocker[s] = 1;
                     nests.push(s);
                 }
@@ -145,23 +168,24 @@ let parse = (css, file) => {
         }
     };
     let processRules = () => {
-        let prev = '';
-        selector = '';
+        let prev = '',
+            pseudos = [];
         overSelectors = 0;
+        selectorStart = current;
         while (current < max) {
-            let sc = current;
+            //debugger;
             stripWhitespaceAndGo(0);
-            selector += css.substring(sc, current);
             let tc = css.charAt(current);
             if (tc == '@') {
                 break;
-            } else if (tc == ',' || tc == ')') {
+            } else if (tc == ',') {
                 prev = '';
                 takeSelector();
-                selector = '';
                 overSelectors = 0;
                 current++;
+                selectorStart = current;
             } else if (tc == '{') {
+                takeSelector();
                 current++;
                 let ti = css.indexOf('}', current);
                 if (ti != -1) {
@@ -174,15 +198,13 @@ let parse = (css, file) => {
                     };
                 }
             } else if (tc == '}') {
-                takeSelector();
                 current++;
                 break;
             } else if (tc === '.' || tc === '#') {
                 current++;
                 let sc = current;
                 let id = getNameAndGo();
-                selector += tc + id;
-                overSelectors += tc === '.' ? 100 : 1000;
+                overSelectors += tc === '.' ? selectorPower.CLASS : selectorPower.ID;
                 if (tc == '.') {
                     tokens.push({
                         type: prev = 'class',
@@ -217,37 +239,49 @@ let parse = (css, file) => {
                         end: current + matches[0].length
                     });
                 }
-                overSelectors += 10;
+                overSelectors += selectorPower.ATTR;
                 prev = 'attr';
-                selector += '[' + matches[0];
                 current += matches[0].length;
             } else if (tc === ':') {
                 if (css.charAt(current + 1) === ':') {
                     current += 2;
-                    let id = getNameAndGo();
-
-                    selector += '::' + id;
+                    getNameAndGo();
                     continue;
                 }
                 current++;
                 let id = getNameAndGo();
-                selector += ':' + id;
                 if (css.charAt(current) === '(') {
-                    if (id in unpackPseudos) {
+                    //debugger;
+                    if (unpackPseudos.hasOwnProperty(id)) {
                         let quot = css.charAt(current + 1);
                         let quoted = quot in quotes;
                         current += quoted + 1;
+                        pseudos.push({
+                            quoted,
+                            selectorStart,
+                            overSelectors
+                        });
                         prev = '';
-                        takeSelector();
-                        overSelectors = 0;
-                        selector = '';
+                        selectorStart = current;
                     } else {
                         let ti = css.indexOf(')', current);
                         if (ti > -1) {
-                            selector += css.substring(current, ti + 2);
-                            current = ti + 2;
+                            current = ti + 1;
                         }
                     }
+                }
+            } else if (tc == ')') {
+                current++;
+                if (pseudos.length) {
+                    let last = pseudos.pop();
+                    takeSelector(last.quoted ? -2 : -1);
+                    overSelectors = last.overSelectors;
+                    selectorStart = last.selectorStart;
+                    takeSelector();
+                } else {
+                    prev = '';
+                    selectorStart = current;
+                    overSelectors = 0;
                 }
             } else if (nameReg.test(css.substr(current))) {
                 let sc = current;
@@ -259,9 +293,8 @@ let parse = (css, file) => {
                     end: current
                 });
                 if (!ignoreTags[id]) {
-                    overSelectors++;
+                    overSelectors += selectorPower.TAG;
                 }
-                selector += id;
             } else {
                 current++;
             }
@@ -282,7 +315,7 @@ let parse = (css, file) => {
             } else {
                 skipAtRule();
                 if (name == 'import') {
-                    nests.push(css.slice(start, current));
+                    nests.push(css.slice(start, current - 1));
                 }
             }
         } else {

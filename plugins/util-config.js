@@ -8,7 +8,7 @@ module.exports = {
     },
     lessOptions: {}, //less编译选项
     sassOptions: {}, //sass编译选项
-    cssSelectorPrefix: 'mx-', //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
+    cssSelectorPrefix: '', //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
     loaderType: 'cmd', //加载器类型
     htmlminifierOptions: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
@@ -22,10 +22,10 @@ module.exports = {
     log: true,
     check: true,
     compressCss: true, //是否压缩css内容
-    compressCssSelectorNames: false, //是否压缩css选择器名称，默认只添加前缀，方便调试
+    compressCssSelectorNames: true, //是否压缩css选择器名称，默认只添加前缀，方便调试
     addEventPrefix: true, //mx事件增加前缀
     bindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
-    bindName: 's\u0011e\u0011t', //绑定表达式<%:expr%>绑定的处理名称
+    bindName: 'syncValue', //绑定表达式<%:expr%>绑定的处理名称
     globalCss: [], //全局样式
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查

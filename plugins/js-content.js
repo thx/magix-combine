@@ -5,7 +5,7 @@ let jsRequire = require('./js-require');
 let cssProcessor = require('./css');
 let tmplProcessor = require('./tmpl');
 let atpath = require('./util-atpath');
-let jsLoader = require('./js-loader');
+let jsWrapper = require('./js-wrapper');
 let configs = require('./util-config');
 let checker = require('./checker');
 
@@ -22,8 +22,8 @@ let moduleIdReg = /(['"])(@moduleId)\1/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
 let htmlFileReg = /(['"])(?:raw)?@[^'"]+\.html(:data|:keys|:events)?\1/;
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
-let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])#snippet(?:[\w+\-])?\1\s*;?/g;
-let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])#exclude\(([\w,]+)\)\1\s*;?/g;
+let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
+let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
@@ -93,10 +93,22 @@ let processContent = (from, to, content, inwatch) => {
             processContent: processContent
         });
     }).then(e => {
-        let tmpl = e.exclude ? e.content : jsLoader(e);
+        let tmpl = e.exclude ? e.content : jsWrapper(e);
         let ast;
+        let comments = {};
         try {
-            ast = acorn.parse(tmpl);
+            ast = acorn.parse(tmpl, {
+                onComment(block, text, start, end) {
+                    if (block) {
+                        comments[start] = {
+                            text
+                        };
+                        comments[end] = {
+                            text
+                        };
+                    }
+                }
+            });
         } catch (ex) {
             slog.ever('parse js ast error:', ex.message.red);
             let arr = tmpl.split(/\r\n|\r|\n/);
@@ -144,9 +156,17 @@ let processContent = (from, to, content, inwatch) => {
                     node.raw = replacement;
                     add = true;
                 } else if (configs.useAtPathConverter) {
-                    if (node.raw.charAt(1) == '@' && node.raw.lastIndexOf('@') == 1 && node.raw.indexOf('/') > 0) {
-                        node.raw = atpath.resolvePath(node.raw, e.moduleId);
-                        add = true;
+                    let raw = node.raw;
+                    //字符串以@开头，且包含/
+                    if (raw.charAt(1) == '@' && raw.indexOf('/') > 0) {
+                        //如果是2个@@开头则是转义
+                        if (raw.charAt(2) == '@' && raw.lastIndexOf('@') == 2) {
+                            node.raw = raw.slice(0, 1) + raw.slice(2);
+                            add = true;
+                        } else if (raw.lastIndexOf('@') == 1) { //只有一个，路径转换
+                            node.raw = atpath.resolvePath(node.raw, e.moduleId);
+                            add = true;
+                        }
                     }
                 }
                 if (add) {
@@ -168,7 +188,7 @@ let processContent = (from, to, content, inwatch) => {
             Literal: processString
         });
         if (configs.check) {
-            let walkerProcessor = checker.JS.getWalker(tmpl, e);
+            let walkerProcessor = checker.JS.getWalker(comments, tmpl, e);
             walker.simple(ast, walkerProcessor);
         }
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的

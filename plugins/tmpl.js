@@ -9,22 +9,16 @@ let tmplEvent = require('./tmpl-event');
 let tmplCmd = require('./tmpl-cmd');
 let tmplMxTag = require('./tmpl-mxtag');
 let tmplGuid = require('./tmpl-guid');
-let tmplClass = require('./tmpl-class');
+let tmplAttr = require('./tmpl-attr');
+let tmplClass = require('./tmpl-attr-class');
 let tmplPartial = require('./tmpl-partial');
 let tmplVars = require('./tmpl-vars');
-let tmplImg = require('./tmpl-img');
-let tmplViewAttr = require('./tmpl-viewattr');
 let slog = require('./util-log');
-let checker = require('./checker');
-let tmplChecker = checker.Tmpl;
 //模板处理，即处理view.html文件
 let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html\2/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let sep = path.sep;
-let tagReg = /<[\w-]+(?:"[^"]*"|'[^']*'|[^'">])*>/g;
-let mxEventReg = /\bmx-(?!view|vframe|init|owner|autonomy|datafrom)([a-zA-Z]+)\s*=\s*['"]/g;
 let holder = '\u001f';
-let magixHolder = '\u001e';
 let removeVdReg = /\u0002/g;
 let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
@@ -51,7 +45,6 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         let refLeakGlobal = {
             reassigns: []
         };
-        fileContent = tmplImg.process(fileContent, e);
         if (!configs.disableMagixUpdater && !raw) {
             fileContent = tmplVars.process(fileContent, reject, e.shortHTMLFile, refLeakGlobal);
         }
@@ -61,19 +54,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
             let tmplEvents = tmplEvent.extract(fileContent);
             temp.events = tmplEvents;
         }
-        if (configs.addEventPrefix) {
-            fileContent = fileContent.replace(tagReg, match => {
-                return match.replace(mxEventReg, (m, name) => {
-                    if (tmplChecker.upperCaseReg.test(name)) {
-                        name = 'mx-' + name;
-                        tmplChecker.upperCaseReg.lastIndex = 0;
-                        slog.ever(('avoid use ' + name).red, 'at', e.shortHTMLFile.gray, 'use', name.toLowerCase().red, 'instead', 'more info:', 'https://github.com/thx/magix/issues/35'.magenta);
-                    }
-                    return m + holder + magixHolder;
-                });
-            });
-        }
-        fileContent = tmplViewAttr.process(fileContent, e, refTmplCommands);
+        fileContent = tmplAttr.process(fileContent, e, refTmplCommands);
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
@@ -83,7 +64,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         if (prefix && !configs.disableMagixUpdater && !raw) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, refLeakGlobal);
             if (refLeakGlobal.exists) {
-                slog.ever(e.shortHTMLFile.magenta, 'segment failed'.red, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
+                slog.ever('segment failed'.red, 'at', e.shortHTMLFile.magenta, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
                 if (refLeakGlobal.reassigns) {
                     refLeakGlobal.reassigns.forEach(it => {
                         slog.ever(it);

@@ -29,7 +29,7 @@ let emptyTag = /<(?:area|base|basefont|br|col|embed|frame|hr|img|input|isindex|k
 //let guidReg = /\s+mx-guid="g[^"]+"/g;
 let vdReg = /\u0002(\w+)\b/g;
 let idReg = /\u0001(\w+)\b/g;
-let globalRegTest = /\u0003/;
+let globalRegTest = /[\u0003\u0001]/;
 let vdMatchId = (tmpl, tmplCommands) => {
     let c = tmplCmd.recover(tmpl, tmplCommands);
     if (!globalRegTest.test(c)) { //不存在全局的变量，不用局部刷新

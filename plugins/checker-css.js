@@ -245,7 +245,7 @@ module.exports = {
                 if (keys.length) {
                     outCss = true;
                     let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
-                    composeTagsAndSelectors[short] = keys.reverse().join(' ');
+                    composeTagsAndSelectors[short] = '"' + keys.reverse().join('","') + '"';
                 }
             }
             for (p in filesToSelectors) {
@@ -254,9 +254,9 @@ module.exports = {
                     outCss = true;
                     let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
                     if (composeTagsAndSelectors[short]) {
-                        composeTagsAndSelectors[short] += '  .' + keys.reverse().join(' .');
+                        composeTagsAndSelectors[short] += ',".' + keys.reverse().join('",".') + '"';
                     } else {
-                        composeTagsAndSelectors[short] = '.' + keys.reverse().join(' .');
+                        composeTagsAndSelectors[short] = '".' + keys.reverse().join('",".') + '"';
                     }
                 }
             }

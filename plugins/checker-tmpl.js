@@ -35,15 +35,5 @@ module.exports = {
                 slog.ever(it);
             });
         }
-    },
-    markTmplExpr() {
-        if (configs.check) {
-            slog.ever.apply(slog, arguments);
-        }
-    },
-    markTmplBind() {
-        if (configs.check) {
-            slog.ever.apply(slog, arguments);
-        }
     }
 };

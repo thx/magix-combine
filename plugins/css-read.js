@@ -4,16 +4,17 @@ let path = require('path');
 let less = require('less');
 let sass = require('node-sass');
 
+let utils = require('./util');
 let slog = require('./util-log');
 let configs = require('./util-config');
 let fd = require('./util-fd');
 
 let jsMx = require('./js-mx');
 
-let compileContent = (file, content, ext, resolve, reject) => {
+let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject) => {
     if (ext == '.scss') {
         configs.sassOptions.data = content;
-        sass.render(configs.sassOptions, (err, result) => {
+        sass.render(cssCompileConfigs, (err, result) => {
             if (err) {
                 slog.ever('scss error:', (err + '').red);
                 return reject(err);
@@ -25,7 +26,7 @@ let compileContent = (file, content, ext, resolve, reject) => {
             });
         });
     } else if (ext == '.less') {
-        less.render(content, configs.lessOptions, (err, result) => {
+        less.render(content, cssCompileConfigs, (err, result) => {
             if (err) {
                 slog.ever('less error:', (err + '').red);
                 return reject(err);
@@ -52,11 +53,19 @@ let compileContent = (file, content, ext, resolve, reject) => {
 module.exports = (file, name, e) => {
     return new Promise((resolve, reject) => {
         let info = e.contentInfo;
+        let styleType = info && info.styleType || path.extname(file);
+        let cssCompileConfigs = {};
+        if (styleType == '.less') {
+            utils.cloneAssign(cssCompileConfigs, configs.lessOptions);
+            cssCompileConfigs.paths = [path.dirname(file)];
+        } else if (styleType == '.scss') {
+            utils.cloneAssign(cssCompileConfigs, configs.sassOptions);
+            cssCompileConfigs.file = file;
+        }
         if (info && name == 'style') {
-            compileContent(file, info.style, info.styleType, resolve, reject);
+            compileContent(file, info.style, styleType, cssCompileConfigs, resolve, reject);
         } else {
             fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
-                let ext = path.extname(file);
                 if (err) {
                     resolve({
                         exists: false,
@@ -65,12 +74,7 @@ module.exports = (file, name, e) => {
                     });
                 } else {
                     let fileContent = fd.read(file);
-                    if (ext == '.less') {
-                        configs.lessOptions.paths = [path.dirname(file)];
-                    } else if (ext == '.scss') {
-                        configs.sassOptions.file = file;
-                    }
-                    compileContent(file, fileContent, ext, resolve, reject);
+                    compileContent(file, fileContent, styleType, cssCompileConfigs, resolve, reject);
                 }
             });
         }

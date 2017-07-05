@@ -8,6 +8,7 @@ let getLogger = stream => {
     let str = '';
     let prevLineCount = 0;
     let last = '';
+    let oldWrite = stream.write;
     let logger = {
         log() {
             this.clear();
@@ -32,6 +33,26 @@ let getLogger = stream => {
                 this.log(last);
             }
         },
+        hook() {
+            stream.write = (args, fn) => {
+                if (arguments.length <= 2) {
+                    if (fn) {
+                        logger.clear();
+                        oldWrite.call(stream, args, fn);
+                        if (last) {
+                            logger.log(last);
+                        }
+                    } else {
+                        oldWrite.call(stream, args);
+                    }
+                } else {
+                    oldWrite.call(stream, args, fn, arguments[2]);
+                }
+            };
+        },
+        unhook() {
+            stream.write = oldWrite;
+        },
         clear(clearLast) {
             if (clearLast) {
                 last = '';
@@ -48,6 +69,7 @@ let getLogger = stream => {
     };
     process.on('SIGINT', () => {
         logger.clear();
+        logger.unhook();
         process.exit(0);
     });
     return logger;

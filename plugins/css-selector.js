@@ -1,4 +1,4 @@
-let util = require('./util');
+let utils = require('./util');
 let md5 = require('./util-md5');
 let configs = require('./util-config');
 let checker = require('./checker');
@@ -8,7 +8,7 @@ let cssCommentReg = /\/\*[\s\S]+?\*\//g;
 let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.style):([\w\-]+)\1\]/g;
 let genCssNamesKey = (file, ignorePrefix) => {
     //获取模块的id
-    let cssId = util.extractModuleId(file);
+    let cssId = utils.extractModuleId(file);
     if (configs.compressCss) {
         cssId = md5(cssId, configs.md5CssFileLen, 'md5CssFileLen');
     } else {

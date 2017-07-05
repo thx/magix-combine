@@ -53,9 +53,9 @@ module.exports = {
         configs.globalCss = configs.globalCss.map(p => path.resolve(p));
         configs.scopedCss = configs.scopedCss.map(p => path.resolve(p));
         configs.uncheckGlobalCss = configs.uncheckGlobalCss.map(p => path.resolve(p));
-        configs.resetCss = configs.globalCss.concat(configs.scopedCss);
     },
     combine() {
+        slog.hook();
         return new Promise((resolve, reject) => {
             initEnv();
             setTimeout(() => {
@@ -64,14 +64,14 @@ module.exports = {
                 let completed = 0;
                 let tasks = [];
                 let once = 3;
-                fd.walk(configs.tmplFolder, (filepath) => {
+                fd.walk(configs.tmplFolder, filepath => {
                     if (configs.compileFileExtNamesReg.test(filepath)) {
                         let from = path.resolve(filepath);
                         let to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
                         total++;
                         tasks.push({
-                            from: from,
-                            to: to
+                            from,
+                            to
                         });
                     }
                 });
@@ -85,14 +85,14 @@ module.exports = {
                     let tks = tasks.slice(current, current += once);
                     if (tks.length) {
                         ps = [];
-                        tks.forEach((it) => {
+                        tks.forEach(it => {
                             ps.push(js.process(it.from, it.to).then(() => {
                                 if (!errorOccured && configs.log) {
                                     slog.log(genMsg(++completed, total));
                                 }
                             }));
                         });
-                        Promise.all(ps).then(run).catch((ex) => {
+                        Promise.all(ps).then(run).catch(ex => {
                             errorOccured = true;
                             slog.clear(true);
                             reject(ex);
@@ -101,6 +101,7 @@ module.exports = {
                         setTimeout(() => {
                             checker.output();
                             slog.clear(true);
+                            slog.unhook();
                             resolve();
                         }, 100);
                     }
@@ -127,6 +128,7 @@ module.exports = {
         return jsContent.process(from, to, content, false, false);
     },
     processTmpl() {
+        slog.hook();
         return new Promise((resolve, reject) => {
             initEnv();
             let ps = [];
@@ -134,7 +136,7 @@ module.exports = {
             let completed = 0;
             let tasks = [];
             let once = 3;
-            fd.walk(configs.tmplFolder, (filepath) => {
+            fd.walk(configs.tmplFolder, filepath => {
                 //if (filepath.indexOf('/nav') >= 0) {
                 let from = path.resolve(filepath);
                 total++;
@@ -148,7 +150,7 @@ module.exports = {
                 let tks = tasks.slice(current, current += once);
                 if (tks.length) {
                     ps = [];
-                    tks.forEach((from) => {
+                    tks.forEach(from => {
                         if (configs.tmplFileExtNamesReg.test(from)) {
                             ps.push(tmplNaked.process(from).then(() => {
                                 if (!errorOccured && configs.log) {
@@ -157,7 +159,7 @@ module.exports = {
                             }));
                         }
                     });
-                    Promise.all(ps).then(run).catch((ex) => {
+                    Promise.all(ps).then(run).catch(ex => {
                         errorOccured = true;
                         slog.clear(true);
                         reject(ex);
@@ -165,6 +167,7 @@ module.exports = {
                 } else {
                     setTimeout(() => {
                         slog.clear(true);
+                        slog.unhook();
                         resolve();
                     }, 100);
                 }

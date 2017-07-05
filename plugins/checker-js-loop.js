@@ -1,0 +1,94 @@
+let slog = require('./util-log');
+module.exports = (node, comments, tmpl, e) => {
+    let outerExprs = [];
+    let addedOuterExprs = Object.create(null);
+    let enterFns = Object.create(null);
+    let uncheck = p => {
+        while (--p > 0) {
+            if (comments[p]) {
+                if (comments[p].text == 'mc-uncheck') {
+                    return true;
+                }
+            }
+            let c = tmpl.charAt(p);
+            if (c != ' ' && c != ';' && c != '\r' && c != '\n' && c != '\t') {
+                return false;
+            }
+        }
+    };
+    let take = (lc, expr) => {
+        if (lc > 2) {
+            let key = expr.start + '@' + expr.end;
+            if (!addedOuterExprs[key]) {
+                addedOuterExprs[key] = 1;
+                outerExprs.push(expr);
+            }
+            return false;
+        }
+        return true;
+    };
+    let walk = (expr, lc, outerLoop) => {
+        if (expr) {
+            let walkSub = true;
+            switch (expr.type) {
+                case 'ForStatement':
+                case 'WhileStatement':
+                case 'DoWhileStatement':
+                case 'ForOfStatement':
+                    if (!uncheck(expr.start)) {
+                        if (!outerLoop) {
+                            outerLoop = expr;
+                        }
+                        lc++;
+                        walkSub = take(lc, outerLoop);
+                    }
+                    break;
+                case 'CallExpression': //检测是否是[].forEach  _.each $.each调用
+                    let args = expr.arguments;
+                    if (args && args.length == 1) {
+                        let a0 = args[0];
+                        if (a0.type == 'FunctionExpression' ||
+                            a0.type == 'ArrowFunctionExpression') {
+                            let callee = expr.callee;
+                            if (callee.type == 'MemberExpression') {
+                                let p = callee.property;
+                                if (p.name == 'forEach' ||
+                                    p.name == 'each') {
+                                    let key = a0.start + '@' + a0.end;
+                                    enterFns[key] = 1;
+                                    if (!uncheck(expr.start)) {
+                                        if (!outerLoop) {
+                                            outerLoop = expr;
+                                        }
+                                        lc++;
+                                        walkSub = take(lc, outerLoop);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+            }
+            let key = expr.start + '@' + expr.end;
+            if (walkSub && (enterFns[key] || (
+                    expr.type != 'FunctionDeclaration' &&
+                    expr.type != 'FunctionExpression' &&
+                    expr.type != 'ArrowFunctionExpression'))) {
+                if (Array.isArray(expr)) {
+                    for (let i = 0; i < expr.length; i++) {
+                        walk(expr[i], lc, outerLoop);
+                    }
+                } else if (expr instanceof Object) {
+                    for (let p in expr) {
+                        walk(expr[p], lc, outerLoop);
+                    }
+                }
+            }
+        }
+    };
+    walk(node.body.body, 0);
+    outerExprs.forEach(expr => {
+        let part = tmpl.slice(expr.start, expr.end);
+        slog.ever('avoid nested loops'.red, 'at', e.shortFrom.gray, 'near', part.magenta);
+    });
+};

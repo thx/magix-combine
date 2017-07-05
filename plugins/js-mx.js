@@ -3,10 +3,13 @@ let path = require('path');
 let templateReg = /<template>([\s\S]+?)<\/template>/i;
 let styleReg = /<style([^>]*)>([\s\S]+?)<\/style>/i;
 let scriptReg = /<script[^>]*>([\s\S]+?)<\/script>/i;
-let styleTypeReg = /type\s*=(['"])([^'"]+)\1/;
+let styleTypeReg = /\btype\s*=\s*(['"])([^'"]+)\1/i;
+let styleLangReg = /\blang\s*=\s*(["'])([^'"]+)\1/i;
 let styleTypesMap = {
     'text/less': '.less',
-    'text/sass': '.sass'
+    'text/scss': '.scss',
+    'less': '.less',
+    'scss': 'scss'
 };
 module.exports = {
     process(content, from) {
@@ -16,17 +19,23 @@ module.exports = {
         if (temp) {
             template = temp[1];
         } else {
-            template = 'unfound inline ' + fileName + ' template';
+            template = 'unfound inline ' + fileName + ' template, may be missing root tag:template';
         }
         temp = content.match(styleReg);
         if (temp) {
             type = temp[1];
             style = temp[2];
             if (type) {
-                temp = type.match(styleTypeReg);
+                temp = type.match(styleLangReg);
                 if (temp) {
                     type = temp[2];
                     type = styleTypesMap[type];
+                } else {
+                    temp = type.match(styleTypeReg);
+                    if (temp) {
+                        type = temp[2];
+                        type = styleTypesMap[type];
+                    }
                 }
             }
             if (!type) {
