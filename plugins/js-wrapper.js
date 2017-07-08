@@ -2,6 +2,7 @@
 let configs = require('./util-config');
 let exportsReg = /\bmodule\.exports\b\s*=\s*/g;
 let header = '/*\r\n    generate by magix-combine: https://github.com/thx/magix-combine\r\n    author: kooboy_li@163.com\r\n */\r\n';
+let $reg = /\$/g;
 let tmpls = {
     cmd: 'define(\'${moduleId}\',[${requires}],function(require,exports,module){\r\n/*${vars}*/\r\n${content}\r\n});',
     cmd1: 'define(\'${moduleId}\',function(require,exports,module){\r\n${content}\r\n});',
@@ -20,7 +21,7 @@ module.exports = e => {
     let tmpl = header + (tmpls[key] || tmpls.iife);
     for (let p in e) {
         let reg = new RegExp('\\$\\{' + p + '\\}', 'g');
-        tmpl = tmpl.replace(reg, (e[p] + '').replace(/\$/g, '$$$$'));
+        tmpl = tmpl.replace(reg, (e[p] + '').replace($reg, '$&$&'));
     }
     if (configs.loaderType == 'kissy') {
         tmpl = tmpl.replace(exportsReg, 'return ');

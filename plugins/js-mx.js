@@ -19,7 +19,7 @@ module.exports = {
         if (temp) {
             template = temp[1];
         } else {
-            template = 'unfound inline ' + fileName + ' template, may be missing root tag:template';
+            template = 'unfound inline ' + fileName + ' template, may be missing root tag:"template"';
         }
         temp = content.match(styleReg);
         if (temp) {

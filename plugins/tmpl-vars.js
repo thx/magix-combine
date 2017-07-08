@@ -23,7 +23,6 @@ let CompressVarReg = /\u0001\d+[a-zA-Z\_$]+/g;
 let HtmlHolderReg = /\u0005\d+\u0005/g;
 let SCharReg = /(?:`;|;`)/g;
 let StringReg = /^['"]/;
-let BindFunctionParamsReg = /,"([^"]+)"\s*$/;
 let BindEventParamsReg = /^\s*"([^"]+)",/;
 let CMap = {
     [VPHUse]: '\u0001',
@@ -93,11 +92,11 @@ let ExtractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[c
         evts = m[1].split(',');
         expr = expr.replace(BindEventParamsReg, '');
     }
-
-    m = expr.match(BindFunctionParamsReg);
-    if (m) {
-        fns = m[1];
-        expr = expr.replace(BindFunctionParamsReg, '');
+    let firstComma = expr.indexOf(',');
+    if (firstComma > -1) {
+        fns = expr.slice(firstComma + 2, -1);
+        expr = expr.slice(0, firstComma);
+        fns = fns.replace(/",/g, '\'<%=').replace(/,"/g, '%>\',').replace(/,}$/, '}');
     }
     return {
         expr,
@@ -139,6 +138,7 @@ module.exports = {
         let index = 0;
         let htmlStore = Object.create(null);
         let htmlIndex = 0;
+        //console.log(tmpl);
         tmpl.replace(Tmpl_Mathcer, (match, operate, content, offset) => {
             let start = 2;
             if (operate) {
@@ -158,6 +158,7 @@ module.exports = {
             fn = fn.replace(HtmlHolderReg, m => htmlStore[m]);
             return fn;
         };
+        //console.log(fn);
         //return;
 
         try {
@@ -184,6 +185,7 @@ module.exports = {
         let varCount = 0;
         let recoverString = tmpl => {
             //还原代码中的字符串，代码中的字符串占位符使用\u0004包裹
+            //模板中的绑定特殊字符串包含\u0017，这里要区分这个字符串的来源
             return tmpl.replace(/(['"])(\u0004\d+\u0004)\1/g, (m, q, c) => {
                 let str = stringStore[c].slice(1, -1); //获取源字符串
                 let result;
@@ -792,7 +794,7 @@ module.exports = {
                 let f = '';
                 let fns = exprInfo.fns;
                 if (fns.length) { //传递的参数
-                    f = ',f:\'' + fns.replace(/[\u0001\u0003\u0006]\d*\.?/g, '') + '\'';
+                    f = ',f:' + fns;
                 }
                 expr = analyseExpr(expr, source); //分析表达式
                 let now = '',

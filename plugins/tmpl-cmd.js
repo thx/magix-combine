@@ -1,6 +1,8 @@
 let configs = require('./util-config');
 let htmlminifier = require('html-minifier');
 let jm = require('./js-min');
+let attrObject = require('./tmpl-attr-object');
+let slog = require('./util-log');
 //模板文件，模板引擎命令处理，因为我们用的是字符串模板，常见的模板命令如<%=output%> {{output}}，这种通常会影响我们的分析，我们先把它们做替换处理
 let anchor = '\u0007';
 let tmplCommandAnchorCompressReg = /(\u0007\d+\u0007)\s+(?=[<>])/g;
@@ -9,7 +11,7 @@ let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let Tmpl_Mathcer = /<%([@=!:~])?([\s\S]+?)%>|$/g;
 let outputCmdReg = /<%([=!@:~])?([\s\S]*?)%>/g;
 let ctrlCmdReg = /<%[^=!@:~][\s\S]*?%>\s*/g;
-var phCmdReg = /&\u0008\d+&\u0008/g;
+let phCmdReg = /&\u0008\d+&\u0008/g;
 let continuedCmdReg = /(?:&\u0008\d+&\u0008){2,}/g;
 let bwCmdReg = /%>\s*<%/g;
 let blockCmdReg = /([\{\}]);/g;
@@ -18,8 +20,8 @@ let phKey = '&\u0008';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
 let BindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
-let BindFunctionsReg = /\s*\{\s*([^\{\}]+)\}\s*$/;
 let BindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
+
 
 module.exports = {
     compile(tmpl) {
@@ -31,8 +33,17 @@ module.exports = {
 
             //特殊处理绑定事件及参数
             tmpl = tmpl.replace(BindReg2, (m, left, expr, right) => {
-                if (BindFunctionsReg.test(expr)) {
-                    expr = expr.replace(BindFunctionsReg, ',"\u0017$1"');
+                let leftBrace = expr.indexOf('{');
+                if (leftBrace > 0) {
+                    let fns = expr.slice(leftBrace);
+                    //console.log(fns);
+                    try {
+                        fns = attrObject.likeObject(fns);
+                    } catch (ex) {
+                        slog.ever(ex.message.red);
+                        slog.ever(('unsupport complex object:' + fns).red);
+                    }
+                    expr = expr.slice(0, leftBrace) + fns;
                 }
                 if (BindEventsReg.test(expr)) {
                     expr = expr.replace(BindEventsReg, '"\u0017$1",');
@@ -103,13 +114,13 @@ module.exports = {
         let idx = dataset.___idx || 0;
         if (configs.tmplCommand) {
             return tmpl.replace(configs.tmplCommand, (match, key) => {
-                if (!dataset[match]) {
-                    idx++;
-                    key = anchor + idx + anchor;
-                    dataset[match] = key;
-                    dataset[key] = match;
-                    dataset.___idx = idx;
-                }
+                //if (!dataset[match]) {
+                idx++;
+                key = anchor + idx + anchor;
+                dataset[match] = key;
+                dataset[key] = match;
+                dataset.___idx = idx;
+                //}
                 return dataset[match];
             });
         }
