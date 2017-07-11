@@ -124,7 +124,6 @@ let getLongestExpr = (node, varTracker, sge, oexpr) => {
         if (varTracker[node.name]) {
             return 1;
         }
-        return -1;
     } else if (node.type == 'MemberExpression') {
         let count = 1;
         let start = node;
@@ -316,8 +315,8 @@ module.exports = (node, comments, tmpl, e) => {
                     let pSafed = getParentSafed(expr); //获取父级的保护，把父级的merge进来
                     safeguard.push(safeguardMap[key] = { //记录保护
                         safed: Object.assign({
-                                        [p.value[0]]: !r.power && !r.md,
-                                        [p.value.join('\r')]: 1
+                            [p.value[0]]: !r.power && !r.md,
+                            [p.value.join('\r')]: 1
                         }, pSafed),
                         start: expr.start,
                         end: expr.end
@@ -344,8 +343,8 @@ module.exports = (node, comments, tmpl, e) => {
                     let pSafed = getParentSafed(expr);
                     safeguard.push(safeguardMap[key] = {
                         safed: Object.assign({
-                                        [p.value[0]]: !r.power && !r.md,
-                                        [vname.join('\r')]: 1
+                            [p.value[0]]: !r.power && !r.md,
+                            [vname.join('\r')]: 1
                         }, pSafed),
                         start: expr.start,
                         end: expr.end

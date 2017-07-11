@@ -1,6 +1,7 @@
 let atpath = require('./util-atpath');
 let configs = require('./util-config');
 let checker = require('./checker');
+let tmplUnescape = require('./tmpl-unescape');
 let tmplChecker = checker.Tmpl;
 //let tmplCmd = require('./tmpl-cmd');
 
@@ -9,19 +10,6 @@ let viewAttrReg = /\bview-([\w\-]+)=(["'])([\s\S]*?)\2/g;
 let cmdReg = /\u0007\d+\u0007/g;
 let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
 
-let htmlUnescapeMap = {
-    'amp': '&',
-    'lt': '<',
-    'gt': '>',
-    'quot': '"',
-    '&#34': '"',
-    '#x27': '\'',
-    '#x60': '`'
-};
-let htmlUnescapeReg = /&([^;]+?);/g;
-let htmlUnescape = (m, name) => {
-    return htmlUnescapeMap[name] || m;
-};
 let encodeMore = {
     '!': '%21',
     '\'': '%27',
@@ -31,11 +19,7 @@ let encodeMore = {
 };
 
 let encodeMoreReg = /[!')(*]/g;
-let encodeReplacor = m => {
-    return encodeMore[m];
-};
-// http://mathiasbynens.be/notes/unquoted-attribute-values
-//let canRemoveQuotesReg = /^[^ \t\n\f\r"'`=<>]+$/;
+let encodeReplacor = m => encodeMore[m];
 module.exports = (e, match, refTmplCommands) => {
     mxViewAttrReg.lastIndex = 0;
     if (mxViewAttrReg.test(match)) { //带有mx-view属性才处理
@@ -63,7 +47,7 @@ module.exports = (e, match, refTmplCommands) => {
                 });
                 let cs = content.split(cmdReg); //按命令拆分，则剩余的都是普通字符串
                 for (let i = 0; i < cs.length; i++) {
-                    cs[i] = cs[i].replace(htmlUnescapeReg, htmlUnescape); //对转义字符回转一次，浏览器的行为，这里view-最终并不是标签属性，所以这里模拟浏览器的特性。
+                    cs[i] = tmplUnescape.unescape(cs[i]); //对转义字符回转一次，浏览器的行为，这里view-最终并不是标签属性，所以这里模拟浏览器的特性。
                     cs[i] = encodeURIComponent(cs[i]).replace(encodeMoreReg, encodeReplacor); //对这个普通字符串做转义处理
                     if (i < cmdTemp.length) { //把命令还原回去
                         cs[i] = cs[i] + cmdTemp[i];
@@ -73,8 +57,6 @@ module.exports = (e, match, refTmplCommands) => {
                 attrs.push(name + '=' + content); //处理成最终的a=b形式
                 return '';
             });
-            //attrs = '\u001ep=<%@{' + attrs.join(',') + '}%>';
-            //attrs = tmplCmd.store(attrs, refTmplCommands);
             match = match.replace(mxViewAttrReg, (m, q, content) => {
                 attrs = attrs.join('&'); //把参数加到mx-viewk中
                 if (content.indexOf('?') > -1) {

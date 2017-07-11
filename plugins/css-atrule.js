@@ -4,11 +4,13 @@ let md5 = require('./util-md5');
 //charset不处理，压缩器会自动处理
 let cssAtNamesKeyReg = /(?:^|[\s\}])@([a-z\-]+)\s*(?:[\w\-]+)?\{([^\{\}]*)\}/g;
 //keyframes，如@-webkit-keyframes xx
-let cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+(['"])?([\w\-]+)\3/g;
+let cssKeyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+(['"])?([\s\S]+?)\3/g;
+let escapeReg = /[\-#$\^*()+\[\]{}|\\,.?\s]/g;
+let fontFalilyReg = /font-family\s*:\s*(['"])?([\S\s]+?)\1/;
 let genCssContentReg = key => {
     let reg = genCssContentReg[key];
     if (!reg) {
-        reg = new RegExp(':\\s*([\'"])?' + key.replace(/[\-#$\^*()+\[\]{}|\\,.?\s]/g, '\\$&') + '\\1', 'g');
+        reg = new RegExp(':\\s*([\'"])?' + key.replace(escapeReg, '\\$&') + '\\1', 'g');
         genCssContentReg[key] = reg;
     }
     return reg;
@@ -32,7 +34,8 @@ module.exports = (fileContent, cssNamesKey) => {
     fileContent = fileContent.replace(cssAtNamesKeyReg, (match, key, content) => {
         if (key == 'font-face') {
             //font-face只处理font-family
-            let m = content.match(/font-family\s*:\s*(['"])?([\w\-]+)\1/);
+            fontFalilyReg.lastIndex = 0;
+            let m = content.match(fontFalilyReg);
             if (m) {
                 //同样保存下来，要修改使用的地方
                 contents.push(m[2]);

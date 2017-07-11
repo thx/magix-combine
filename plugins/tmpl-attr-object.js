@@ -5,21 +5,93 @@
 中的object成 {refresh:'refresh',state:'<%=user%>',flag:'abc\&#x27;def'}
 
  */
+let acorn = require('acorn');
+let walker = require('acorn/dist/walk');
 let Q = {
-    '\'': '&#x27;',
-    '"': '&quot;'
+    '\'': '&#39;',
+    '"': '&#34;'
 };
 let Cache = Object.create(null);
 let QReg = /['"]/g;
+let asciiStart = /[A-Za-z\$\_]/;
 let asciiIdentifier = /[A-Za-z\$\_\d]/;
 let EscapeQ = str => str.replace(QReg, m => Q[m]);
 let MakeError = msg => {
     throw new Error(msg);
 };
 let keyword = /^(?:true|false|null|undefined)\b/;
+let stringReg = /^['"]/;
 
 module.exports = {
     escapeQ: EscapeQ,
+    parseObject(str, startChar, endChar) {
+        str = '(' + str.trim() + ')';
+        let ast = acorn.parse(str);
+        let modifiers = [];
+        let processString = node => {
+            stringReg.lastIndex = 0;
+            if (stringReg.test(node.raw)) {
+                let q = node.raw.charAt(0);
+                let value = node.raw.slice(1, -1);
+                if (q == '"') {
+                    q = '\'';
+                    value = value.replace(/'/g, '\\\'');
+                }
+                value = EscapeQ(value);
+                modifiers.push({
+                    start: node.start,
+                    end: node.end,
+                    value: q + value + q
+                });
+            }
+        };
+        walker.simple(ast, {
+            Property(node) {
+                let key = node.key;
+                let value = node.value;
+                if (key.type == 'Literal') {
+                    processString(key);
+                }
+                if (value.type == 'Identifier' || value.type == 'MemberExpression') {
+                    let oValue = str.slice(value.start, value.end);
+                    if (node.shorthand) {
+                        modifiers.push({
+                            start: node.end,
+                            end: node.end,
+                            value: ':' + endChar + '",' + oValue + ',"' + startChar
+                        });
+                    } else if (node.computed) {
+                        modifiers.push({
+                            start: key.start - 1,
+                            end: key.end + 1,
+                            value: endChar + '",' + str.slice(key.start, key.end) + ',"' + startChar
+                        }, {
+                            start: value.start,
+                            end: value.end,
+                            value: endChar + '",' + oValue + ',"' + startChar
+                        });
+                    } else {
+                        modifiers.push({
+                            start: value.start,
+                            end: value.end,
+                            value: endChar + '",' + oValue + ',"' + startChar
+                        });
+                    }
+                }
+            },
+            Literal: processString
+        });
+
+        modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
+            return a.start - b.start;
+        });
+        for (let i = modifiers.length - 1, m; i >= 0; i--) {
+            m = modifiers[i];
+            str = str.slice(0, m.start) + m.value + str.slice(m.end);
+        }
+        console.log(str);
+        return '"' + startChar + str.slice(1, -1) + '"';
+    },
     likeObject(str) {
         str = str.trim();
         if (Cache[str]) {
@@ -55,8 +127,8 @@ module.exports = {
                     if (!key) {
                         MakeError('missing key. Input:' + str);
                     }
-                    value = '\'' + key + '\'';
-                    r += key + ':' + value + c + (c == '}' ? '"' : '');
+                    //value = '\'' + key + '\'';
+                    r += key + ':",' + key + ',"' + c + (c == '}' ? '"' : '');
                     key = '';
                     value = '';
                     variable = 0;
@@ -64,12 +136,14 @@ module.exports = {
                     if (valueIsString) {
                         value += c;
                     } else {
-                        r += value + ',';
+                        r += value;
                         if (variable) {
-                            r += '"\u0017';
+                            r += ',"\u0017';
                         }
                         if (c == '}') {
                             r += '}"';
+                        } else {
+                            r += ',';
                         }
                         inValue = 0;
                         inKey = 1;
@@ -113,7 +187,7 @@ module.exports = {
                     } else { //变量
                         valueIsString = 0;
                         let temp = str.slice(index, index + 10);
-                        variable = asciiIdentifier.test(c) && !keyword.test(temp);
+                        variable = asciiStart.test(c) && !keyword.test(temp);
                         if (variable) {
                             r += '",';
                         }

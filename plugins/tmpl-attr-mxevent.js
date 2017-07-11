@@ -9,7 +9,8 @@ let walker = require('acorn/dist/walk');
 let tmplChecker = checker.Tmpl;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let cmdReg = /\u0007\d+\u0007/g;
-let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
+let dOutCmdReg = /<%([=!@])([\s\S]+?)%>/g;
+let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 let stringReg = /^['"]/;
 let mxEventReg = /\bmx-(?!view|vframe|init|owner|autonomy|datafrom)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
@@ -19,14 +20,18 @@ let processQuot = (str, refTmplCommands, mxEvent, e) => {
         let cmd = refTmplCommands[cm];
         if (cmd) {
             cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
-                tmplChecker.checkMxEventParamsUnescape(o, m, c, mxEvent, e);
-                return '<%=$eq(' + c + ')%>';
+                tmplChecker.checkMxEventParamsCMD(o, m, c, mxEvent, e);
+                if (o == '=') {
+                    return '<%=$eq(' + c + ')%>';
+                }
+                return m;
             });
             refTmplCommands[cm] = cmd;
         }
     });
 };
 let cmdPHReg = /\u00aa\u00ff\d+\u00aa\u00ff/g;
+let htmlQEntityReg = /(\\*)(&quot;?|&#x22;?|&#x27;?|&#34;?|&#39;?)/g;
 let cmdKey = String.fromCharCode(0xaa, 0xff);
 let encodeParams = (params, refTmplCommands, mxEvent, e) => {
     let index = 0;
@@ -40,28 +45,43 @@ let encodeParams = (params, refTmplCommands, mxEvent, e) => {
     let modifiers = [];
     let processString = node => { //存储字符串，减少分析干扰
         stringReg.lastIndex = 0;
-        let add = false;
         if (stringReg.test(node.raw)) {
             let q = node.raw.charAt(0);
             let raw = node.raw.slice(1, -1);
-            let eq = attrObject.escapeQ(raw, q);
-            raw = raw.replace(cmdPHReg, m => store[m]);
-            processQuot(raw, refTmplCommands, mxEvent, e);
-            add = eq != raw;
-            if (add) {
-                modifiers.push({
-                    start: node.start,
-                    end: node.end,
-                    content: q + eq + q
-                });
+            let replacement = raw.replace(htmlQEntityReg, (m, s, n) => {
+                return s && s.length % 2 ? m : s + '\\' + n;
+            });
+            if (raw != replacement) {
+                slog.ever('be careful!'.red, 'You should use', replacement.magenta, 'instead of', raw.magenta, 'at', e.shortHTMLFile.gray, 'in', mxEvent.magenta);
             }
+            let eq = attrObject.escapeQ(replacement, q);
+            replacement = replacement.replace(cmdPHReg, m => store[m]);
+            processQuot(replacement, refTmplCommands, mxEvent, e);
+            modifiers.push({
+                start: node.start,
+                end: node.end,
+                content: q + eq + q
+            });
         }
     };
     walker.simple(ast, {
         Property(node) {
-            node = node.key;
-            if (node.type == 'Literal') {
-                processString(node);
+            let key = node.key;
+            if (key.type == 'Literal') {
+                processString(key);
+            }
+            let value = node.value;
+            if (value.type == 'Identifier') {
+                let cmd = value.name.replace(cmdPHReg, m => store[m]);
+                cmd.replace(cmdReg, cm => {
+                    let oCmd = refTmplCommands[cm];
+                    if (oCmd) {
+                        oCmd.replace(unsupportOutCmdReg, m => {
+                            m = m.replace(removeTempReg, '');
+                            slog.ever(('unsupport ' + m).red, 'at', e.shortHTMLFile.gray, 'in', mxEvent.magenta);
+                        });
+                    }
+                });
             }
         },
         Literal: processString

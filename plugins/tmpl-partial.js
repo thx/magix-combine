@@ -24,7 +24,7 @@ let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
 let escape$ = str => {
-    return str.replace(/\$/g, '$$$$');
+    return str.replace(/\$/g, '$&$&');
 };
 let escapeQ = str => {
     return str.replace(/"/g, '&quot;');

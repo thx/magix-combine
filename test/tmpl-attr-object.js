@@ -98,3 +98,11 @@ let t11 = `
 `;
 let r11 = attrObject.likeObject(t11);
 expect(r11, ',"\u0017{a:\'\\&#x27;\',b:\'&quot;\'}"');
+
+let t12=`
+    {a:a,b:b}
+`;
+
+debugger;
+let r12=attrObject.likeObject(t12);
+console.log(r12);

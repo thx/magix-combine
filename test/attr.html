@@ -1,0 +1,27 @@
+<div mx-view="path/to/view" view-param1="&quot;<%=param1%>" view-param2="&quot;<%!param2%>"></div>
+
+=>
+
+<div mx-view="path/to/view?param1=%22<%!encodeURIComponent(param1)%>&params2=%22<%encodeURIComponent(decodeHTML(params2))%>" view-param1="<%=param1%>" view-param2="<%!param2%>"></div>
+
+<!--
+浏览器会对属性中的html实体进行decode,因此我们在参数转换的时候，也要做这个事情
+
+在前端实现decodeHTML代价太大，因此<%=与<%!结果相同，但打包工具会提示不要用<%!而是用<%=
+-->
+
+<div mx-click="open({key'\\&#39;<%=key%>',key2:'<%!key2%>'})"></div>
+
+=>
+
+
+<div mx-click="open({key'\\\&#39;<%=encodeQ(key)%>',key2:'&copy;<%!encodeQAndE(key2)%>'})"></div>
+
+<!--
+
+事件对象中只需要对字符串进行单双引号的转义，同时对实体也要转义。考虑单引号自身的转义
+对输出的变量进行单双引号转义即可，对于<%=　不需要转义实体。因为&符会被自动encodeHTML
+<%! 这种就原样输出，什么都不做，开发者要自己去处理转义等所有问题，打包工具会给出提示使用<%=而非<%!
+
+-->
+

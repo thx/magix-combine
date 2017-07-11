@@ -30,7 +30,6 @@ module.exports = {
             let index = 0;
             let htmlIndex = 0;
             let htmlStore = Object.create(null);
-
             //特殊处理绑定事件及参数
             tmpl = tmpl.replace(BindReg2, (m, left, expr, right) => {
                 let leftBrace = expr.indexOf('{');
@@ -38,10 +37,10 @@ module.exports = {
                     let fns = expr.slice(leftBrace);
                     //console.log(fns);
                     try {
-                        fns = attrObject.likeObject(fns);
+                        fns = ',' + attrObject.parseObject(fns, '\u0017', '\u0018');
+                        //console.log(fns);
                     } catch (ex) {
-                        slog.ever(ex.message.red);
-                        slog.ever(('unsupport complex object:' + fns).red);
+                        slog.ever(('check:' + fns).red);
                     }
                     expr = expr.slice(0, leftBrace) + fns;
                 }

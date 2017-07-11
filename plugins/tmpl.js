@@ -30,16 +30,16 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
     if (!fCache) {
         let temp = Object.create(null);
         cache[key] = temp;
-        fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
 
-        fileContent = tmplCmd.compile(fileContent);
-        //console.log(fileContent);
         let extInfo = {
             file: file
         };
+        fileContent = tmplMxTag.process(fileContent, extInfo);
+        fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
+        fileContent = tmplCmd.compile(fileContent);
+        //console.log(fileContent);
         e.srcHTMLFile = file;
         e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
-        fileContent = tmplMxTag.process(fileContent, extInfo);
 
         let refTmplCommands = Object.create(null);
         let refLeakGlobal = {

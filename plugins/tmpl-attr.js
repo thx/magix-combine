@@ -10,7 +10,7 @@ module.exports = {
             match = attrMxEvent(e, match, refTmplCommands);
             match = attrMxView(e, match, refTmplCommands);
             match = attrImg(e, tagName, match, refTmplCommands);
-            match = checker.Tmpl.checkLinkTag(e, tagName, match, refTmplCommands);
+            match = checker.Tmpl.checkTag(e, tagName, match, refTmplCommands);
             return match;
         });
     }

@@ -83,6 +83,8 @@ let SplitExpr = expr => { //拆分表达式，如"list[i].name[object[key[value]
     return stack;
 };
 
+let leftOuputReg = /\u0018",/g;
+let rightOutputReg = /,"/g;
 let ExtractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[change,input] user.name {refresh}%>  =>  evts:change,input  expr user.name  fns  refresh
     let fns = '';
     let evts = '';
@@ -96,7 +98,9 @@ let ExtractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[c
     if (firstComma > -1) {
         fns = expr.slice(firstComma + 2, -1);
         expr = expr.slice(0, firstComma);
-        fns = fns.replace(/",/g, '\'<%=').replace(/,"/g, '%>\',').replace(/,}$/, '}');
+        //console.log(fns);
+        fns = fns.replace(leftOuputReg, '\'<%=').replace(rightOutputReg, '%>\'');
+        //console.log(fns);
     }
     return {
         expr,
@@ -165,8 +169,8 @@ module.exports = {
             ast = acorn.parse(fn);
         } catch (ex) {
             slog.ever('parse html cmd ast error:', ex.message.red);
-            let html = recoverHTML(fn.slice(Math.max(ex.loc.column - 5, 0)));
-            slog.ever('near html:', (html.slice(0, 200)).green);
+            let html = recoverHTML(fn.slice(Math.max(ex.loc.column - 10, 0)));
+            slog.ever('near html:', (html.slice(0, 100)).green);
             slog.ever('html file:', sourceFile.gray);
             reject(ex);
         }
@@ -802,7 +806,7 @@ module.exports = {
                 for (let i = 0; i < bindEvents.length; i++) {
                     e = bindEvents[i];
                     info = oldEvents[e];
-                    now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + f + '})"';
+                    now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + f + '})" ';//最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
                 }
                 return now;
             };
