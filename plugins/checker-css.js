@@ -24,7 +24,7 @@ module.exports = {
         }
     },
     clearUsed(from) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         for (let p in fileSelectorsUsed) {
             let fInfo = fileSelectorsUsed[p];
             if (fInfo) {
@@ -36,7 +36,7 @@ module.exports = {
         }
     },
     clearUsedTags(from) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         for (let p in fileTagsUsed) {
             let fInfo = fileTagsUsed[p];
             if (fInfo) {
@@ -48,7 +48,7 @@ module.exports = {
         }
     },
     fileToTags(file, tags, processUsed) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         if (!filesToTags[file]) {
             filesToTags[file] = Object.assign(Object.create(null), tags);
             let a = markUsedTempTags[file];
@@ -71,7 +71,7 @@ module.exports = {
         }
     },
     fileToSelectors(file, selectors, processUsed) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         if (!filesToSelectors[file]) {
             filesToSelectors[file] = Object.assign(Object.create(null), selectors);
             let a = markUsedTemp[file];
@@ -94,7 +94,7 @@ module.exports = {
         }
     },
     markExists(name, currentFile, prevFiles) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         let key = [name, currentFile, prevFiles].join('\u0000');
         if (!existsSelectors[key]) {
             existsSelectors[key] = true;
@@ -106,14 +106,14 @@ module.exports = {
         }
     },
     markUnexists(name, currentFile) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         if (!unexists[currentFile]) {
             unexists[currentFile] = Object.create(null);
         }
         unexists[currentFile][name] = name;
     },
     markUsed(files, selectors, host) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -145,7 +145,7 @@ module.exports = {
         });
     },
     markUsedTags(files, tags, host) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -178,14 +178,14 @@ module.exports = {
         });
     },
     markLazyDeclared(selector) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         for (let p in filesUndeclared) {
             let info = filesUndeclared[p];
             delete info[selector];
         }
     },
     markUndeclared(file, selector) {
-        if (!configs.check) return;
+        if (!(configs.check || configs.checkCss)) return;
         let r = filesUndeclared[file];
         if (!r) {
             r = filesUndeclared[file] = Object.create(null);
@@ -202,7 +202,7 @@ module.exports = {
     },
     output() {
         let p, keys, outCss = false;
-        if (configs.check) {
+        if (configs.check && configs.checkCss) {
             for (let p in fileGlobals) {
                 outCss = true;
                 let info = fileGlobals[p];

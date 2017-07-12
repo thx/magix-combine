@@ -64,6 +64,9 @@ module.exports = {
                         reqInfo.replacement = match.replace(anchor, '');
                     }
                 }
+                if (configs.loaderType == 'kissy') {
+                    reqInfo.replacement = '';
+                }
                 return reqInfo.replacement;
             });
             deps = deps.concat(noKeyDeps);

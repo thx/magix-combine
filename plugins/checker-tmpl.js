@@ -39,6 +39,7 @@ let uncheckReg = /^javascript:\s*;?['"]?\s+/g;
 let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:[\s\S]+?\1/g;
 
 let targetSelfReg = /\btarget\s*=\s*(['"])_self\1/g;
+let allowClickReg = /onclick\s*=\s*(['"])return\s+false;*\1/;
 /*
     xss
     十六进制　&#x20;
@@ -72,6 +73,8 @@ module.exports = {
         }
 
         match.replace(dnagerousAttrReg, (m, attr) => {
+            allowClickReg.lastIndex = 0;
+            if (allowClickReg.test(m)) return;
             m = tmplCmd.recover(m, refTmplCommands);
             slog.ever(('remove dnagerous attr ' + attr).red, 'at', e.shortHTMLFile.gray, 'near', m.magenta);
         });

@@ -28,7 +28,7 @@ module.exports = (node, comments, tmpl, e) => {
         return true;
     };
     let walk = (expr, lc, outerLoop) => {
-        if (expr) {
+        if (Array.isArray(expr) || expr instanceof Object) {
             let walkSub = true;
             switch (expr.type) {
                 case 'ForStatement':

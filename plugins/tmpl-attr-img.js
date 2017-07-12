@@ -9,7 +9,7 @@ module.exports = (e, tagName, match, refTmplCommands) => {
             value = tmplCmd.recover(value, refTmplCommands);
             value = configs.tmplImgSrcMatched(value);
             if (configs.check) {
-                slog.ever('tmpl-tag-img match:', value, e.shortHTMLFile.gray);
+                slog.ever('tmpl-attr-img match:', value, e.shortHTMLFile.gray);
             }
             return 'src=' + q + value + q;
         });

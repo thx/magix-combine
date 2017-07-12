@@ -78,6 +78,15 @@ let isBagCall = (node, paramsObject) => {
     }
     return false;
 };
+let isNotBagParams = (node, paramsObject) => {
+    let prop = node.callee.property;
+    let co = node.callee.object;
+    let coName = co && co.name;
+    if (!prop || !(prop.name == 'get' || prop.name == 'set') || !paramsObject[coName]) {
+        return true;
+    }
+    return false;
+};
 //检测是否缺少默认值
 let isMissingDefaultValueBagCall = node => {
     let args = node.arguments;
@@ -100,7 +109,7 @@ let maybeErrorBagCall = (node, paramsObject) => {
                 if (isMissingDefaultValueBagCall(start) || count > 1) {
                     key = start.start + '@' + start.end;
                     missingDefault = true;
-                } else {
+                } else if (start.arguments.length == 2) {
                     let a1 = start.arguments[1];
                     dType = a1.type;
                 }
@@ -156,6 +165,7 @@ module.exports = (node, comments, tmpl, e) => {
     }
     let paramsObject = Object.create(null);
     let usedParams = Object.create(null);
+    let notBagParams = Object.create(null);
     let maybeError = [];
     let varTracker = Object.create(null);
     let safeguard = [];
@@ -265,9 +275,9 @@ module.exports = (node, comments, tmpl, e) => {
             //var b=bag&&bag.x&&bag.x.y情况
         } else if (expr.type == 'LogicalExpression') {
             //左边是保护区
-            if (expr.operator == '&&' || expr.left.value) {
-                sge(expr.left, oexpr);
-            }
+            //if (expr.operator == '&&' || expr.left.value) {
+            sge(expr.left, oexpr);
+            //}
             assign(expr.right, oexpr, vname, sge);
             //let l = getLongestExpr(expr.left, varTracker);
             //let r = getLongestExpr(expr.right, varTracker);
@@ -296,6 +306,17 @@ module.exports = (node, comments, tmpl, e) => {
                     aexpr = expr.alternate;
                 }
                 assign(aexpr, oexpr, vname, sge);
+            }
+        } else {
+            let p = varTracker[vname];
+            if (p) {
+                safeguard.push({
+                    safed: {
+                        [vname]: 1
+                    },
+                    start: expr.start,
+                    end: tmpl.length
+                });
             }
         }
     };
@@ -394,27 +415,34 @@ module.exports = (node, comments, tmpl, e) => {
         }
     };
     let walk = expr => {
-        if (expr) {
+        if (Array.isArray(expr) || expr instanceof Object) {
             if (expr.type == 'CallExpression') {
-                callPoints[expr.start] = expr;
-                let isBC = isBagCall(expr, paramsObject);
                 let co = expr.callee.object;
                 let coName = co && co.name;
-                if (isBC) {
-                    usedParams[coName] = 1;
-                    //形如 bag.get('xxx')的情况，这种要提示用户
-                    if (isMissingDefaultValueBagCall(expr)) {
-                        let nearRN = findLeftRNIndex(tmpl, expr.start);
-                        let part = tmpl.slice(expr.start, expr.end);
-                        let near = (tmpl.slice(nearRN, expr.start) + part).trim();
-                        let replacement = near.slice(0, -1) + ',defaultValue)';
-                        maybeError.push({
-                            type: 'bc',
-                            pos: expr.start,
-                            part,
-                            near,
-                            replacement
-                        });
+                let notBag = isNotBagParams(expr, paramsObject);
+                if (notBag) {
+                    if (coName) {
+                        notBagParams[coName] = 1;
+                    }
+                } else {
+                    callPoints[expr.start] = expr;
+                    let isBC = isBagCall(expr, paramsObject);
+                    if (isBC) {
+                        usedParams[coName] = 1;
+                        //形如 bag.get('xxx')的情况，这种要提示用户
+                        if (isMissingDefaultValueBagCall(expr)) {
+                            let nearRN = findLeftRNIndex(tmpl, expr.start);
+                            let part = tmpl.slice(expr.start, expr.end);
+                            let near = (tmpl.slice(nearRN, expr.start) + part).trim();
+                            let replacement = near.slice(0, -1) + ',defaultValue)';
+                            maybeError.push({
+                                type: 'bc',
+                                pos: expr.start,
+                                part,
+                                near,
+                                replacement
+                            });
+                        }
                     }
                 }
             } else if (expr.type == 'MemberExpression') {
@@ -528,6 +556,9 @@ module.exports = (node, comments, tmpl, e) => {
     };
     walk(node.body.body);
 
+    for (let p in notBagParams) {
+        delete usedParams[p];
+    }
     //定义的参数都用了，如果某一个没用到，则这个接口也无须请求
     if (Object.keys(paramsObject).length == Object.keys(usedParams).length) {
         memberExpressions.forEach(it => {

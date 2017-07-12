@@ -37,6 +37,7 @@ let genMsg = (completed, total) => {
 };
 module.exports = {
     walk: fd.walk,
+    readFile: fd.read,
     copyFile: fd.copy,
     writeFile: fd.write,
     removeFile(from) {
