@@ -1,3 +1,6 @@
+/*
+    文件操作
+ */
 let fs = require('fs');
 let path = require('path');
 let sep = path.sep;

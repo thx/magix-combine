@@ -1,3 +1,6 @@
+/*
+    检测js代码中的循环嵌套，在以往的代码review中，通常3层以上的循环都可以通过合理的数据结构避免
+ */
 let slog = require('./util-log');
 module.exports = (node, comments, tmpl, e) => {
     let outerExprs = [];

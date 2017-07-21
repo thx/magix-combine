@@ -1,17 +1,18 @@
-//模板，处理class名称，前面我们把css文件处理完后，再自动处理掉模板文件中的class属性中的名称，不需要开发者界入处理
-
+/*
+    处理class名称，前面我们把css文件处理完后，再自动处理掉模板文件中的class属性中的名称，不需要开发者界入处理
+ */
 let configs = require('./util-config');
 let checker = require('./checker');
+let deps = require('./util-deps');
 let classReg = /\bclass\s*=\s*(['"])([^'"]+)(?:\1)/g;
 let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
 let selfCssReg = /@:([\w\-]+)/g;
 let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-let Tmpl_Mathcer = /<%([=!])?([\s\S]+?)%>/;
+let tmplCmdReg = /<%([=!])?([\s\S]+?)%>/;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let attrReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?/g;
-let deps = require('./util-deps');
 module.exports = {
     process(tmpl, cssNamesMap, refTmplCommands, e) {
         let tempCache = Object.create(null);
@@ -44,7 +45,7 @@ module.exports = {
                 tmplCommandAnchorReg.lastIndex = 0;
                 m.replace(tmplCommandAnchorReg, tm => {
                     let cmd = refTmplCommands[tm];
-                    if (Tmpl_Mathcer.test(cmd)) {
+                    if (tmplCmdReg.test(cmd)) {
                         refTmplCommands[tm] = cmd.replace(stringReg, cmdProcessor);
                     }
                 });

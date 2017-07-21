@@ -1,3 +1,7 @@
+/*
+    js内容处理
+    mx单文件转换->开始编译钩子(beforeProcessor,es6->es3)->js中的@规则识别及代码检查->处理样式->处理模板->处理js代码片断->编译结束钩子->缓存文件内容
+ */
 let util = require('util');
 let fd = require('./util-fd');
 let jsMx = require('./js-mx');
@@ -15,12 +19,12 @@ let walker = require('acorn/dist/walk');
 let fileCache = require('./js-fcache');
 let jsSnippet = require('./js-snippet');
 
-let StringReg = /^['"]/;
+let stringReg = /^['"]/;
 let mxTailReg = /\.mx$/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /(['"])(@moduleId)\1/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
-let htmlFileReg = /(['"])(?:raw)?@[^'"]+\.html(:data|:keys|:events)?\1/;
+let htmlFileReg = /(['"])(?:raw|magix)?@[^'"]+\.html(:data|:keys|:events)?\1/;
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
 let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
 let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;
@@ -35,7 +39,6 @@ let processContent = (from, to, content, inwatch) => {
         contentInfo = jsMx.process(content, from);
         content = contentInfo.script;
     }
-    content = configs.beforeProcessContent(content, from);
     let execBeforeProcessor = true,
         execAfterProcessor = true;
     let exclude = false;
@@ -72,6 +75,7 @@ let processContent = (from, to, content, inwatch) => {
         return Promise.resolve(fInfo);
     }
     let before = Promise.resolve(content);
+    let originalContent = content;
     if (execBeforeProcessor) {
         before = configs.compileBeforeProcessor(content, from);
         if (util.isString(before)) {
@@ -87,6 +91,7 @@ let processContent = (from, to, content, inwatch) => {
             exclude: exclude,
             to: to,
             from: from,
+            vendorCompile: originalContent != content,
             shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
             content: content,
             writeFile: !isSnippet,
@@ -123,9 +128,9 @@ let processContent = (from, to, content, inwatch) => {
         let toTops = [];
         let toBottoms = [];
         let processString = node => { //存储字符串，减少分析干扰
-            StringReg.lastIndex = 0;
+            stringReg.lastIndex = 0;
             let add = false;
-            if (StringReg.test(node.raw)) {
+            if (stringReg.test(node.raw)) {
                 if (moduleIdReg.test(node.raw)) {
                     node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
                     add = true;
@@ -187,10 +192,8 @@ let processContent = (from, to, content, inwatch) => {
             },
             Literal: processString
         });
-        if (configs.check) {
-            let walkerProcessor = checker.JS.getWalker(comments, tmpl, e);
-            walker.simple(ast, walkerProcessor);
-        }
+        let walkerProcessor = checker.JS.getWalker(comments, tmpl, e);
+        walker.simple(ast, walkerProcessor);
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });

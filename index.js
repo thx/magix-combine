@@ -49,7 +49,14 @@ module.exports = {
     },
     config(cfg) {
         for (let p in cfg) {
-            configs[p] = cfg[p];
+            if (p !== 'checker') {
+                configs[p] = cfg[p];
+            }
+        }
+        if (cfg && cfg.hasOwnProperty('checker') && !cfg.checker) {
+            configs.checker = {};
+        } else {
+            configs.checker = Object.assign(configs.checker, cfg.checker);
         }
         configs.globalCss = configs.globalCss.map(p => path.resolve(p));
         configs.scopedCss = configs.scopedCss.map(p => path.resolve(p));

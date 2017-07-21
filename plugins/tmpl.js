@@ -1,3 +1,6 @@
+/*
+    模板处理总入口
+ */
 let path = require('path');
 let fs = require('fs');
 let util = require('util');
@@ -15,7 +18,7 @@ let tmplPartial = require('./tmpl-partial');
 let tmplVars = require('./tmpl-vars');
 let slog = require('./util-log');
 //模板处理，即处理view.html文件
-let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw)?\u0012@([^'"]+)\.html\2/g;
+let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw|magix)?\u0012@([^'"]+)\.html\2/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let sep = path.sep;
 let holder = '\u001f';
@@ -24,8 +27,8 @@ let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 
 
-let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file) => {
-    let key = prefix + holder + raw + holder + fileContent;
+let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file) => {
+    let key = prefix + holder + magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
         let temp = Object.create(null);
@@ -42,12 +45,14 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
         e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
 
         let refTmplCommands = Object.create(null);
-        let refLeakGlobal = {
+        e.refLeakGlobal = {
             reassigns: []
         };
-        if (!configs.disableMagixUpdater && !raw) {
-            fileContent = tmplVars.process(fileContent, reject, e.shortHTMLFile, refLeakGlobal);
+
+        if (!configs.disableMagixUpdater && magixTmpl) {
+            fileContent = tmplVars.process(fileContent, reject, e);
         }
+
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
         if (configs.outputTmplWithEvents) {
@@ -61,12 +66,12 @@ let processTmpl = (fileContent, cache, cssNamesMap, raw, e, reject, prefix, file
             slog.ever('minify error : ' + ex, ('html file: ' + e.shortHTMLFile).red);
             reject(ex);
         }
-        if (prefix && !configs.disableMagixUpdater && !raw) {
-            fileContent = tmplGuid.add(fileContent, refTmplCommands, refLeakGlobal);
-            if (refLeakGlobal.exists) {
+        if (!configs.disableMagixUpdater && magixTmpl) {
+            fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
+            if (e.refLeakGlobal.exists) {
                 slog.ever('segment failed'.red, 'at', e.shortHTMLFile.magenta, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
-                if (refLeakGlobal.reassigns) {
-                    refLeakGlobal.reassigns.forEach(it => {
+                if (e.refLeakGlobal.reassigns) {
+                    e.refLeakGlobal.reassigns.forEach(it => {
                         slog.ever(it);
                     });
                 }
@@ -95,7 +100,7 @@ module.exports = e => {
             fileContentCache = Object.create(null);
 
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
-        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, raw, name) => {
+        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, ctrl, name) => {
             name = atpath.resolvePath(name, moduleId);
             //console.log(raw,name,prefix,configs.outputTmplWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.html');
@@ -108,8 +113,9 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
+                let magixTmpl = !configs.disableMagixUpdater && ((prefix && ctrl != 'raw') || ctrl == 'magix');
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, raw, e, reject, prefix, file);
+                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file);
                 //if (ext == ':events') { //事件
                 //    return JSON.stringify(fcInfo.events);
                 //}
@@ -119,12 +125,12 @@ module.exports = e => {
                 //if (ext == ':keys') {
                 //    return JSON.stringify(fcInfo.info.keys);
                 //}
-                if (prefix && !configs.disableMagixUpdater && !raw) {
+                if (magixTmpl) {
                     let temp = {
                         html: fcInfo.info.tmpl,
                         subs: fcInfo.info.list
                     };
-                    return prefix + JSON.stringify(temp);
+                    return (prefix || '') + JSON.stringify(temp);
                 }
                 if (prefix && configs.outputTmplWithEvents) {
                     return prefix + JSON.stringify({

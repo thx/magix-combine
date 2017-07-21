@@ -87,6 +87,56 @@ declare module "magix-combine" {
          */
         replacement?: string
     }
+    interface ICheckerConfig {
+        /**
+         * 样式
+         */
+        css: boolean
+        /**
+         * 样式中的url
+         */
+        cssUrl: boolean
+        /**
+         * js循环
+         */
+        jsLoop: boolean
+        /**
+         * js接口服务
+         */
+        jsService: boolean
+        /**
+         * js this别名
+         */
+        jsThis: boolean
+        /**
+         * 模板img属性
+         */
+        tmplAttrImg: boolean
+        /**
+         * 不允许的标签
+         */
+        tmplDisallowedTag: boolean
+        /**
+         * 危险的属性
+         */
+        tmplAttrDangerous: boolean
+        /**
+         * 需要添加noopener
+         */
+        tmplAttrNoopener: boolean
+        /**
+         * 检测anchor类标签
+         */
+        tmplAttrAnchor: boolean
+        /**
+         * mx事件
+         */
+        tmplAttrMxEvent: boolean
+        /**
+         * mx view
+         */
+        tmplAttrMxView: boolean
+    }
     interface IConfig {
         /**
          * 生成样式文件md5结果截取的长度，默认为2
@@ -133,13 +183,13 @@ declare module "magix-combine" {
          */
         htmlminifierOptions?: object
         /**
-         * 是否输出log信息。默认为true
+         * 是否输出日志信息。默认为true
          */
         log?: boolean
         /**
-         * 是否输出项目检测信息。默认为true
+         * 检测对象
          */
-        check?: boolean
+        checker?: ICheckerConfig
         /**
          * 是否压缩css内容。默认为true
          */
@@ -205,10 +255,6 @@ declare module "magix-combine" {
          */
         tmplPadCallArguments?: (name: string) => string
         /**
-         * 开始处理内容前调用
-         */
-        beforeProcessContent?: (content: string, from?: string) => string
-        /**
          * 编译文件被写入硬盘时调用
          */
         beforeWriteFile?: (e: ICombineResult) => void
@@ -266,6 +312,12 @@ declare module "magix-combine" {
      */
     function walk(folder: string, callback: (file: string) => void): void
 
+    /**
+     * 读取文件内容
+     * @param file 文件路径
+     * @param original 是否二进制数据
+     */
+    function readFile<T>(file: string, original: boolean): T
     /**
      * 复制文件，当复制到的路径中文件夹不存在时，会自动创建文件夹
      * @param from 源文件位置

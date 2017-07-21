@@ -1,3 +1,6 @@
+/*
+    缓存文件内容
+ */
 let deps = require('./util-deps');
 let fileCache = Object.create(null);
 let clearDeps = (f, locker) => {

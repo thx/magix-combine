@@ -1,3 +1,6 @@
+/*
+    读取样式文件内容，如果是sass,less等则进行编译后返回
+ */
 let fs = require('fs');
 let path = require('path');
 

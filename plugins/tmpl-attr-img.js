@@ -1,15 +1,17 @@
-//处理img标签
+/*
+    处理img标签，加入修改src的钩子，用于动态加载如webp格式的图片
+*/
 let configs = require('./util-config');
 let slog = require('./util-log');
 let tmplCmd = require('./tmpl-cmd');
 let srcReg = /src\s*=\s*(["'])([\s\S]+?)\1(?=\s|\/|>)/ig;
-module.exports = (e, tagName, match, refTmplCommands) => {
+module.exports = (e, tagName, match, refTmplCommands, toSrc) => {
     if (tagName.toLowerCase() == 'img') {
         match = match.replace(srcReg, (m, q, value) => {
             value = tmplCmd.recover(value, refTmplCommands);
             value = configs.tmplImgSrcMatched(value);
-            if (configs.check) {
-                slog.ever('tmpl-attr-img match:', value, e.shortHTMLFile.gray);
+            if (configs.checker.tmplAttrImg) {
+                slog.ever('tmpl-attr-img match:', toSrc(value), e.shortHTMLFile.gray);
             }
             return 'src=' + q + value + q;
         });

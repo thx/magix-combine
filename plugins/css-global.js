@@ -1,3 +1,9 @@
+/*
+    全局样式的处理
+    1.　不推荐的global样式
+    2.　全局scoped样式
+    https://github.com/thx/magix-combine/issues/24
+ */
 let configs = require('./util-config');
 let checker = require('./checker');
 let cssFileRead = require('./css-read');
@@ -156,7 +162,7 @@ let processScope = ctx => {
                         }
                     }
                 }
-                let tokens = cssParser(scopedStyle).tokens;
+                let tokens = cssParser(scopedStyle, 'scoped.style').tokens;
                 for (let i = tokens.length - 1; i >= 0; i--) {
                     let token = tokens[i];
                     let id = token.name;

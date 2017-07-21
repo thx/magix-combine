@@ -1,3 +1,6 @@
+/*
+    增加mx-tag自定义标签的处理，方便开发者提取公用的html片断
+ */
 let configs = require('./util-config');
 let tmplCmd = require('./tmpl-cmd');
 let snippetReg = /<mx-([\w-]+)([^>]*)>([\s\S]*?)<\/mx-\1>/g;

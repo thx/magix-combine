@@ -1,3 +1,6 @@
+/*
+    处理代码片断，如'top@./list.js'，用于手动合并一些代码
+ */
 let deps = require('./util-deps');
 let configs = require('./util-config');
 let path = require('path');

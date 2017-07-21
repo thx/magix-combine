@@ -1,4 +1,6 @@
-//处理mx后缀的文件
+/*
+    处理mx后缀的单文件
+ */
 let path = require('path');
 let templateReg = /<template>([\s\S]+?)<\/template>/i;
 let styleReg = /<style([^>]*)>([\s\S]+?)<\/style>/i;

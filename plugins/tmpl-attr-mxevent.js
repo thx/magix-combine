@@ -1,9 +1,13 @@
-//mx事件处理
+/*
+    mx事件处理
+    1.　检测是否按要求书写的事件
+    2.　检测单双引号的实体转义
+    3.　检测不支持的写法
+ */
 let configs = require('./util-config');
 let checker = require('./checker');
 let slog = require('./util-log');
 let attrObject = require('./tmpl-attr-object');
-let tmplCmd = require('./tmpl-cmd');
 let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
 let tmplChecker = checker.Tmpl;
@@ -15,12 +19,12 @@ let stringReg = /^['"]/;
 let mxEventReg = /\bmx-(?!view|vframe|init|owner|autonomy|datafrom)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
-let processQuot = (str, refTmplCommands, mxEvent, e) => {
+let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
     str.replace(cmdReg, cm => {
         let cmd = refTmplCommands[cm];
         if (cmd) {
             cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
-                tmplChecker.checkMxEventParamsCMD(o, m, c, mxEvent, e);
+                tmplChecker.checkMxEventParamsCMD(o, toSrc(m), toSrc(c), mxEvent, e);
                 if (o == '=') {
                     return '<%=$eq(' + c + ')%>';
                 }
@@ -33,7 +37,7 @@ let processQuot = (str, refTmplCommands, mxEvent, e) => {
 let cmdPHReg = /\u00aa\u00ff\d+\u00aa\u00ff/g;
 let htmlQEntityReg = /(\\*)(&quot;?|&#x22;?|&#x27;?|&#34;?|&#39;?)/g;
 let cmdKey = String.fromCharCode(0xaa, 0xff);
-let encodeParams = (params, refTmplCommands, mxEvent, e) => {
+let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     let index = 0;
     let store = Object.create(null);
     params = '(' + params.replace(cmdReg, m => {
@@ -52,11 +56,11 @@ let encodeParams = (params, refTmplCommands, mxEvent, e) => {
                 return s && s.length % 2 ? m : s + '\\' + n;
             });
             if (raw != replacement) {
-                slog.ever('be careful!'.red, 'You should use', replacement.magenta, 'instead of', raw.magenta, 'at', e.shortHTMLFile.gray, 'in', mxEvent.magenta);
+                slog.ever('be careful!'.red, 'You should use', replacement.magenta, 'instead of', raw.magenta, 'at', e.shortHTMLFile.gray, 'in', mxEvent.replace(removeTempReg, '').magenta);
             }
             let eq = attrObject.escapeQ(replacement, q);
             replacement = replacement.replace(cmdPHReg, m => store[m]);
-            processQuot(replacement, refTmplCommands, mxEvent, e);
+            processQuot(replacement, refTmplCommands, mxEvent, e, toSrc);
             modifiers.push({
                 start: node.start,
                 end: node.end,
@@ -78,7 +82,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e) => {
                     if (oCmd) {
                         oCmd.replace(unsupportOutCmdReg, m => {
                             m = m.replace(removeTempReg, '');
-                            slog.ever(('unsupport ' + m).red, 'at', e.shortHTMLFile.gray, 'in', mxEvent.magenta);
+                            slog.ever(('unsupport ' + m).red, 'at', e.shortHTMLFile.gray, 'in', mxEvent.replace(removeTempReg, '').magenta);
                         });
                     }
                 });
@@ -96,34 +100,48 @@ let encodeParams = (params, refTmplCommands, mxEvent, e) => {
     params = params.replace(cmdPHReg, m => store[m]);
     return params.slice(1, -1);
 };
-module.exports = (e, match, refTmplCommands) => {
+module.exports = (e, match, refTmplCommands, toSrc) => {
     if (configs.addEventPrefix) { //增加事件前缀
         match = match.replace(mxEventReg, (m, name, double, single) => { //查找事件
             tmplChecker.checkMxEventName(name, e);
             if (double || single) {
-                tmplChecker.checkMxEvengSingQuote(single, m, e);
-                let left = m.indexOf('(');
-                let right = m.indexOf(')');
-                if (left > -1 && right > -1) {
-                    let params = m.slice(left + 1, right).trim();
-                    if (params) {
-                        tmplChecker.checkMxEventParams(name, params, m, e);
-                        params = encodeParams(params, refTmplCommands, tmplCmd.recover(m, refTmplCommands).replace(removeTempReg, ''), e);
-                    }
-                    left = m.slice(0, left + 1);
-                    right = (params || '') + m.slice(right);
+                let originalMatch = toSrc(m);
+                tmplChecker.checkMxEvengSingQuote(single, originalMatch, e);
+                if (configs.disableMagixUpdater) {
+                    let left = m.indexOf('=');
+                    let idx = left;
+                    do {
+                        idx++;
+                        let c = m.charAt(idx);
+                        if (c != ' ' && c != '"' && c != '\'') {
+                            break;
+                        }
+                    } while (idx < m.length);
+                    return m.slice(0, idx) + holder + magixHolder + m.slice(idx);
                 } else {
-                    slog.ever(('bad event:' + m).red, 'at', e.shortHTMLFile.gray);
-                    left = m;
-                    right = '';
+                    let left = m.indexOf('(');
+                    let right = m.indexOf(')');
+                    if (left > -1 && right > -1) {
+                        let params = m.slice(left + 1, right).trim();
+                        if (params) {
+                            tmplChecker.checkMxEventParams(name, params, originalMatch, e);
+                            params = encodeParams(params, refTmplCommands, originalMatch, e, toSrc);
+                        }
+                        left = m.slice(0, left + 1);
+                        right = (params || '') + m.slice(right);
+                    } else {
+                        slog.ever(('bad event:' + m).red, 'at', e.shortHTMLFile.gray);
+                        left = m;
+                        right = '';
+                    }
+                    let start = left.indexOf('=');
+                    let c;
+                    do {
+                        c = left.charAt(start);
+                        start++;
+                    } while (c != '"' && c != '\'');
+                    return left.slice(0, start) + holder + magixHolder + left.slice(start) + right;
                 }
-                let start = left.indexOf('=');
-                let c;
-                do {
-                    c = left.charAt(start);
-                    start++;
-                } while (c != '"' && c != '\'');
-                return left.slice(0, start) + holder + magixHolder + left.slice(start) + right;
             }
             return m;
         });

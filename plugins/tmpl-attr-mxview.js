@@ -1,7 +1,10 @@
+/*
+    mx-view属性处理
+ */
 let atpath = require('./util-atpath');
 let configs = require('./util-config');
 let checker = require('./checker');
-let tmplUnescape = require('./tmpl-unescape');
+let tmplUnescape = require('html-entities-decoder');
 let tmplChecker = checker.Tmpl;
 //let tmplCmd = require('./tmpl-cmd');
 
@@ -20,7 +23,7 @@ let encodeMore = {
 
 let encodeMoreReg = /[!')(*]/g;
 let encodeReplacor = m => encodeMore[m];
-module.exports = (e, match, refTmplCommands) => {
+module.exports = (e, match, refTmplCommands, toSrc) => {
     mxViewAttrReg.lastIndex = 0;
     if (mxViewAttrReg.test(match)) { //带有mx-view属性才处理
         if (configs.useAtPathConverter) { //如果启用@路径转换规则
@@ -47,7 +50,7 @@ module.exports = (e, match, refTmplCommands) => {
                 });
                 let cs = content.split(cmdReg); //按命令拆分，则剩余的都是普通字符串
                 for (let i = 0; i < cs.length; i++) {
-                    cs[i] = tmplUnescape.unescape(cs[i]); //对转义字符回转一次，浏览器的行为，这里view-最终并不是标签属性，所以这里模拟浏览器的特性。
+                    cs[i] = tmplUnescape(cs[i]); //对转义字符回转一次，浏览器的行为，这里view-最终并不是标签属性，所以这里模拟浏览器的特性。
                     cs[i] = encodeURIComponent(cs[i]).replace(encodeMoreReg, encodeReplacor); //对这个普通字符串做转义处理
                     if (i < cmdTemp.length) { //把命令还原回去
                         cs[i] = cs[i] + cmdTemp[i];
@@ -74,7 +77,7 @@ module.exports = (e, match, refTmplCommands) => {
                     let cmd = refTmplCommands[cm];
                     if (cmd) {
                         cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
-                            tmplChecker.checkMxViewParamsEscape(o, c, m, content.slice(0, q), e);
+                            tmplChecker.checkMxViewParamsEscape(o, toSrc(c), toSrc(m), content.slice(0, q), e);
                             return '<%!$eu(' + c + ')%>';
                         });
                         refTmplCommands[cm] = cmd;

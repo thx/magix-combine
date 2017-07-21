@@ -1,18 +1,17 @@
+/*
+    子模板拆分
+ */
 let tmplCmd = require('./tmpl-cmd');
 let slog = require('./util-log');
-//模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
-//生成子模板匹配正则
-let subReg = (() => {
-    let temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
-    let start = 12; //嵌套12层在同一个view中也足够了
-    while (start--) {
-        temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
-    }
-    temp = temp.replace('#', '[\\s\\S]*?');
-    return new RegExp(temp, 'ig');
-})();
+let regexp = require('./util-rcache');
+let configs = require('./util-config');
+let {
+    getProps,
+    getBooleanProps,
+    maybeAttr
+} = require('./tmpl-attr-map');
 let holder = '\u001d';
-let slashAnchorReg = /\u0004/g;
+//let slashAnchorReg = /\u0004/g;
 //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
 let selfCloseTag = /<([^>\s\/]+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
 let extractAttrsReg = /<[^>\s\/]+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
@@ -23,17 +22,27 @@ let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
-let escape$ = str => {
-    return str.replace(/\$/g, '$&$&');
-};
-let escapeQ = str => {
-    return str.replace(/"/g, '&quot;');
-};
+let escape$ = str => str.replace(/\$/g, '$&$&');
+let escapeQ = str => str.replace(/"/g, '&#34;');
 //恢复被替换的模板引擎命令
-let commandAnchorRecover = (tmpl, refTmplCommands) => {
-    return tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
-};
+let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 let dataKeysReg = /\u0003\.([\w$]+)\.?/g;
+let trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007|$)/g;
+let trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
+let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
+let stringReg = /(['"])([a-z]+)\1/g;
+
+//模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
+//生成子模板匹配正则
+let subReg = (() => {
+    let temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
+    let start = 12; //嵌套12层在同一个view中也足够了
+    while (start--) {
+        temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
+    }
+    temp = temp.replace('#', '[\\s\\S]*?');
+    return regexp.get(temp, 'ig');
+})();
 let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
     let attrKeys = Object.create(null);
     let tmplKeys = Object.create(null);
@@ -69,206 +78,12 @@ let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
         tmplKeys: tmplKeys
     };
 };
-let tagsBooleanPrpos = {
-    input: {
-        disabled: 1,
-        readonly: 1,
-        required: 1,
-        multiple: 1
-    },
-    'input&checkbox': {
-        disabled: 1,
-        checked: 1
-    },
-    'input&radio': {
-        disabled: 1,
-        checked: 1
-    },
-    'input&number': {
-        disabled: 1,
-        readonly: 1
-    },
-    'input&range': {
-        disabled: 1,
-        readonly: 1
-    },
-    textarea: {
-        disabled: 1,
-        readonly: 1,
-        required: 1,
-        spellcheck: 1
-    },
-    select: {
-        disabled: 1,
-        multiple: 1,
-        required: 1
-    },
-    audio: {
-        autoplay: 1,
-        controls: 1,
-        loop: 1,
-        muted: 1
-    },
-    video: {
-        autoplay: 1,
-        controls: 1,
-        loop: 1,
-        muted: 1
-    },
-    button: {
-        disabled: 1
-    }
-};
-let tagsProps = {
-    input: {
-        maxlength: 'maxLength',
-        minlength: 'minLength',
-        disabled: 'disabled',
-        readonly: 'readOnly',
-        value: 'value',
-        placeholder: 'placeholder',
-        required: 'required',
-        size: 'size',
-        pattern: 'pattern',
-        multiple: 'multiple',
-        autocomplete: 'autocomplete'
-    },
-    'input&checkbox': {
-        disabled: 'disabled',
-        checked: 'checked',
-        value: 'value'
-    },
-    'input&radio': {
-        disabled: 'disabled',
-        checked: 'checked',
-        value: 'value'
-    },
-    'input&number': {
-        disabled: 'disabled',
-        readonly: 'readOnly',
-        value: 'value',
-        placeholder: 'placeholder',
-        size: 'size',
-        max: 'max',
-        min: 'min',
-        step: 'step'
-    },
-    'input&range': {
-        disabled: 'disabled',
-        readonly: 'readOnly',
-        value: 'value',
-        max: 'max',
-        min: 'min',
-        step: 'step'
-    },
-    'input&file': {
-        accept: 'accept'
-    },
-    textarea: {
-        cols: 'cols',
-        rows: 'rows',
-        value: 'value',
-        placeholder: 'placeholder',
-        readonly: 'readOnly',
-        required: 'required',
-        maxlength: 'maxLength',
-        minlength: 'minLength',
-        spellcheck: 'spellcheck'
-    },
-    select: {
-        disabled: 'disabled',
-        multiple: 'multiple',
-        size: 'size',
-        required: 'required'
-    },
-    form: {
-        action: 'action',
-        target: 'target',
-        method: 'method',
-        enctype: 'enctype'
-    },
-    iframe: {
-        src: 'src',
-        scrolling: 'scrolling'
-    },
-    a: {
-        href: 'href',
-        charset: 'charset',
-        hreflang: 'hreflang',
-        name: 'name',
-        rel: 'rel',
-        rev: 'rev',
-        target: 'target'
-    },
-    th: {
-        colspan: 'colSpan',
-        rowspan: 'rowSpan'
-    },
-    td: {
-        colspan: 'colSpan',
-        rowspan: 'rowSpan'
-    },
-    img: {
-        src: 'src',
-        alt: 'alt',
-        width: 'width',
-        height: 'height'
-    },
-    audio: {
-        autoplay: 'autoplay',
-        controls: 'controls',
-        src: 'src',
-        loop: 'loop',
-        muted: 'muted',
-        volume: 'volume'
-    },
-    video: {
-        autoplay: 'autoplay',
-        controls: 'controls',
-        src: 'src',
-        loop: 'loop',
-        muted: 'muted',
-        volume: 'volume',
-        width: 'width',
-        height: 'height'
-    },
-    button: {
-        disabled: 'disabled',
-        value: 'value'
-    },
-    canvas: {
-        width: 'width',
-        height: 'height'
-    }
-};
-let globalProps = {
-    id: 'id',
-    class: 'className',
-    title: 'title',
-    dir: 'dir',
-    accesskey: 'accessKey',
-    //contenteditable: 'contentEditable',//这个比较特殊
-    tabindex: 'tabIndex'
-};
-let mayBeAttrs = Object.create(null);
-let trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007|$)/g;
-let trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
-let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
-let stringReg = /(['"])([a-z]+)\1/g;
-for (let p in globalProps) {
-    mayBeAttrs[p] = 1;
-}
-for (let p in tagsProps) {
-    for (let a in tagsProps[p]) {
-        mayBeAttrs[a] = 1;
-    }
-}
 //添加属性信息
 let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
     let attrsKeys = Object.create(null),
         tmplKeys = Object.create(null);
     tmpl.replace(extractAttrsReg, (match, attr) => {
-        let originAttr = attr;
+        let originalAttr = attr;
         while (trimAttrsStart.test(attr)) {
             attr = attr.replace(trimAttrsStart, '').trim();
         }
@@ -284,7 +99,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
             });
         });
         let hasProps = Object.create(null);
-        originAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, (match, name) => {
+        originalAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, (match, name) => {
             //console.log(name);
             hasProps[name] = 1;
         });
@@ -292,8 +107,8 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         let attrsMap = Object.create(null);
         let type = '';
         if (tag == 'input') { //特殊处理input
-            //console.log(originAttr);
-            let ms = originAttr.match(inputTypeReg);
+            //console.log(originalAttr);
+            let ms = originalAttr.match(inputTypeReg);
             if (ms) {
                 type = ms[2];
             }
@@ -303,7 +118,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         let extractProps = attr.replace(tmplCommandAnchorReg, match => {
             let temp = commandAnchorRecover(match, refTmplCommands);
             temp.replace(stringReg, (match, q, content) => {
-                if (!hasProps[content] && mayBeAttrs[content]) {
+                if (!hasProps[content] && maybeAttr(content)) {
                     props.push(content);
                 }
             });
@@ -313,51 +128,38 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         extractProps.replace(attrNameValueReg, (match, name) => {
             props.push(name);
         });
-        //console.log(extractProps);
         for (let i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
-                slog.ever('duplicate attr:', prop.blue, ' near:', commandAnchorRecover(attr, refTmplCommands), ' relate file:', e.shortFrom.gray);
+                if (configs.checker.tmplDuplicateAttr) {
+                    slog.ever('duplicate attr:', prop.blue, ' near:', e.toTmplSrc(attr, refTmplCommands), ' relate file:', e.shortFrom.gray);
+                }
                 continue;
             }
             let t = Object.create(null);
-            t.n = prop;
+            t.n = prop; // name
             attrsMap[prop] = 1;
 
             if (prop == 'mx-view') {
-                t.v = 1;
+                t.v = 1; // mx-view
                 info.hasView = true;
             }
 
             if ((tag == 'input' || tag == 'textarea') && prop == 'value') {
-                t.q = 1;
+                t.q = 1; //decode html
             }
 
-            let propInfo = tagsBooleanPrpos[tag + '&' + type] || tagsBooleanPrpos[tag];
+            let propInfo = getBooleanProps(tag, type);
             if (propInfo && propInfo[prop]) {
-                t.b = 1;
+                t.b = 1; // boolean prop
             }
-            propInfo = tagsProps[tag + '&' + type] || tagsProps[tag];
-            let searchGlobal = false;
+            propInfo = getProps(tag, type);
             if (propInfo) {
                 let fixedName = propInfo[prop];
                 if (fixedName) {
-                    t.p = 1;
+                    t.p = 1; // prop
                     if (fixedName != prop) {
                         t.f = fixedName;
-                    }
-                } else {
-                    searchGlobal = true;
-                }
-            } else {
-                searchGlobal = true;
-            }
-            if (searchGlobal) {
-                propInfo = globalProps[prop];
-                if (propInfo) {
-                    t.p = 1;
-                    if (propInfo != prop) {
-                        t.f = propInfo;
                     }
                 }
             }
@@ -365,7 +167,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         }
         attr = commandAnchorRecover(attr, refTmplCommands);
         if (attr) {
-            info.attr = attr.replace(slashAnchorReg, '/');
+            info.attr = attr; //.replace(slashAnchorReg, '/');
             info.attrs = attrs;
         }
     });
@@ -556,7 +358,7 @@ let buildTmpl = (tmpl, refTmplCommands, e, list, parentOwnKeys, globalKeys) => {
     for (let i = removeGuids.length; i >= 0; i--) { //删除没用的guid
         tmpl = tmpl.replace(' ' + removeGuids[i], '');
     }
-    tmpl = tmpl.replace(slashAnchorReg, '/');
+    //tmpl = tmpl.replace(slashAnchorReg, '/');
     return {
         list: list,
         tmpl: tmpl,

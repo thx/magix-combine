@@ -1,3 +1,9 @@
+/*
+    处理样式选择器
+    1.　记录不推荐的选择器
+    2.　添加前缀，保证项目唯一
+    3.　压缩选择器(开启压缩的情况下)
+ */
 let utils = require('./util');
 let md5 = require('./util-md5');
 let configs = require('./util-config');
@@ -5,6 +11,9 @@ let checker = require('./checker');
 let cssParser = require('./css-parser');
 let slashReg = /[\/\.]/g;
 let cssCommentReg = /\/\*[\s\S]+?\*\//g;
+//[ref="@../default.css:inmain"] .open{
+//    color:red
+//}
 let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.style):([\w\-]+)\1\]/g;
 let genCssNamesKey = (file, ignorePrefix) => {
     //获取模块的id

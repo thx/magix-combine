@@ -1,9 +1,13 @@
+/*
+    给标签加上guid，用于局部刷新时的节点查找
+ */
 let tmplCmd = require('./tmpl-cmd');
+let regexp = require('./util-rcache');
 //模板，增加guid标识，仅针对magix-updater使用：https://github.com/thx/magix-updater
 let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 //let keysTagReg = /<([\w]+)([^>]*?)mx-keys\s*=\s*"[^"]+"([^>]*?)>/g;
 let holder = '\u001f';
-let slashReg = /\//g;
+//let slashReg = /\//g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let subReg = (() => {
     let temp = '<([^>\\s\\/]+)([^>]*?)>(#)</\\1>';
@@ -12,7 +16,7 @@ let subReg = (() => {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
     }
     temp = temp.replace('#', '[\\s\\S]*?');
-    return new RegExp(temp, 'ig');
+    return regexp.get(temp, 'ig');
 })();
 let subRegWithGuid = (() => {
     let temp = '<([^>\\s\\/]+)(\\s+mx-guid="g[^"]+")([^>]*?)>(#)</\\1>';
@@ -21,7 +25,7 @@ let subRegWithGuid = (() => {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
     }
     temp = temp.replace('#', '[\\s\\S]*?');
-    return new RegExp(temp, 'ig');
+    return regexp.get(temp, 'ig');
 })();
 let selfCloseTagWithGuid = /<([^>\s\/]+)(\s+mx-guid="g[^"]+")([^>]*?)\/>/g;
 let selfCloseTag = /<[^>\s\/]+[^>]*?\/>/g;
@@ -103,7 +107,7 @@ module.exports = {
                 let tContent = content.replace(selfCloseTagWithGuid, '').replace(subRegWithGuid, ''); //tContent只有内容,不包含子节点
                 if (tmplCommandAnchorRegTest.test(tContent + attrs) && vdMatchId(attrs + tContent, tmplCommands)) { //当前节点内容和属性中的变量匹配
                     ///console.log(attrs,tContent);
-                    attrs = attrs.replace(slashReg, '\u0004'); //把/换掉，防止在子模板分析中分析自闭合标签时不准确
+                    //attrs = attrs.replace(slashReg, '\u0004'); //把/换掉，防止在子模板分析中分析自闭合标签时不准确
                     //console.log('origin content',content,'---',tContent);
                     // let removeGuids = tContent.match(guidReg);
                     // if (removeGuids) {

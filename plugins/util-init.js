@@ -1,4 +1,6 @@
-//初始化各种文件夹的配置项，相对转成完整的物理路径，方便后续的使用处理
+/*
+    初始化各种文件夹的配置项，相对转成完整的物理路径，方便后续的使用处理
+ */
 let path = require('path');
 let configs = require('./util-config');
 let md5 = require('./util-md5');
@@ -14,7 +16,7 @@ module.exports = () => {
             configs.tmplCommand = /<%[\s\S]+?%>/g;
         }
         if (!configs.cssSelectorPrefix) {
-            configs.cssSelectorPrefix = md5(configs.tmplFolder, 3, 'md5CssFileLen') + '-';
+            configs.cssSelectorPrefix = 'mx' + md5(configs.tmplFolder, 3, 'md5CssFileLen') + '-';
         }
     }
 };

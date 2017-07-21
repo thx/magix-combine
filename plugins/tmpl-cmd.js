@@ -1,3 +1,6 @@
+/*
+    模板指令处理
+ */
 let configs = require('./util-config');
 let htmlminifier = require('html-minifier');
 let jm = require('./js-min');
@@ -8,7 +11,7 @@ let anchor = '\u0007';
 let tmplCommandAnchorCompressReg = /(\u0007\d+\u0007)\s+(?=[<>])/g;
 let tmplCommandAnchorCompressReg2 = /([<>])\s+(\u0007\d+\u0007)/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-let Tmpl_Mathcer = /<%([@=!:~])?([\s\S]+?)%>|$/g;
+let tmplCmdReg = /<%([@=!:~])?([\s\S]+?)%>|$/g;
 let outputCmdReg = /<%([=!@:~])?([\s\S]*?)%>/g;
 let ctrlCmdReg = /<%[^=!@:~][\s\S]*?%>\s*/g;
 let phCmdReg = /&\u0008\d+&\u0008/g;
@@ -19,8 +22,8 @@ let continuedSemicolonReg = /;+/g;
 let phKey = '&\u0008';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
-let BindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
-let BindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
+let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
+let bindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
 
 
 module.exports = {
@@ -31,7 +34,7 @@ module.exports = {
             let htmlIndex = 0;
             let htmlStore = Object.create(null);
             //特殊处理绑定事件及参数
-            tmpl = tmpl.replace(BindReg2, (m, left, expr, right) => {
+            tmpl = tmpl.replace(bindReg2, (m, left, expr, right) => {
                 let leftBrace = expr.indexOf('{');
                 if (leftBrace > 0) {
                     let fns = expr.slice(leftBrace);
@@ -44,13 +47,13 @@ module.exports = {
                     }
                     expr = expr.slice(0, leftBrace) + fns;
                 }
-                if (BindEventsReg.test(expr)) {
-                    expr = expr.replace(BindEventsReg, '"\u0017$1",');
+                if (bindEventsReg.test(expr)) {
+                    expr = expr.replace(bindEventsReg, '"\u0017$1",');
                 }
                 return (left || '') + '<%:' + expr + '%>' + (right || '');
             });
 
-            tmpl.replace(Tmpl_Mathcer, (match, operate, content, offset) => {
+            tmpl.replace(tmplCmdReg, (match, operate, content, offset) => {
                 let start = 2;
                 if (operate) {
                     start = 3;
@@ -99,7 +102,7 @@ module.exports = {
             });
             tmpl = tmpl.replace(phCmdReg, n => stores[n]); //其它命令还原
             tmpl = tmpl.replace(bwCmdReg, '%><%');
-            tmpl = tmpl.replace(Tmpl_Mathcer, m => {
+            tmpl = tmpl.replace(tmplCmdReg, m => {
                 borderChars.lastIndex = 0;
                 if (borderChars.test(m)) { //删除不必要的分号
                     m = m.replace(continuedSemicolonReg, '');

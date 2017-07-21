@@ -1,5 +1,7 @@
-//抽取模块id,如文件物理路径为'/users/xiglie/afp/tmpl/app/views/default.js'
-//则抽取出来的模块id是 app/vies/default
+/*
+    抽取模块id,如文件物理路径为'/users/xiglie/afp/tmpl/app/views/default.js'
+    则抽取出来的模块id是 app/vies/default
+ */
 
 let path = require('path');
 let sutil = require('util');

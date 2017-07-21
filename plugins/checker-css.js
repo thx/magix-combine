@@ -1,15 +1,18 @@
+/*
+    记录检测的结果，因为样式检测需要对整个项目做处理，因此只能在处理完成时才输出
+ */
 let configs = require('./util-config');
 let slog = require('./util-log');
-let filesToSelectors = Object.create(null);
-let filesUndeclared = Object.create(null);
-let markUsedTemp = Object.create(null);
-let existsSelectors = [];
-let fileSelectorsUsed = Object.create(null);
-let fileGlobals = Object.create(null);
-let filesToTags = Object.create(null);
-let markUsedTempTags = Object.create(null);
-let fileTagsUsed = Object.create(null);
-let unexists = Object.create(null);
+let filesToSelectors = Object.create(null); //记录样式文件中有哪些选择器
+let filesUndeclared = Object.create(null); //记录html文件未声明的样式
+let markUsedTemp = Object.create(null); //临时记录使用过哪些选择器，针对后期动态新增的全局选择器。目前已不推荐使用全局样式
+let existsSelectors = []; //记录同名的选择器
+let fileSelectorsUsed = Object.create(null); //记录文件中使用过的选择器
+let fileGlobals = Object.create(null); //全局使用的，目前已不推荐
+let filesToTags = Object.create(null); //文件中标签选择器
+let markUsedTempTags = Object.create(null); //
+let fileTagsUsed = Object.create(null); //文件中使用过的标签
+let unexists = Object.create(null); //不存在的选择器
 module.exports = {
     reset(all) {
         filesUndeclared = Object.create(null);
@@ -24,7 +27,7 @@ module.exports = {
         }
     },
     clearUsed(from) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         for (let p in fileSelectorsUsed) {
             let fInfo = fileSelectorsUsed[p];
             if (fInfo) {
@@ -36,7 +39,7 @@ module.exports = {
         }
     },
     clearUsedTags(from) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         for (let p in fileTagsUsed) {
             let fInfo = fileTagsUsed[p];
             if (fInfo) {
@@ -48,7 +51,7 @@ module.exports = {
         }
     },
     fileToTags(file, tags, processUsed) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         if (!filesToTags[file]) {
             filesToTags[file] = Object.assign(Object.create(null), tags);
             let a = markUsedTempTags[file];
@@ -71,7 +74,7 @@ module.exports = {
         }
     },
     fileToSelectors(file, selectors, processUsed) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         if (!filesToSelectors[file]) {
             filesToSelectors[file] = Object.assign(Object.create(null), selectors);
             let a = markUsedTemp[file];
@@ -94,7 +97,7 @@ module.exports = {
         }
     },
     markExists(name, currentFile, prevFiles) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         let key = [name, currentFile, prevFiles].join('\u0000');
         if (!existsSelectors[key]) {
             existsSelectors[key] = true;
@@ -106,14 +109,14 @@ module.exports = {
         }
     },
     markUnexists(name, currentFile) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         if (!unexists[currentFile]) {
             unexists[currentFile] = Object.create(null);
         }
         unexists[currentFile][name] = name;
     },
     markUsed(files, selectors, host) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -145,7 +148,7 @@ module.exports = {
         });
     },
     markUsedTags(files, tags, host) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -178,14 +181,14 @@ module.exports = {
         });
     },
     markLazyDeclared(selector) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         for (let p in filesUndeclared) {
             let info = filesUndeclared[p];
             delete info[selector];
         }
     },
     markUndeclared(file, selector) {
-        if (!(configs.check || configs.checkCss)) return;
+        if (!configs.checker.css) return;
         let r = filesUndeclared[file];
         if (!r) {
             r = filesUndeclared[file] = Object.create(null);
@@ -193,6 +196,7 @@ module.exports = {
         r[selector] = 1;
     },
     markGlobal(file, name) {
+        if (!configs.checker.css) return;
         //name = name.replace(rnReg, '');
         let info = fileGlobals[file];
         if (!info) {
@@ -202,7 +206,7 @@ module.exports = {
     },
     output() {
         let p, keys, outCss = false;
-        if (configs.check && configs.checkCss) {
+        if (configs.checker.css) {
             for (let p in fileGlobals) {
                 outCss = true;
                 let info = fileGlobals[p];

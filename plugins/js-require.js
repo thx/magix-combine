@@ -1,11 +1,16 @@
+/*
+    js中依赖处理
+    允许通过resolveRequire进行依赖重写
+ */
 let utils = require('./util');
 let jsRequireParser = require('./js-require-parser');
 let path = require('path');
 //分析js中的require命令
-let depsReg = /(?:((?:var|let|const)\s+|,)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(([^\(\)]+)\)(;)?/g;
+//let a=require('aa');
+//var b;
+//b=require('cc');
+let depsReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(\s*(['"])([^\(\)]+)\3\s*\)(;)?/g;
 //let exportsReg = /module\.exports\s*=\s*/;
-let anchor = '\u0011';
-let anchorReg = /(['"])\u0011([^'"]+)\1/;
 let configs = require('./util-config');
 let cssShareReg = /^css@/;
 module.exports = {
@@ -16,58 +21,66 @@ module.exports = {
         let moduleId = utils.extractModuleId(e.from);
         if (!e.exclude) {
             let depsInfo = jsRequireParser.process(e.content);
+            /*
+                reqPos=[21,40,35,68]
+             */
+            let reqPos = [];
             for (let i = 0, start; i < depsInfo.length; i++) {
                 start = depsInfo[i].start + i;
-                e.content = e.content.substring(0, start) + anchor + e.content.substring(start);
+                reqPos.push(start);
             }
-            e.content = e.content.replace(depsReg, (match, prefix, key, str, tail) => {
-                let info = str.match(anchorReg);
-                if (!info) return match;
-                str = info[1] + info[2] + info[1];
-                let depId = str.slice(1, -1);
-                let reqInfo = {
-                    prefix: prefix,
-                    tail: tail || '',
-                    dependedId: depId,
-                    variable: key
-                };
-                if (cssShareReg.test(reqInfo.dependedId)) {
-                    let extname = path.extname(reqInfo.dependedId);
-                    reqInfo.dependedId = reqInfo.dependedId.replace(cssShareReg, '').replace(extname, '');
-                    reqInfo.replacement = 'require("' + reqInfo.dependedId + '");\r\n"ref@' + reqInfo.dependedId + extname + '";';
-                }
-                configs.resolveRequire(reqInfo, e);
-                let dId;
-                if (reqInfo.dependedId) {
-                    dId = JSON.stringify(reqInfo.dependedId);
-                    deps.push(dId);
-                    if (reqInfo.variable) {
-                        vars.push(reqInfo.variable);
+            reqPos = reqPos.reverse();
+            e.content = e.content.replace(depsReg, (match, prefix, key, q, depId, tail, offset) => {
+                let last = reqPos[reqPos.length - 1];
+                // var require=require('cc'); => offset=0  offset+match.length==26
+                // reqPos[0] in range [0,26] ?
+                if (reqPos.length && offset < last && last < (offset + match.length)) {
+                    reqPos.pop();
+                    let reqInfo = {
+                        prefix: prefix,
+                        tail: tail || '',
+                        dependedId: depId,
+                        variable: key
+                    };
+                    if (cssShareReg.test(reqInfo.dependedId)) {
+                        let extname = path.extname(reqInfo.dependedId);
+                        reqInfo.dependedId = reqInfo.dependedId.replace(cssShareReg, '').replace(extname, '');
+                        reqInfo.replacement = 'require("' + reqInfo.dependedId + '");\r\n"ref@' + reqInfo.dependedId + extname + '";';
                     }
-                }
-                if (key != reqInfo.variable || depId != reqInfo.dependedId) {
-                    if (!reqInfo.hasOwnProperty('replacement')) {
+                    configs.resolveRequire(reqInfo, e);
+                    let dId;
+                    if (reqInfo.dependedId) {
+                        dId = JSON.stringify(reqInfo.dependedId);
+                        deps.push(dId);
                         if (reqInfo.variable) {
-                            prefix = prefix + reqInfo.variable + '=';
-                        } else {
-                            prefix = prefix || '';
+                            vars.push(reqInfo.variable);
                         }
-                        if (reqInfo.replaceRequire) {
-                            prefix += reqInfo.replaceRequire;
-                        } else {
-                            prefix += 'require(' + dId + ')';
+                    }
+                    if (key != reqInfo.variable || depId != reqInfo.dependedId) {
+                        if (!reqInfo.hasOwnProperty('replacement')) {
+                            if (reqInfo.variable) {
+                                prefix = prefix + reqInfo.variable + '=';
+                            } else {
+                                prefix = prefix || '';
+                            }
+                            if (reqInfo.replaceRequire) {
+                                prefix += reqInfo.replaceRequire;
+                            } else {
+                                prefix += 'require(' + dId + ')';
+                            }
+                            reqInfo.replacement = prefix + reqInfo.tail;
                         }
-                        reqInfo.replacement = prefix + reqInfo.tail;
+                    } else {
+                        if (!reqInfo.hasOwnProperty('replacement')) {
+                            reqInfo.replacement = match;
+                        }
                     }
-                } else {
-                    if (!reqInfo.hasOwnProperty('replacement')) {
-                        reqInfo.replacement = match.replace(anchor, '');
+                    if (configs.loaderType == 'kissy') {
+                        reqInfo.replacement = '';
                     }
+                    return reqInfo.replacement;
                 }
-                if (configs.loaderType == 'kissy') {
-                    reqInfo.replacement = '';
-                }
-                return reqInfo.replacement;
+                return match;
             });
             deps = deps.concat(noKeyDeps);
         }

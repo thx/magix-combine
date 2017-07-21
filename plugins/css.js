@@ -1,3 +1,7 @@
+/*
+    样式处理入口
+    读取js代码中的样式占位规则，把占位规则处理成真实的内容
+ */
 let cssnano = require('cssnano');
 let path = require('path');
 let configs = require('./util-config');
@@ -211,6 +215,7 @@ module.exports = (e, inwatch) => {
                             }
                             replacement = q + c + q;
                         } else { //输出整个css文件内容
+                            //console.log(fileContent);
                             let css = JSON.stringify(fileContent);
                             css = cssUrl(css, shortCssFile);
                             replacement = '"' + cssNamesKey + '",' + css;

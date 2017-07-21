@@ -1,3 +1,6 @@
+/*
+    md5转换，最初使用的md5，后期修改成sha512，但md5这个名称未换
+ */
 let crypto = require('crypto');
 let slog = require('./util-log');
 let md5Cache = Object.create(null); //md5 cache对象

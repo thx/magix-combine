@@ -1,3 +1,6 @@
+/*
+    检测magix项目中数据接口的调用，根据异常监控平台的数据，绝大多数的异常都是数据访问异常引起的，比如response.data.list，而某些情况后端并未输出response.data，导致前端拿数据失败。因此尝试静态分析代码，找到可能出问题的数据访问，把问题解决在上线前
+ */
 let stringReg = /^['"]/;
 let slog = require('./util-log');
 /*

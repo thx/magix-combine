@@ -4,7 +4,7 @@
     processRules 参考了这个：https://github.com/fb55/css-what/blob/master/index.js
     思路：跳过不必要处理的css，在处理规则时，跳过{ }
  */
-
+let cache = Object.create(null);
 let nameReg = /^(?:\\.|[\w\-\u00c0-\uFFFF])+/;
 //modified version of https://github.com/jquery/sizzle/blob/master/src/sizzle.js#L87
 let attrReg = /^\s*((?:\\.|[\w\u00c0-\uFFFF\-])+)\s*(?:(\S?)=\s*(?:(['"])(.*?)\3|(#?(?:\\.|[\w\u00c0-\uFFFF\-])*)|)|)\s*(i)?\]/;
@@ -327,4 +327,10 @@ let parse = (css, file) => {
         nests
     };
 };
-module.exports = parse;
+module.exports = (css, file) => {
+    let key = file + '@' + css;
+    if (cache[key]) {
+        return cache[key];
+    }
+    return (cache[key] = parse(css, file));
+};

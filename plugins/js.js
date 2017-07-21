@@ -1,3 +1,6 @@
+/*
+    总入口，因为模板、样式最终都依附在js文件中
+ */
 let path = require('path');
 let fs = require('fs');
 let fd = require('./util-fd');

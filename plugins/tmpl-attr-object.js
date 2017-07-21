@@ -7,23 +7,23 @@
  */
 let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
-let Q = {
+let qmap = {
     '\'': '&#39;',
     '"': '&#34;'
 };
-let Cache = Object.create(null);
-let QReg = /['"]/g;
+let cache = Object.create(null);
+let qReg = /['"]/g;
 let asciiStart = /[A-Za-z\$\_]/;
 let asciiIdentifier = /[A-Za-z\$\_\d]/;
-let EscapeQ = str => str.replace(QReg, m => Q[m]);
-let MakeError = msg => {
+let escapeQ = str => str.replace(qReg, m => qmap[m]);
+let makeError = msg => {
     throw new Error(msg);
 };
 let keyword = /^(?:true|false|null|undefined)\b/;
 let stringReg = /^['"]/;
 
 module.exports = {
-    escapeQ: EscapeQ,
+    escapeQ,
     parseObject(str, startChar, endChar) {
         str = '(' + str.trim() + ')';
         let ast = acorn.parse(str);
@@ -37,7 +37,7 @@ module.exports = {
                     q = '\'';
                     value = value.replace(/'/g, '\\\'');
                 }
-                value = EscapeQ(value);
+                value = escapeQ(value);
                 modifiers.push({
                     start: node.start,
                     end: node.end,
@@ -89,13 +89,12 @@ module.exports = {
             m = modifiers[i];
             str = str.slice(0, m.start) + m.value + str.slice(m.end);
         }
-        console.log(str);
         return '"' + startChar + str.slice(1, -1) + '"';
     },
     likeObject(str) {
         str = str.trim();
-        if (Cache[str]) {
-            return Cache[str];
+        if (cache[str]) {
+            return cache[str];
         }
         let index = 0;
         let end = str.length;
@@ -114,18 +113,18 @@ module.exports = {
                     r += ',"\u0017{';
                     inKey = 1;
                 } else if (inKey) {
-                    MakeError('bad key. Input:' + str);
+                    makeError('bad key. Input:' + str);
                 } else if (inValue) {
                     if (valueIsString) {
                         value += c;
                     } else {
-                        MakeError('bad value. Input:' + str);
+                        makeError('bad value. Input:' + str);
                     }
                 }
             } else if (c == ',' || c == '}') {
                 if (inKey) {
                     if (!key) {
-                        MakeError('missing key. Input:' + str);
+                        makeError('missing key. Input:' + str);
                     }
                     //value = '\'' + key + '\'';
                     r += key + ':",' + key + ',"' + c + (c == '}' ? '"' : '');
@@ -161,7 +160,7 @@ module.exports = {
                     if (valueIsString) {
                         value += c;
                     } else {
-                        MakeError('bad value. Input:' + str);
+                        makeError('bad value. Input:' + str);
                     }
                 } else {
                     inKey = 0;
@@ -171,7 +170,7 @@ module.exports = {
                 }
             } else if (inKey) {
                 if (!asciiIdentifier.test(c)) {
-                    MakeError('unsupport composite key or value. Input:' + str);
+                    makeError('unsupport composite key or value. Input:' + str);
                 }
                 key += c;
             } else if (inValue) {
@@ -201,7 +200,7 @@ module.exports = {
                     } else if (c == qType) {
                         inValue = 0;
                         if (qType == '"' && c == '"') c = '\'';
-                        r += EscapeQ(value) + c;
+                        r += escapeQ(value) + c;
                         value = '';
                     } else if (c == '\'' && qType == '"') {
                         value += '\\';
@@ -218,19 +217,19 @@ module.exports = {
             }
             index++;
         }
-        return (Cache[str] = r);
+        return (cache[str] = r);
     },
     native(str) {
         str = str.trim();
-        if (Cache[str]) {
-            return Cache[str];
+        if (cache[str]) {
+            return cache[str];
         }
         let c = ' ';
         let index = 0;
         let r = '';
         let next = (ch) => {
             if (ch && c !== ch) {
-                MakeError('Expected "' + ch + '" instead of "' + c + '"');
+                makeError('Expected "' + ch + '" instead of "' + c + '"');
             }
             c = str.charAt(index);
             index = index + 1;
@@ -261,7 +260,7 @@ module.exports = {
                 index++;
             }
             if (end) {
-                r += '\'' + EscapeQ(temp) + '\'';
+                r += '\'' + escapeQ(temp) + '\'';
                 c = str.charAt(index++);
             }
             return end;
@@ -281,7 +280,7 @@ module.exports = {
                     return;
                 }
             }
-            MakeError('bad key. Input:' + str);
+            makeError('bad key. Input:' + str);
         };
         let array = () => {
             if (c === '[') {
@@ -308,7 +307,7 @@ module.exports = {
                     white();
                 }
             }
-            MakeError('bad array. Input:' + str);
+            makeError('bad array. Input:' + str);
         };
         let object = () => {
             if (c === '{') {
@@ -338,7 +337,7 @@ module.exports = {
                     white();
                 }
             }
-            MakeError('bad object. Input:' + str);
+            makeError('bad object. Input:' + str);
         };
         let any = () => {
             while (c) {
@@ -368,6 +367,6 @@ module.exports = {
             }
         };
         value(str);
-        return (Cache[str] = r);
+        return (cache[str] = r);
     }
 };

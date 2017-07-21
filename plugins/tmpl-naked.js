@@ -1,3 +1,6 @@
+/*
+    模板处理并回写，常用于打点等功能
+ */
 let configs = require('./util-config');
 let fd = require('./util-fd');
 let tmplCmd = require('./tmpl-cmd');

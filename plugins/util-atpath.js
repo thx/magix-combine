@@ -1,3 +1,6 @@
+/*
+    at规则的路径转换
+ */
 let path = require('path');
 let sep = path.sep;
 let sepRegTmpl = sep.replace(/\\/g, '\\\\');

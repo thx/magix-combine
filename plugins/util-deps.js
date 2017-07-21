@@ -1,4 +1,6 @@
-//文件依赖信息对象，如index.js中@了index.css，则index.css被修改时，我们要编译index.js，即被依赖的模块变化要让有依赖的模块编译一次
+/*
+    文件依赖信息对象，如index.js中@了index.css，则index.css被修改时，我们要编译index.js，即被依赖的模块变化要让有依赖的模块编译一次
+ */
 let fileDependencies = {};
 let context;
 //添加文件依赖关系

@@ -1,6 +1,7 @@
 module.exports = {
     md5CssFileLen: 2,
     md5CssSelectorLen: 2,
+    thisAlias: '', //this别名
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
     cssnanoOptions: { //css压缩选项
@@ -19,9 +20,23 @@ module.exports = {
         collapseInlineTagWhitespace: true,
         caseSensitive: true
     },
-    log: true,
-    check: true,
-    checkCss: true,
+    log: true, //日志及进度条
+    checker: {
+        css: true, //样式
+        cssUrl: true, //样式中的url
+        jsLoop: true, //js循环
+        jsService: true, //js接口服务
+        jsThis: true, //js this别名
+        tmplAttrImg: true, //模板img属性
+        tmplDisallowedTag: true, //不允许的标签
+        tmplAttrDangerous: true, //危险的属性
+        tmplAttrNoopener: true, //需要添加noopener
+        tmplAttrAnchor: true, //检测anchor类标签
+        tmplAttrMxEvent: true, //mx事件
+        tmplAttrMxView: true, //mx view
+        tmplDuplicateAttr: true, //重复的属性
+        tmplCmdFnOrForOf: true
+    },
     compressCss: true, //是否压缩css内容
     compressCssSelectorNames: true, //是否压缩css选择器名称，默认只添加前缀，方便调试
     addEventPrefix: true, //mx事件增加前缀
@@ -40,9 +55,6 @@ module.exports = {
     compressTmplVariable: true, //是否压缩模板中的变量
     tmplPadCallArguments(name) { //模板中某些函数的调用，我们可以动态添加一些参数。
         return '';
-    },
-    beforeProcessContent(content, from) {
-        return content;
     },
     beforeWriteFile(e) {
         return e;
