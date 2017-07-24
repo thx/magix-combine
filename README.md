@@ -2,7 +2,7 @@
 > npm install magix-combine
 
 ## 简介
-合并Magix View的html,js,css文件成一个js文件，需要配合其它工具使用。
+按占位符规则把html、css文件打包进js文件。
 
 ## 功能
 1. 合并html,css,js成一个js文件。[为什么不在打包上线时合并？](https://github.com/thx/magix-combine/issues/5)

@@ -56,7 +56,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
                 return s && s.length % 2 ? m : s + '\\' + n;
             });
             if (raw != replacement) {
-                slog.ever('be careful!'.red, 'You should use', replacement.magenta, 'instead of', raw.magenta, 'at', e.shortHTMLFile.gray, 'in', mxEvent.replace(removeTempReg, '').magenta);
+                slog.ever('beware!'.red, 'You should use', replacement.magenta, 'instead of', raw.magenta, 'at', e.shortHTMLFile.gray, 'in', mxEvent.replace(removeTempReg, '').magenta);
             }
             let eq = attrObject.escapeQ(replacement, q);
             replacement = replacement.replace(cmdPHReg, m => store[m]);

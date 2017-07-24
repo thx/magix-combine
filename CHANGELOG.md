@@ -1,3 +1,8 @@
+## 3.4.1
+1. 增加`#loader=type`配置，可对部分文件做特殊处理
+2. 增加`<%: user.name　<change,input> {refresh:true}%>`写法
+3. 增加输出上下文中`tmplMxViews`，用于识别模板中的固定`view`
+
 ## 3.4.0
 1. 增加`checker`配置
 2. 增强模板事件的处理,只有`magix`配套的模板才进行相应的事件对象识别及处理

@@ -1,7 +1,6 @@
 /*
     增加loader
  */
-let configs = require('./util-config');
 let regexp = require('./util-rcache');
 let exportsReg = /\bmodule\.exports\b\s*=\s*/g;
 let header = '/*\r\n    generate by magix-combine: https://github.com/thx/magix-combine\r\n    author: kooboy_li@163.com\r\n */\r\n';
@@ -19,13 +18,14 @@ let tmpls = {
     iife: '(function(){\r\n${content}\r\n})();'
 };
 module.exports = e => {
-    let key = configs.loaderType + (e.requires.length ? '' : '1');
+    let loader = e.loader;
+    let key = loader + (e.requires.length ? '' : '1');
     let tmpl = header + (tmpls[key] || tmpls.iife);
     for (let p in e) {
         let reg = regexp.get('\\$\\{' + p + '\\}', 'g');
         tmpl = tmpl.replace(reg, regexp.encode(e[p]));
     }
-    if (configs.loaderType == 'kissy') {
+    if (loader == 'kissy') {
         tmpl = tmpl.replace(exportsReg, 'return ');
     }
     return tmpl;

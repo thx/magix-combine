@@ -28,6 +28,7 @@ let htmlFileReg = /(['"])(?:raw|magix)?@[^'"]+\.html(:data|:keys|:events)?\1/;
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
 let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
 let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;
+let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;?/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
@@ -58,6 +59,11 @@ let processContent = (from, to, content, inwatch) => {
     let isSnippet = snippetReg.test(content);
     snippetReg.lastIndex = 0;
     content = content.replace(snippetReg, '');
+    let loader;
+    content = content.replace(loaderReg, (m, q, type) => {
+        loader = type;
+        return '';
+    });
     let key = [inwatch, exclude].join('\u0000');
     let fInfo = fileCache.get(from, key);
     if (fInfo) {
@@ -90,6 +96,7 @@ let processContent = (from, to, content, inwatch) => {
             fileDeps: {},
             exclude: exclude,
             to: to,
+            loader: loader || configs.loaderType,
             from: from,
             vendorCompile: originalContent != content,
             shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),

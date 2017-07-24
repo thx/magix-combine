@@ -70,6 +70,20 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 return 'mx-view=' + q + content + q;
             });
         }
+
+        match.replace(mxViewAttrReg, (m, q, content) => {
+            let i = content.indexOf('?');
+            if (i > -1) {
+                content = content.slice(0, i);
+            }
+            if (!cmdReg.test(content)) {
+                if (!e.tmplMxViews) {
+                    e.tmplMxViews = Object.create(null);
+                }
+                e.tmplMxViews[content] = 1;
+                e.tmplMxViewsArray = Object.keys(e.tmplMxViews);
+            }
+        });
         let testCmd = (m, q, content) => {
             q = content.indexOf('?');
             if (q >= 0) {

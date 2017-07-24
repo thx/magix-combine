@@ -24,6 +24,7 @@ let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
 let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
 let bindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
+let bindEventsReg2 = /^([^<>]+)<([^>]+)>/;
 
 
 module.exports = {
@@ -49,6 +50,8 @@ module.exports = {
                 }
                 if (bindEventsReg.test(expr)) {
                     expr = expr.replace(bindEventsReg, '"\u0017$1",');
+                } else if (bindEventsReg2.test(expr)) {
+                    expr = expr.replace(bindEventsReg2, '"\u0017$2",$1');
                 }
                 return (left || '') + '<%:' + expr + '%>' + (right || '');
             });
