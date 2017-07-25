@@ -35,7 +35,7 @@ let stringReg = /(['"])([a-z]+)\1/g;
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
 let subReg = (() => {
-    let temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>\\/]*?>(#)</\\1>';
+    let temp = '<([^>\\s\\/]+)\\s+(mx-guid="g[^"]+")[^>]*?>(#)</\\1>';
     let start = 12; //嵌套12层在同一个view中也足够了
     while (start--) {
         temp = temp.replace('#', '(?:<\\1[^>]*>#</\\1>|[\\s\\S])*?');
@@ -218,9 +218,11 @@ let buildTmpl = (tmpl, refTmplCommands, e, list, parentOwnKeys, globalKeys) => {
     let removeGuids = []; //经过tmpl-guid插件之后，所有的标签都会加上guid，但只有具备局部刷新的标签才保留guid，其它的移除，这里用来记录要移除的guid
     //子模板
     //console.log('input ',tmpl);
+    //debugger;
     tmpl = tmpl.replace(subReg, (match, tag, guid, content) => { //清除子模板后
         //match = match.replace(slashAnchorReg, '/');
         //console.log('match',match,tag,guid,'=======',content);
+        //debugger;
         let ownKeys = Object.create(null);
         for (let p in parentOwnKeys) { //继承父结构的keys
             ownKeys[p] = parentOwnKeys[p];

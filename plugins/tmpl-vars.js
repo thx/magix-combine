@@ -382,7 +382,7 @@ module.exports = {
                     params[p.name] = 1; //记录有哪些参数
                     if (configs.compressTmplVariable) { //如果启用变量压缩
                         modifiers.push({ //压缩参数
-                            key: '',
+                            key: vphDcd + p.start,
                             start: p.start,
                             end: p.end,
                             name: pVarsMap[p.name] = variable(varCount++)　 //压缩参数
@@ -407,14 +407,16 @@ module.exports = {
                                 for (let j = modifiers.length - 1; j >= 0; j--) {
                                     let m = modifiers[j];
                                     if (expr.start == m.start) {
-                                        find = modifiers.splice(j, 1);
+                                        find = true;
+                                        //modifiers[j].key = vphUse + modifiers[j].end;
+                                        modifiers.splice(j, 1);
                                         break;
                                     }
                                 }
                                 //如果该参数从修改器中移除，则表示是当前方法的形参，如果启用压缩，则使用压缩后的变量
                                 if (find && configs.compressTmplVariable) {
                                     modifiers.push({
-                                        key: '',
+                                        key: vphUse + expr.end,
                                         start: expr.start,
                                         end: expr.end,
                                         name: pVarsMap[expr.name] || expr.name
@@ -881,7 +883,7 @@ module.exports = {
         }
 
 
-        //slog.ever(fn);
+        //slog.ever(JSON.stringify(fn));
         return fn;
     }
 };
