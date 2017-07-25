@@ -1,3 +1,6 @@
+## 3.4.2
+1. 修正`css`中`font-face`的识别
+
 ## 3.4.1
 1. 增加`#loader=type`配置，可对部分文件做特殊处理
 2. 增加`<%: user.name　<change,input> {refresh:true}%>`写法
