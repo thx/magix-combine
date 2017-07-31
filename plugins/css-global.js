@@ -12,6 +12,7 @@ let cssParser = require('./css-parser');
 let {
     cssCommentReg,
     cssRefReg,
+    refProcessor,
     genCssNamesKey,
     cssNameNewProcessor,
     cssNameGlobalProcessor,
@@ -100,7 +101,9 @@ let processScope = ctx => {
                     let currentFile = i.file;
                     let cssNamesKey = genCssNamesKey(currentFile);
                     let c = i.content.replace(cssCommentReg, '');
-                    c = c.replace(cssRefReg, ctx.refProcessor);
+                    c = c.replace(cssRefReg, (m, q, file, ext, selector) => {
+                        return refProcessor(i.file, file, ext, selector);
+                    });
                     try {
                         c = cssNameNewProcessor(c, {
                             shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1),
@@ -146,7 +149,7 @@ let processScope = ctx => {
                         namesToFiles[p + '!r'] = values;
                         let key = '';
                         if (configs.compressCss) { //压缩
-                            key = genCssNamesKey(values[0]) + '-' + genCssSelector(p);
+                            key = genCssSelector(p, genCssNamesKey(values[0]));
                         } else { //非压缩时，采用这个重名在这几个文件中的路径做为key,如 mx-app-snippets-list-and-app-snippets-form
                             let keys = [],
                                 k;
@@ -154,7 +157,7 @@ let processScope = ctx => {
                                 k = genCssNamesKey(values[i], i);
                                 keys.push(k);
                             }
-                            key = keys.join('-and-') + '-' + genCssSelector(p);
+                            key = genCssSelector(p, keys.join('-and-'));
                         }
                         namesMap[p] = key;
                         for (let z in sameSelectors) {

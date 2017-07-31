@@ -36,15 +36,17 @@ let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:([\s\S]+?)\1/i;
 let targetSelfReg = /\btarget\s*=\s*(['"])_self\1/g;
 let allowClickReg = /\bonclick\s*=\s*(['"])return\s+false;*\1/;
 let voidReg = /void\([\s\S]+?\);?/;
+let sandboxReg = /\bsandbox\s*=\s*(["'])[^'"]*?\1/;
 let disallowedTags = {
-    'script': 1,
-    'style': 1,
-    'link': 1,
-    'meta': 1,
-    'base': 1,
-    'title': 1,
-    'html': 1,
-    'body': 1
+    script: 1,
+    style: 1,
+    link: 1,
+    meta: 1,
+    base: 1,
+    basefont: 1,
+    title: 1,
+    html: 1,
+    body: 1
 };
 /*
     xss
@@ -70,8 +72,6 @@ module.exports = {
                     slog.ever(('avoid use ' + m[0]).red, 'at', e.shortHTMLFile.gray, 'in', newMatch, 'more info:', 'http://www.360doc.com/content/16/0427/18/32095775_554304106.shtml'.magenta);
                 }
             }
-        }
-        if (configs.checker.tmplAttrNoopener && (tn == 'a' || tn == 'area')) {
             newWindowReg.lastIndex = 0;
             safedReg.lastIndex = 0;
             if (newWindowReg.test(match) && !safedReg.test(match)) {
@@ -79,6 +79,11 @@ module.exports = {
             }
         } else if (configs.checker.tmplDisallowedTag && disallowedTags.hasOwnProperty(tn)) {
             slog.ever(('remove tag ' + newMatch).red, 'at', e.shortHTMLFile.gray, (tn == 'style') ? ('use' + ' Magix.applyStyle'.red + ' instead') : '');
+        } else if (configs.checker.tmplAttrIframe && tn == 'iframe') {
+            sandboxReg.lastIndex = 0;
+            if (!sandboxReg.test(match)) {
+                slog.ever(('add sandbox to ' + newMatch).red, 'at', e.shortHTMLFile.gray, 'more info:', 'http://www.w3school.com.cn/tags/att_iframe_sandbox.asp'.magenta);
+            }
         }
         if (configs.checker.tmplAttrDangerous) {
             match.replace(dangerousAttrReg, (m, attr) => {

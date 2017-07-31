@@ -9,6 +9,7 @@ let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 let holder = '\u001f';
 //let slashReg = /\//g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
+let mxViewAttrReg = /\bmx-view\b/;
 let subReg = (() => {
     let temp = '<([^>\\s\\/]+)([^>]*?)>(#)</\\1>';
     let start = 12; //嵌套12层在同一个view中也足够了
@@ -27,6 +28,7 @@ let subRegWithGuid = (() => {
     temp = temp.replace('#', '[\\s\\S]*?');
     return regexp.get(temp, 'ig');
 })();
+let guidReg = /\s+mx-guid="g[^"]+"/;
 let selfCloseTagWithGuid = /<([^>\s\/]+)(\s+mx-guid="g[^"]+")([^>]*?)\/>/g;
 let selfCloseTag = /<[^>\s\/]+[^>]*?\/>/g;
 let emptyTag = /<(?:area|base|basefont|br|col|embed|frame|hr|img|input|isindex|keygen|link|meta|param|source|track|wbr)[^>]*?>/gi;
@@ -86,11 +88,14 @@ module.exports = {
         });
 
         g = 0;
-        let removeGuid = tmpl => {
+        let removeGuid = (tmpl, removeAll) => {
             //如果移除子节点后无模板命令和属性中的模板命令，则移除guid
             //如果剩余内容+属性配对，则保留guid
             //如果剩余内容+属性不配对，则删除guid
             //console.log('removeGuids',tmpl);
+            if (removeAll) {
+                return tmpl.replace(guidReg, '');
+            }
             tmpl = tmpl.replace(selfCloseTagWithGuid, (match, tag, guid, attrs) => {
                 //console.log(attrs,tmplCommandAnchorRegTest.test(attrs) , vdMatchId(attrs, tmplCommands));
                 if (tmplCommandAnchorRegTest.test(attrs) && vdMatchId(attrs, tmplCommands)) {
@@ -101,9 +106,9 @@ module.exports = {
             });
             //console.log('tt',tmpl);
             tmpl = tmpl.replace(subRegWithGuid, (match, tag, guid, attrs, content) => {
-                //console.log(attrs);
                 //attrs = attrs.replace(/\//g, '\u0004');
-                content = removeGuid(content); //递归删除节点中的无用guid
+                //如果属性中有mx-view属性，则子节点不能独立的去局部刷新
+                content = removeGuid(content, mxViewAttrReg.test(attrs)); //递归删除节点中的无用guid
                 let tContent = content.replace(selfCloseTagWithGuid, '').replace(subRegWithGuid, ''); //tContent只有内容,不包含子节点
                 if (tmplCommandAnchorRegTest.test(tContent + attrs) && vdMatchId(attrs + tContent, tmplCommands)) { //当前节点内容和属性中的变量匹配
                     ///console.log(attrs,tContent);

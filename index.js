@@ -58,8 +58,15 @@ module.exports = {
         } else {
             configs.checker = Object.assign(configs.checker, cfg.checker);
         }
+        let scopedCssMap = Object.create(null);
         configs.globalCss = configs.globalCss.map(p => path.resolve(p));
-        configs.scopedCss = configs.scopedCss.map(p => path.resolve(p));
+        configs.scopedCss = configs.scopedCss.map(p => {
+            p = path.resolve(p);
+            scopedCssMap[p] = 1;
+            return p;
+        });
+        configs.scopedCssMap = scopedCssMap;
+
         configs.uncheckGlobalCss = configs.uncheckGlobalCss.map(p => path.resolve(p));
     },
     combine() {

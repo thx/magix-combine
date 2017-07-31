@@ -203,6 +203,13 @@ let parse = (css, file) => {
             } else if (tc === '.' || tc === '#') {
                 current++;
                 let sc = current;
+                let isGlobal = false;
+                if (tc == '.') {
+                    isGlobal = css.charAt(current) == '@';
+                    if (isGlobal) {
+                        current++;
+                    }
+                }
                 let id = getNameAndGo();
                 overSelectors += tc === '.' ? selectorPower.CLASS : selectorPower.ID;
                 if (tc == '.') {
@@ -210,7 +217,8 @@ let parse = (css, file) => {
                         type: prev = 'class',
                         name: id,
                         start: sc,
-                        end: current
+                        end: current,
+                        isGlobal
                     });
                 } else if (tc == '#') {
                     tokens.push({

@@ -1,9 +1,10 @@
 /*
     处理样式规则中的@规则
  */
-let configs = require('./util-config');
-let md5 = require('./util-md5');
 let regexp = require('./util-rcache');
+let {
+    genCssSelector
+} = require('./css-selector');
 let ruleEndReg = /[;\r\n]/;
 let trimQ = /^['"]|['"]$/g;
 //以@开始的名称，如@font-face
@@ -22,14 +23,10 @@ module.exports = (fileContent, cssNamesKey) => {
     fileContent = fileContent.replace(keyframesReg, (m, head, keyframe, q, name) => {
         //把名称保存下来，因为还要修改使用的地方
         contents.push(name);
-        if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
-            if (name.length > configs.md5CssSelectorLen) {
-                name = md5(name, configs.md5CssSelectorLen);
-            }
-        }
+        name = genCssSelector(name, cssNamesKey);
         q = q || '';
         //增加前缀
-        return head + keyframe + ' ' + q + cssNamesKey + '-' + name + q;
+        return head + keyframe + ' ' + q + name + q;
     });
     //处理其它@规则，这里只处理了font-face
     fileContent.replace(fontfaceReg, (match, content) => {
@@ -57,12 +54,8 @@ module.exports = (fileContent, cssNamesKey) => {
     while (contents.length) {
         let t = contents.pop();
         let reg = genCssContentReg(t);
-        if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
-            if (t.length > configs.md5CssSelectorLen) {
-                t = md5(t, configs.md5CssSelectorLen);
-            }
-        }
-        fileContent = fileContent.replace(reg, '$1:$2$3' + cssNamesKey + '-' + t + '$3');
+        t = genCssSelector(t, cssNamesKey);
+        fileContent = fileContent.replace(reg, '$1:$2$3' + t + '$3');
     }
     //console.log(fileContent);
     return fileContent;

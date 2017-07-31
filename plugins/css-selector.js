@@ -4,11 +4,13 @@
     2.　添加前缀，保证项目唯一
     3.　压缩选择器(开启压缩的情况下)
  */
+let path = require('path');
 let utils = require('./util');
 let md5 = require('./util-md5');
 let configs = require('./util-config');
 let checker = require('./checker');
 let cssParser = require('./css-parser');
+let sep = path.sep;
 let slashReg = /[\/\.]/g;
 let cssCommentReg = /\/\*[\s\S]+?\*\//g;
 //[ref="@../default.css:inmain"] .open{
@@ -25,18 +27,56 @@ let genCssNamesKey = (file, ignorePrefix) => {
     }
     //css前缀是配置项中的前缀加上模块的md5信息
     if (!ignorePrefix) {
-        cssId = (configs.cssSelectorPrefix || 'mx-') + cssId;
+        cssId = configs.cssSelectorPrefix + cssId;
     }
     return cssId;
 };
-let genCssSelector = selector => {
+let genCssSelector = (selector, cssNameKey) => {
     let mappedName = selector;
+    let split = '-';
     if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+        split = '';
         if (selector.length > configs.md5CssSelectorLen) {
             mappedName = md5(selector, configs.md5CssSelectorLen);
         }
     }
+    if (cssNameKey) {
+        mappedName = cssNameKey + split + mappedName;
+    }
     return mappedName;
+};
+
+let refProcessor = (relateFile, file, ext, name, e) => {
+    if (file == 'scoped' && ext == '.style') {
+        if (e) {
+            let sname = e.globalCssNamesMap[name];
+            if (!sname) {
+                throw new Error('not found ' + name + ' at scoped.style');
+            }
+            let dFiles = e.globalCssNamesInFiles[name + '!r'];
+            dFiles.forEach(f => {
+                checker.CSS.markUsed(f, name, relateFile);
+            });
+            return '.@' + sname;
+        } else {
+            throw new Error('unsupport use scoped.style in ' + relateFile);
+        }
+    } else {
+        file = path.resolve(path.dirname(relateFile) + sep + file + ext);
+        if (e && configs.scopedCssMap[file]) {
+            let sname = e.globalCssNamesMap[name];
+            if (!sname) {
+                throw new Error('not found ' + name + ' at scoped.style');
+            }
+            let dFiles = e.globalCssNamesInFiles[name + '!r'];
+            dFiles.forEach(f => {
+                checker.CSS.markUsed(f, name, relateFile);
+            });
+            return '.@' + sname;
+        }
+        checker.CSS.markUsed(file, name, relateFile);
+        return '.@' + genCssSelector(name, genCssNamesKey(file));
+    }
 };
 /**
  * 添加到全局样式
@@ -107,12 +147,14 @@ let cssNameNewProcessor = (css, ctx) => {
                 ctx.tagsToFiles[id][ctx.file] = id;
             }
         } else if (token.type == 'class') {
-            let mappedName = genCssSelector(id);
-            let result = (ctx.cNamesMap[id] = ctx.namesKey + '-' + mappedName);
-            if (ctx.addToGlobalCSS) {
-                addGlobal(id, result, 0, 0, ctx.file, ctx.namesMap, ctx.namesToFiles);
+            let result = id;
+            if (!token.isGlobal) {
+                result = (ctx.cNamesMap[id] = genCssSelector(id, ctx.namesKey));
+                if (ctx.addToGlobalCSS) {
+                    addGlobal(id, result, 0, 0, ctx.file, ctx.namesMap, ctx.namesToFiles);
+                }
+                ctx.cNamesToFiles[id + '!r'] = [ctx.file];
             }
-            ctx.cNamesToFiles[id + '!r'] = [ctx.file];
             css = css.slice(0, token.start) + result + css.slice(token.end);
         }
     }
@@ -150,6 +192,7 @@ let cssNameGlobalProcessor = (css, ctx) => {
 module.exports = {
     cssCommentReg,
     cssRefReg,
+    refProcessor,
     genCssNamesKey,
     genCssSelector,
     addGlobal,

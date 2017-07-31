@@ -31,6 +31,7 @@ let trimAttrsStart = /^[a-z\-\d]+(?:=(["'])[^\u0007]+?\1)?(?=\s+|\u0007\d+\u0007
 let trimAttrsEnd = /(\s+|\u0007\d+\u0007)[a-z\-\d]+(?:=(["'])[^\u0007]+?\2)?$/;
 let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 let stringReg = /(['"])([a-z]+)\1/g;
+let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
 
 //模板，子模板的处理，仍然是配合magix-updater：https://github.com/thx/magix-updater
 //生成子模板匹配正则
@@ -71,10 +72,11 @@ let extractUpdateKeys = (tmpl, refTmplCommands, content, pKeys) => {
             }
         });
     });
-    let allKeys = Object.assign(attrKeys, tmplKeys);
+    //
+    Object.assign(attrKeys, tmplKeys);
     return {
-        keys: Object.keys(allKeys),
-        attrKeys: attrKeys,
+        keys: Object.keys(attrKeys),
+        //attrKeys: attrKeys,
         tmplKeys: tmplKeys
     };
 };
@@ -84,11 +86,16 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         tmplKeys = Object.create(null);
     tmpl.replace(extractAttrsReg, (match, attr) => {
         let originalAttr = attr;
+        let mxView = '';
+        attr.replace(mxViewAttrReg, m => mxView = m);
         while (trimAttrsStart.test(attr)) {
             attr = attr.replace(trimAttrsStart, '').trim();
         }
         while (trimAttrsEnd.test(attr)) {
             attr = attr.replace(trimAttrsEnd, '$1').trim();
+        }
+        if (info.tmpl && mxView && !mxViewAttrReg.test(attr)) {
+            attr += ' ' + mxView;
         }
         if (!attr) return;
         //console.log(attr);
@@ -171,7 +178,9 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
             info.attrs = attrs;
         }
     });
-    if (info.tmpl && info.attr) { //有模板及属性
+    //只有普通标签才可以进行属性与内容刷新优化，对于view来讲，不管是属性还是模板都需要重新渲染
+    //
+    if (!info.hasView && (info.tmpl && info.attr)) { //有模板及属性
         //接下来我们处理前面的属性和内容更新问题
         info.tmpl.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];

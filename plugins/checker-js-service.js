@@ -8,7 +8,7 @@ let slog = require('./util-log');
         var list=bag.get('list');
         console.log('list',list.a);//list.a可能出错
 
-        if(list.a){
+        if(list){
             console.log(list.a);//ok
         }
 

@@ -295,25 +295,35 @@ module.exports = {
                 }
             },
             AssignmentExpression(node) { //赋值语句
-                let lname = node.left.name;
-                let tname = lname; // compressVarsMap[lname] || lname;
-                if (configs.compressTmplVariable) { //如果压缩，则压缩变量
-                    modifiers.push({
-                        key: '',
-                        start: node.left.start,
-                        end: node.left.end,
-                        name: tname,
-                        type: 'ae'
-                    });
-                }
-                if (!globalExists[tname]) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
-                    slog.ever(('undeclare variable:' + lname).red, 'at', sourceFile.gray);
-                }
-                globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
-                if (globalExists[tname] > 2) {
-                    if (e.refGlobalLeak && !e.refGlobalLeak['_' + lname]) {
-                        e.refGlobalLeak['_' + lname] = 1;
-                        e.refGlobalLeak.reassigns.push(('avoid reassign variable:' + lname).red + ' at ' + sourceFile.gray);
+                if (node.left.type == 'Identifier') {
+                    let lname = node.left.name;
+                    let tname = lname; // compressVarsMap[lname] || lname;
+                    if (configs.compressTmplVariable) { //如果压缩，则压缩变量
+                        modifiers.push({
+                            key: '',
+                            start: node.left.start,
+                            end: node.left.end,
+                            name: tname,
+                            type: 'ae'
+                        });
+                    }
+                    if (!globalExists[tname]) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
+                        slog.ever(('undeclare variable:' + lname).red, 'at', sourceFile.gray);
+                    }
+                    globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
+                    if (globalExists[tname] > 2) {
+                        if (e.refGlobalLeak && !e.refGlobalLeak['_' + lname]) {
+                            e.refGlobalLeak['_' + lname] = 1;
+                            e.refGlobalLeak.reassigns.push(('avoid reassign variable:' + lname).red + ' at ' + sourceFile.gray);
+                        }
+                    }
+                } else if (node.left.type == 'MemberExpression') {
+                    let start = node.left;
+                    while (start.object) {
+                        start = start.object;
+                    } //模板中使用如<%list.x=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
+                    if (!globalExists[start.name]) {
+                        slog.ever(('avoid writeback: ' + fn.slice(node.start,node.end)).red, 'at', sourceFile.gray);
                     }
                 }
             },
@@ -387,6 +397,13 @@ module.exports = {
                             end: p.end,
                             name: pVarsMap[p.name] = variable(varCount++)　 //压缩参数
                         });
+                    }
+                }
+                //移除arguments;
+                for (let j = modifiers.length - 1; j >= 0; j--) {
+                    let m = modifiers[j];
+                    if (m.name == 'arguments' && node.start < m.start && node.end > m.end) {
+                        modifiers.splice(j, 1);
                     }
                 }
                 let walk = expr => { //遍历函数体

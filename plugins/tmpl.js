@@ -18,7 +18,7 @@ let tmplPartial = require('./tmpl-partial');
 let tmplVars = require('./tmpl-vars');
 let slog = require('./util-log');
 //模板处理，即处理view.html文件
-let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw|magix)?\u0012@([^'"]+)\.html\2/g;
+let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw|magix|updater)?\u0012@([^'"]+)\.html\2/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let sep = path.sep;
 let holder = '\u001f';
@@ -113,7 +113,7 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
-                let magixTmpl = !configs.disableMagixUpdater && ((prefix && ctrl != 'raw') || ctrl == 'magix');
+                let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'magix' || ctrl == 'updater';
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file);
                 //if (ext == ':events') { //事件

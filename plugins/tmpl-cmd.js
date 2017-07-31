@@ -60,6 +60,7 @@ module.exports = {
                 let start = 2;
                 if (operate) {
                     start = 3;
+                    content = '(' + content + ')';
                 }
                 let source = tmpl.slice(index, offset + start);
                 let key = '\u0005' + (htmlIndex++) + '\u0005';
@@ -68,12 +69,14 @@ module.exports = {
                 tps.push(';"', key, '";', content);
                 index = offset + match.length - 2;
             });
-
             tps = configs.compileTmplCommand(tps.join(''), configs);
             tps = tps.replace(/(?:\s*;\s*"\u0005|\u0005"\s*;\s*)/g, '\u0005');
             tps = tps.replace(/\u0005\d+\u0005/g, m => htmlStore[m]);
             tps = tps.replace(outputCmdReg, (m, o, c) => {
                 //还原格式
+                if (o) {
+                    c = c.slice(1, -1);
+                }
                 c = jm.min(c);
                 return '<%' + (o || '') + c + '%>';
             });

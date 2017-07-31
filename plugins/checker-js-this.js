@@ -28,6 +28,8 @@
             var that=this;//提示
         }
     }
+
+    self 检测
  */
 let slog = require('./util-log');
 module.exports = (node, tmpl, e, ref) => {
@@ -72,6 +74,13 @@ module.exports = (node, tmpl, e, ref) => {
                         if (expr.init.type == 'ThisExpression') {
                             if (!ref.thisAlias) {
                                 ref.thisAlias = expr.id.name;
+                            }
+                            if (expr.id.name == 'self') {
+                                exprs.push({
+                                    tip: 'avoid use self as this alias',
+                                    start: expr.start,
+                                    end: expr.end
+                                });
                             }
                             if (expr.id.name != ref.thisAlias) { //如果声明的变量名不与之前的相同
                                 exprs.push({

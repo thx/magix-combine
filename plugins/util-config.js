@@ -30,8 +30,8 @@ module.exports = {
         tmplAttrImg: true, //模板img属性
         tmplDisallowedTag: true, //不允许的标签
         tmplAttrDangerous: true, //危险的属性
-        tmplAttrNoopener: true, //需要添加noopener
         tmplAttrAnchor: true, //检测anchor类标签
+        tmplAttrIframe: true, //检测iframe相关
         tmplAttrMxEvent: true, //mx事件
         tmplAttrMxView: true, //mx view
         tmplDuplicateAttr: true, //重复的属性
@@ -46,7 +46,7 @@ module.exports = {
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
-    compileFileExtNames: ['js', 'mx'], //选择编译时的后缀名
+    compileFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
     tmplFileExtNames: ['html', 'mx'], //模板后缀
     tmplUnchangableVars: {}, //模板中不会变的变量，减少子模板的分析
     tmplGlobalVars: {}, //模板中全局变量

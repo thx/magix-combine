@@ -18,8 +18,8 @@ let {
     cssNameNewProcessor,
     cssNameGlobalProcessor,
     genCssNamesKey,
-    genCssSelector,
     cssRefReg,
+    refProcessor,
     cssCommentReg
 } = require('./css-selector');
 //处理css文件
@@ -50,17 +50,9 @@ module.exports = (e, inwatch) => {
     let cssContentCache = Object.create(null);
     let gCSSTagToFiles = Object.create(null);
 
-    let refProcessor = (m, q, file, ext, name) => {
-        file = path.resolve(path.dirname(e.from) + sep + file + ext);
-        q = genCssNamesKey(file);
-        name = genCssSelector(name);
-        checker.CSS.markUsed(file, name, e.from);
-        return '@.' + q + '-' + name;
-    };
     return cssGlobal.process({
         context: e,
-        inwatch: inwatch,
-        refProcessor: refProcessor
+        inwatch: inwatch
     }).then(gInfo => {
         //console.log(e.cssNamesInFiles);
         //console.log('global', gCSSNamesMap);
@@ -122,7 +114,9 @@ module.exports = (e, inwatch) => {
                                     addToGlobalCSS = false;
                                 }
                                 if (!r.cssNames) {
-                                    fileContent = fileContent.replace(cssRefReg, refProcessor);
+                                    fileContent = fileContent.replace(cssRefReg, (m, q, f, ext, selector) => {
+                                        return refProcessor(file, f, ext, selector, gInfo);
+                                    });
                                     try {
                                         fileContent = cssNameNewProcessor(fileContent, {
                                             shortFile: shortCssFile,
@@ -168,7 +162,9 @@ module.exports = (e, inwatch) => {
                                 let unchecked = configs.uncheckGlobalCss;
                                 if (globals.indexOf(file) == -1) {
                                     if (unchecked.indexOf(file) == -1) {
-                                        fileContent = fileContent.replace(cssRefReg, refProcessor);
+                                        fileContent = fileContent.replace(cssRefReg, (m, q, f, ext, selector) => {
+                                            return refProcessor(file, f, ext, selector, gInfo);
+                                        });
                                         try {
                                             cssNameGlobalProcessor(fileContent, {
                                                 shortFile: shortCssFile,
