@@ -24,7 +24,7 @@ let mxTailReg = /\.mx$/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /(['"])(@moduleId)\1/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
-let htmlFileReg = /(['"])(?:raw|magix)?@[^'"]+\.html(:data|:keys|:events)?\1/;
+let htmlFileReg = /(['"])(?:raw|magix|updater)?@[^'"]+\.html((?::const\[[^\[\]]+\]|:global\[[^\[\]]+\]|:updateby\[[^\[\]]+\])+)?\1/;
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
 let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
 let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;

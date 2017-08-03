@@ -237,7 +237,7 @@ declare module "magix-combine" {
         /**
          * 模板中不会变的变量，减少不必要的子模板的分析输出
          */
-        tmplUnchangableVars?: object
+        tmplConstVars?: object
         /**
          * 模板中的全局变量，这些变量不会做scope处理
          */

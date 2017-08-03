@@ -39,7 +39,7 @@ module.exports = (node, tmpl, e, ref) => {
         if (Array.isArray(expr) || expr instanceof Object) {
             switch (expr.type) {
                 case 'AssignmentExpression':
-                    if (expr.left.type == 'Identifier') {
+                    if (!e.vendorCompile && expr.left.type == 'Identifier') {
                         if (expr.right.type == 'ThisExpression') { //this赋值
                             if (!ref.thisAlias) { //当前文件还未查找到this别名
                                 ref.thisAlias = expr.left.name;
@@ -70,17 +70,19 @@ module.exports = (node, tmpl, e, ref) => {
                     }
                     break;
                 case 'VariableDeclarator':
-                    if (expr.init) {
+                    if (expr.init && expr.init.type == 'ThisExpression') {
+                        if (expr.id.name == 'self') {
+                            exprs.push({
+                                tip: 'avoid use self as this alias',
+                                start: expr.start,
+                                end: expr.end
+                            });
+                        }
+                    }
+                    if (!e.vendorCompile && expr.init) {
                         if (expr.init.type == 'ThisExpression') {
                             if (!ref.thisAlias) {
                                 ref.thisAlias = expr.id.name;
-                            }
-                            if (expr.id.name == 'self') {
-                                exprs.push({
-                                    tip: 'avoid use self as this alias',
-                                    start: expr.start,
-                                    end: expr.end
-                                });
                             }
                             if (expr.id.name != ref.thisAlias) { //如果声明的变量名不与之前的相同
                                 exprs.push({

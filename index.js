@@ -49,7 +49,10 @@ module.exports = {
     },
     config(cfg) {
         for (let p in cfg) {
-            if (p !== 'checker') {
+            if (p !== 'checker' &&
+                p != 'tmplConstVars' &&
+                p != 'tmplUnchangableVars' &&
+                p != 'tmplGlobalVars') {
                 configs[p] = cfg[p];
             }
         }
@@ -66,8 +69,26 @@ module.exports = {
             return p;
         });
         configs.scopedCssMap = scopedCssMap;
-
         configs.uncheckGlobalCss = configs.uncheckGlobalCss.map(p => path.resolve(p));
+        let specials = [{
+            src: 'tmplConstVars'
+        }, {
+            src: 'tmplUnchangableVars',
+            to: 'tmplConstVars'
+        }, {
+            src: 'tmplGlobalVars'
+        }];
+        for (let s of specials) {
+            if (cfg[s.src]) {
+                if (Array.isArray(cfg[s.src])) {
+                    for (let v of cfg[s.src]) {
+                        configs[s.to || s.src][v] = 1;
+                    }
+                } else {
+                    Object.assign(configs[s.to || s.src], cfg[s.src]);
+                }
+            }
+        }
     },
     combine() {
         slog.hook();

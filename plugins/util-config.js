@@ -48,10 +48,12 @@ module.exports = {
     useAtPathConverter: true, //是否使用@转换路径的功能
     compileFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
     tmplFileExtNames: ['html', 'mx'], //模板后缀
-    tmplUnchangableVars: {}, //模板中不会变的变量，减少子模板的分析
+    tmplConstVars: {}, //模板中不会变的变量，减少子模板的分析
+    tmplUnchangableVars: {}, //同上
     tmplGlobalVars: {}, //模板中全局变量
     outputTmplWithEvents: false, //输出事件
     disableMagixUpdater: false,
+    lazyAnalysisTmpl: false, //当指定updateby时才分析模板
     compressTmplVariable: true, //是否压缩模板中的变量
     tmplPadCallArguments(name) { //模板中某些函数的调用，我们可以动态添加一些参数。
         return '';

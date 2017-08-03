@@ -361,7 +361,7 @@ function jsmin(input, level, comment) {
     return r.join('');
   }
 
-  var ret = m(input);
+  var ret = m();
 
   if (comment) {
     return comment + '\n' + ret;

@@ -21,7 +21,7 @@ module.exports = {
             if (configs.checker.jsLoop) {
                 loopChecker(node, comments, tmpl, e);
             }
-            if (!e.vendorCompile && configs.checker.jsThis) {
+            if (configs.checker.jsThis) {
                 thisChecker(node, tmpl, e, ref); //this有可能被第三方编译工具编译，所以当第三方编译后的js代码不去检测
             }
         };

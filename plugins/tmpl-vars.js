@@ -124,7 +124,7 @@ let variable = count => { //压缩变量
     \u0003  模板中全局变量  全
     \u0004  命令中的字符串
     \u0005  html中的字符串
-    \u0006  unchangableVars 固定不会变的变量
+    \u0006  constVars 固定不会变的变量
     \u0007  存储命令
     \u0008  压缩命令
     \u0011  精准识别rqeuire
@@ -134,7 +134,7 @@ let variable = count => { //压缩变量
     第二遍用不可见字符
  */
 module.exports = {
-    process: (tmpl, reject, e) => {
+    process: (tmpl, reject, e, extInfo) => {
         let sourceFile = e.shortHTMLFile;
         let fn = [];
         let index = 0;
@@ -172,10 +172,10 @@ module.exports = {
             slog.ever('html file:', sourceFile.gray);
             reject(ex);
         }
-        let globalExists = {};
+        let globalExists = Object.assign(Object.create(null), configs.tmplGlobalVars);
         let globalTracker = Object.create(null);
-        for (let key in configs.tmplGlobalVars) {
-            globalExists[key] = 1;
+        if (extInfo.tmplScopedGlobalVars) {
+            globalExists = Object.assign(globalExists, extInfo.tmplScopedGlobalVars);
         }
         /*
             变量和变量声明在ast里面遍历的顺序不一致，需要对位置信息保存后再修改fn
@@ -202,14 +202,17 @@ module.exports = {
         };
         let fnRange = [];
         let compressVarToOrigional = Object.create(null);
-        let unchangableVars = Object.assign(Object.create(null), configs.tmplUnchangableVars);
+        let constVars = Object.assign(Object.create(null), configs.tmplConstVars);
+        if (extInfo.tmplScopedConstVars) {
+            constVars = Object.assign(constVars, extInfo.tmplScopedConstVars);
+        }
         walker.simple(ast, {
             CallExpression(node) { //方法调用
                 let vname = '';
                 let callee = node.callee;
                 if (callee.name) { //只处理模板中 <%=fn(a,b)%> 这种，不处理<%=x.fn()%>，后者x对象上除了挂方法外，还有可能挂普通数据。对于方法我们不把它当做变量处理，因为给定同样的参数，方法需要返回同样的结果
                     vname = callee.name;
-                    unchangableVars[vname] = 1;
+                    constVars[vname] = 1;
                 } else {
                     //以下是记录，如user.name.get('key');某个方法在深层对象中，需要把整个路径给还原出来。
                     vname = fn.slice(callee.start, callee.end);
@@ -274,9 +277,9 @@ module.exports = {
             Identifier(node) {
                 let tname = node.name; // compressVarsMap[node.name] || node.name;
                 //console.log(compressVarsMap,node.name,node.start,fnRange);
-                if (!globalExists.hasOwnProperty(tname)) { //模板中全局不存在这个变量
+                if (!globalExists[tname]) { //模板中全局不存在这个变量
                     modifiers.push({ //如果是指定不会改变的变量，则加固定前缀，否则会全局前缀
-                        key: (unchangableVars[tname] ? vphCst : vphGlb) + '.',
+                        key: (constVars[tname] ? vphCst : vphGlb) + '.',
                         start: node.start,
                         end: node.end,
                         name: tname
@@ -323,7 +326,7 @@ module.exports = {
                         start = start.object;
                     } //模板中使用如<%list.x=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
                     if (!globalExists[start.name]) {
-                        slog.ever(('avoid writeback: ' + fn.slice(node.start,node.end)).red, 'at', sourceFile.gray);
+                        slog.ever(('avoid writeback: ' + fn.slice(node.start, node.end)).red, 'at', sourceFile.gray);
                     }
                 }
             },

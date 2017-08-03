@@ -18,8 +18,9 @@ let tmplPartial = require('./tmpl-partial');
 let tmplVars = require('./tmpl-vars');
 let slog = require('./util-log');
 //模板处理，即处理view.html文件
-let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw|magix|updater)?\u0012@([^'"]+)\.html\2/g;
+let fileTmplReg = /(\btmpl\s*:\s*)?(['"])(raw|magix|updater)?\u0012@([^'"]+)\.html((?::const\[[^\[\]]+\]|:global\[[^\[\]]+\]|:updateby\[[^\[\]]+\])+)?\2/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
+let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]+)\]/g;
 let sep = path.sep;
 let holder = '\u001f';
 let removeVdReg = /\u0002/g;
@@ -27,17 +28,16 @@ let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 
 
-let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file) => {
+let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file, extInfo) => {
     let key = prefix + holder + magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
         let temp = Object.create(null);
         cache[key] = temp;
 
-        let extInfo = {
-            file: file
-        };
-        fileContent = tmplMxTag.process(fileContent, extInfo);
+        fileContent = tmplMxTag.process(fileContent, {
+            file
+        });
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
         //console.log(fileContent);
@@ -49,8 +49,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reassigns: []
         };
 
-        if (!configs.disableMagixUpdater && magixTmpl) {
-            fileContent = tmplVars.process(fileContent, reject, e);
+        if (magixTmpl) {
+            fileContent = tmplVars.process(fileContent, reject, e, extInfo);
         }
 
         fileContent = tmplCmd.compress(fileContent);
@@ -66,7 +66,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             slog.ever('minify error : ' + ex, ('html file: ' + e.shortHTMLFile).red);
             reject(ex);
         }
-        if (!configs.disableMagixUpdater && magixTmpl) {
+        if (magixTmpl) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
             if (e.refLeakGlobal.exists) {
                 slog.ever('segment failed'.red, 'at', e.shortHTMLFile.magenta, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
@@ -86,7 +86,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
                     .replace(removeIdReg, '').replace(stringReg, '$1');
             }
         }
-        let info = tmplPartial.process(fileContent, refTmplCommands, e);
+        let info = tmplPartial.process(fileContent, refTmplCommands, e, extInfo);
         temp.info = info;
         fCache = temp;
     }
@@ -100,7 +100,7 @@ module.exports = e => {
             fileContentCache = Object.create(null);
 
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
-        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, ctrl, name) => {
+        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, ctrl, name, ext) => {
             name = atpath.resolvePath(name, moduleId);
             //console.log(raw,name,prefix,configs.outputTmplWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.html');
@@ -113,9 +113,33 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
-                let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'magix' || ctrl == 'updater';
+                let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'magix' || ctrl == 'updater' || ext;
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file);
+                let extInfo = {};
+                if (ext) {
+                    ext.replace(tmplVarsReg, (m, key, vars) => {
+                        if (key == 'const') {
+                            if (!extInfo.tmplScopedConstVars)
+                                extInfo.tmplScopedConstVars = Object.create(null);
+                            for (let v of vars.split(',')) {
+                                extInfo.tmplScopedConstVars[v] = 1;
+                            }
+                        } else if (key == 'global') {
+                            if (!extInfo.tmplScopedGlobalVars)
+                                extInfo.tmplScopedGlobalVars = Object.create(null);
+                            for (let v of vars.split(',')) {
+                                extInfo.tmplScopedGlobalVars[v] = 1;
+                            }
+                        } else if (key == 'updateby') {
+                            if (!extInfo.tmplScopedUpdateBy)
+                                extInfo.tmplScopedUpdateBy = Object.create(null);
+                            for (let v of vars.split(',')) {
+                                extInfo.tmplScopedUpdateBy[v] = 1;
+                            }
+                        }
+                    });
+                }
+                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file, extInfo);
                 //if (ext == ':events') { //事件
                 //    return JSON.stringify(fcInfo.events);
                 //}
@@ -130,6 +154,7 @@ module.exports = e => {
                         html: fcInfo.info.tmpl,
                         subs: fcInfo.info.list
                     };
+                    if (!configs.compressCss) temp.file = e.shortHTMLFile;
                     return (prefix || '') + JSON.stringify(temp);
                 }
                 if (prefix && configs.outputTmplWithEvents) {
