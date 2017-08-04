@@ -201,7 +201,7 @@ module.exports = {
             });
         };
         let fnRange = [];
-        let compressVarToOrigional = Object.create(null);
+        let compressVarToOriginal = Object.create(null);
         let constVars = Object.assign(Object.create(null), configs.tmplConstVars);
         if (extInfo.tmplScopedConstVars) {
             constVars = Object.assign(constVars, extInfo.tmplScopedConstVars);
@@ -435,12 +435,14 @@ module.exports = {
                                 }
                                 //如果该参数从修改器中移除，则表示是当前方法的形参，如果启用压缩，则使用压缩后的变量
                                 if (find && configs.compressTmplVariable) {
+                                    let v = pVarsMap[expr.name] || expr.name;
                                     modifiers.push({
                                         key: vphUse + expr.end,
                                         start: expr.start,
                                         end: expr.end,
-                                        name: pVarsMap[expr.name] || expr.name
+                                        name: v
                                     });
+                                    compressVarToOriginal['\u0001' + expr.end + v] = expr.name;
                                 }
                             }
                         } else if (Array.isArray(expr)) {
@@ -590,7 +592,7 @@ module.exports = {
                 if (m.type) {
                     let oname = m.name;
                     m.name = getCompressVar(m.name, m.start);
-                    compressVarToOrigional['\u0001' + m.end + m.name] = oname;
+                    compressVarToOriginal['\u0001' + m.end + m.name] = oname;
                 }
             }
         }
@@ -598,7 +600,7 @@ module.exports = {
             m = modifiers[i];
             fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
         }
-        //console.log(fn,compressVarToOrigional,modifiers);
+        //console.log(fn,compressVarToOriginal,modifiers);
         //重新遍历变量带前缀的代码
         ast = acorn.parse(fn);
         walker.simple(ast, {
@@ -705,6 +707,14 @@ module.exports = {
             }
             return list;
         };
+        let toOriginalExpr = expr => {
+            if (configs.compressTmplVariable) {
+                expr = stripNum(expr.replace(compressVarReg, m => compressVarToOriginal[m] || m));
+            } else {
+                expr = stripNum(expr);
+            }
+            return expr;
+        };
         let best = head => {
             let match = head.match(/\u0001(\d+)/); //获取使用这个变量时的位置信息
             if (!match) return null;
@@ -738,16 +748,10 @@ module.exports = {
             }
             let info = best(head); //根据第一个变量查找最优的对应的根变量，第2种情况
             if (!info) {
-                let tipExpr;
-                if (configs.compressTmplVariable) {
-                    tipExpr = srcExpr.trim().replace(compressVarReg, m => {
-                        return compressVarToOrigional[m] || m;
-                    });
-                } else {
-                    tipExpr = stripNum(srcExpr.trim());
-                }
+                let tipExpr = toOriginalExpr(srcExpr.trim());
+                expr = toOriginalExpr(expr);
                 slog.ever(('can not resolve expr: ' + tipExpr).red, 'at', sourceFile.gray);
-                return ['analysisMissingRootVariableError'];
+                return ['<%throw new Error("can not resolve bind expr: ' + expr + ' read more: https://github.com/thx/magix/issues/37")%>'];
             }
             if (info != '\u0003') { //递归查找,第3种情况
                 ps = find(info, srcExpr).concat(ps.slice(1));
@@ -755,7 +759,7 @@ module.exports = {
             return ps; //.join('.');
         };
         let analyseExpr = (expr, source) => {
-            //slog.ever('expr', JSON.stringify(expr));
+            //console.log(expr);
             let result = find(expr, source); //获取表达式信息
             //slog.ever('result', result);
             //把形如 ["user","[name]","[key[value]"]=> user.<%=name%>.<%=key[value]%>
@@ -838,7 +842,7 @@ module.exports = {
             attrs = attrs.replace(bindReg, (m, name, q, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
-                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString).replace(/\u0003\./g, '')).red, 'at', sourceFile.gray);
+                    slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString))).red, 'at', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -854,7 +858,7 @@ module.exports = {
             }).replace(bindReg2, (m, expr) => {
                 expr = expr.trim();
                 if (findCount > 0) {
-                    slog.ever(('unsupport multi bind:' + tmplCmd.recover(match, cmdStore, recoverString).replace(/\u0003\./g, '')).red, 'at', sourceFile.gray);
+                    slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString))).red, 'at', sourceFile.gray);
                     return '';
                 }
                 findCount++;
@@ -884,8 +888,8 @@ module.exports = {
         fn = tmplCmd.recover(fn, cmdStore, processCmd);
         if (configs.compressTmplVariable) {
             let refVarsMap = Object.create(null);
-            for (let p in compressVarToOrigional) {
-                refVarsMap[stripNum(p)] = compressVarToOrigional[p];
+            for (let p in compressVarToOriginal) {
+                refVarsMap[stripNum(p)] = compressVarToOriginal[p];
             }
             e.toTmplSrc = (expr, refCmds) => {
                 expr = tmplCmd.recover(expr, refCmds);

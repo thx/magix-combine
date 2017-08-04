@@ -41,11 +41,18 @@ module.exports = {
     copyFile: fd.copy,
     writeFile: fd.write,
     removeFile(from) {
+        from = path.resolve(from);
         deps.removeFileDepend(from);
         let file = from.replace(configs.tmplReg, configs.srcHolder);
         if (fs.existsSync(file)) {
             fs.unlinkSync(file);
         }
+    },
+    removeCache(from) {
+        from = path.resolve(from);
+        checker.CSS.reset();
+        jsFileCache.clear(from);
+        cssGlobal.reset(from);
     },
     config(cfg) {
         for (let p in cfg) {
@@ -62,13 +69,20 @@ module.exports = {
             configs.checker = Object.assign(configs.checker, cfg.checker);
         }
         let scopedCssMap = Object.create(null);
-        configs.globalCss = configs.globalCss.map(p => path.resolve(p));
+        let globalCssMap = Object.create(null);
+
+        configs.globalCss = configs.globalCss.map(p => {
+            p = path.resolve(p);
+            globalCssMap[p] = 1;
+            return p;
+        });
         configs.scopedCss = configs.scopedCss.map(p => {
             p = path.resolve(p);
             scopedCssMap[p] = 1;
             return p;
         });
         configs.scopedCssMap = scopedCssMap;
+        configs.globalCssMap = globalCssMap;
         configs.uncheckGlobalCss = configs.uncheckGlobalCss.map(p => path.resolve(p));
         let specials = [{
             src: 'tmplConstVars'
@@ -149,9 +163,7 @@ module.exports = {
     processFile(from) {
         initEnv();
         from = path.resolve(from);
-        checker.CSS.reset();
-        jsFileCache.clear(from);
-        cssGlobal.reset(from);
+        this.removeCache(from);
         let to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
         return js.process(from, to, true).then(() => {
             checker.output();
@@ -160,7 +172,8 @@ module.exports = {
     },
     processContent(from, to, content) {
         initEnv();
-        jsFileCache.clear(from);
+        from = path.resolve(from);
+        this.removeCache(from);
         return jsContent.process(from, to, content, false, false);
     },
     processTmpl() {

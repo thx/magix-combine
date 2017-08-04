@@ -15,6 +15,7 @@ let tmplGuid = require('./tmpl-guid');
 let tmplAttr = require('./tmpl-attr');
 let tmplClass = require('./tmpl-attr-class');
 let tmplPartial = require('./tmpl-partial');
+let unmatchChecker = require('./checker-tmpl-unmatch');
 let tmplVars = require('./tmpl-vars');
 let slog = require('./util-log');
 //模板处理，即处理view.html文件
@@ -32,6 +33,14 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
     let key = prefix + holder + magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
+        e.srcHTMLFile = file;
+        e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+        try {
+            unmatchChecker(fileContent);
+        } catch (ex) {
+            slog.ever(('tags unmatched ' + ex.message).red, 'at', e.shortHTMLFile.magenta);
+            reject(ex);
+        }
         let temp = Object.create(null);
         cache[key] = temp;
 
@@ -41,8 +50,6 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
         //console.log(fileContent);
-        e.srcHTMLFile = file;
-        e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
 
         let refTmplCommands = Object.create(null);
         e.refLeakGlobal = {
@@ -63,7 +70,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
-            slog.ever('minify error : ' + ex, ('html file: ' + e.shortHTMLFile).red);
+            slog.ever(('minify html error : ' + ex.message).red, 'at', e.shortHTMLFile.magenta);
             reject(ex);
         }
         if (magixTmpl) {

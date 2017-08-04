@@ -211,9 +211,11 @@ module.exports = {
         Object.assign(globalCssNamesInFiles, cssNamesInFiles);
     },
     reset(file) {
-        globalPromise = null;
+        if (file && (configs.globalCssMap[file] || configs.scopedCssMap[file])) {
+            globalPromise = null;
+        }
         let info = lazyGlobalInfo[file];
-        if (file && info) {
+        if (info) {
             info.a = null;
             info.b = null;
         }

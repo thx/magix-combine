@@ -32,7 +32,7 @@ let mxViewAttrReg = /\bmx-view\b/;
 let guidReg = /\s+mx-guid="g[^"]+"/g;
 //let selfCloseTagWithGuid = /<([^>\s\/]+)(\s+mx-guid="g[^"]+")([^>]*?)\/>/g;
 //let selfCloseTag = /<[^>\s\/]+[^>]*?\/>/g;
-let emptyTag = /<(?:area|base|basefont|br|col|embed|frame|hr|img|input|isindex|keygen|link|meta|param|source|track|wbr)[^>]*?>/gi;
+//let emptyTag = /<(?:area|base|basefont|br|col|embed|frame|hr|img|input|isindex|keygen|link|meta|param|source|track|wbr)[^>]*?>/gi;
 //let guidReg = /\s+mx-guid="g[^"]+"/g;
 let vdReg = /\u0002(\w+)\b/g;
 let idReg = /\u0001(\w+)\b/g;
@@ -103,13 +103,13 @@ module.exports = {
         //let r = tmpl.replace(selfCloseTag, '').replace(subReg, '');
         let r = getContentExceptTags(tmpl, tokens);
 
-        tmpl = tmpl.replace(emptyTag, match => {
-            let content = match.slice(0, -1).trim();
-            if (content.charAt(content.length - 1) != '/') {
-                return content + '/>';
-            }
-            return match;
-        });
+        //tmpl = tmpl.replace(emptyTag, match => {
+        //    let content = match.slice(0, -1).trim();
+        //    if (content.charAt(content.length - 1) != '/') {
+        //        return content + '/>';
+        //    }
+        //    return match;
+        //});
         if (tmplCommandAnchorRegTest.test(r)) {
             let cmd = tmplCmd.recover(r, tmplCommands);
             let addWrapper = globalRegTest.test(cmd) || vdReg.test(cmd);

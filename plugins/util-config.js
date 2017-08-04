@@ -15,7 +15,6 @@ module.exports = {
         removeComments: true, //注释
         collapseWhitespace: true, //空白
         quoteCharacter: '"',
-        keepClosingSlash: true, //
         removeEmptyAttributes: true,
         collapseInlineTagWhitespace: true,
         caseSensitive: true
@@ -51,6 +50,7 @@ module.exports = {
     tmplConstVars: {}, //模板中不会变的变量，减少子模板的分析
     tmplUnchangableVars: {}, //同上
     tmplGlobalVars: {}, //模板中全局变量
+    tmplUncheckTags: {}, //不检测的标签
     outputTmplWithEvents: false, //输出事件
     disableMagixUpdater: false,
     lazyAnalysisTmpl: false, //当指定updateby时才分析模板

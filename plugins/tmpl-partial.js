@@ -529,19 +529,17 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                         tmplInfo.keys.push.apply(tmplInfo.keys, kInfo.keys);
                         Object.assign(ownKeys, kInfo.tmplKeys);
                         if (n.tag == 'textarea') { //textarea特殊处理，因为textarea可以有节点内容
-                            let addValueAsAttr = match;
                             if (tmplCommandAnchorRegTest.test(content)) {
                                 let idx = n.contentStart - n.start - 1;
-                                addValueAsAttr = addValueAsAttr.slice(0, idx) + ' value="' + escapeHTML(content) + '"' + addValueAsAttr.slice(idx);
+                                match = match.slice(0, idx) + ' value="' + escapeHTML(content) + '"' + match.slice(idx);
                             }
-                            addAttrs(n.tag, addValueAsAttr, tmplInfo, refTmplCommands, e);
+                            addAttrs(n.tag, match, tmplInfo, refTmplCommands, e);
                             delete tmplInfo.s; //这3行删除不必要的属性，节省资源
                             delete tmplInfo.tmpl;
                             delete tmplInfo.mask;
                             list.push(tmplInfo);
                         } else {
                             //从内容中移除自闭合标签及子模板
-                            let wrapTag = remain;
                             if (tmplCommandAnchorRegTest.test(tContent)) { //如果剩余有模板命令
                                 modifiers.push({
                                     replacement: g + holder,
@@ -564,9 +562,8 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                             }
                             //console.log('wrapTag', wrapTag);
                             //对当前标签分析属性的局部更新
-                            addAttrs(n.tag, wrapTag, tmplInfo, refTmplCommands, e);
-                            if (!tmplInfo.attr && !tmplInfo.tmpl) { //如果没有属性更新，则删除，减少资源占用
-                                //delete tmplInfo.attr;
+                            addAttrs(n.tag, remain, tmplInfo, refTmplCommands, e);
+                            if (!tmplInfo.attr && !tmplInfo.tmpl) {
                                 removedGuids.push(guid);
                             } else {
                                 list.push(tmplInfo);
@@ -588,7 +585,9 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                     }
                 }
             }
-            if (n.children) {
+            //textarea不需要深入分析
+            //有内容的节点才需要进入分析
+            if (n.tag != 'textarea' && n.hasContent && n.children) {
                 walk(n.children, ownKeys);
             }
         }

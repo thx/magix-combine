@@ -243,6 +243,10 @@ declare module "magix-combine" {
          */
         tmplGlobalVars?: object
         /**
+         * 模板标签匹配检测时，不去检测的标签名称
+         */
+        tmplUncheckTags?: object
+        /**
          * 模板输出时是否输出识别到的事件列表，默认为false
          */
         outputTmplWithEvents?: boolean
@@ -365,4 +369,10 @@ declare module "magix-combine" {
      * @param tmpl 源模板
      */
     function stripCmd(tmpl: string): string
+
+    /**
+     * 移除某个文件的缓存，在下次编译的时候重新编译该文件
+     * @param file 文件路径
+     */
+    function removeCache(file: string): void
 }

@@ -19,6 +19,7 @@ let continuedCmdReg = /(?:&\u0008\d+&\u0008){2,}/g;
 let bwCmdReg = /%>\s*<%/g;
 let blockCmdReg = /([\{\}]);/g;
 let continuedSemicolonReg = /;+/g;
+let emptyCmdReg = /<%\s*%>/g;
 let phKey = '&\u0008';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
@@ -55,7 +56,6 @@ module.exports = {
                 }
                 return (left || '') + '<%:' + expr + '%>' + (right || '');
             });
-
             tmpl.replace(tmplCmdReg, (match, operate, content, offset) => {
                 let start = 2;
                 if (operate) {
@@ -69,10 +69,10 @@ module.exports = {
                 tps.push(';"', key, '";', content);
                 index = offset + match.length - 2;
             });
-            tps = configs.compileTmplCommand(tps.join(''), configs);
-            tps = tps.replace(/(?:\s*;\s*"\u0005|\u0005"\s*;\s*)/g, '\u0005');
-            tps = tps.replace(/\u0005\d+\u0005/g, m => htmlStore[m]);
-            tps = tps.replace(outputCmdReg, (m, o, c) => {
+            tmpl = configs.compileTmplCommand(tps.join(''), configs);
+            tmpl = tmpl.replace(/(?:\s*;\s*"\u0005|\u0005"\s*;\s*)/g, '\u0005');
+            tmpl = tmpl.replace(/\u0005\d+\u0005/g, m => htmlStore[m]);
+            tmpl = tmpl.replace(outputCmdReg, (m, o, c) => {
                 //还原格式
                 if (o) {
                     c = c.slice(1, -1);
@@ -80,7 +80,7 @@ module.exports = {
                 c = jm.min(c);
                 return '<%' + (o || '') + c + '%>';
             });
-            tmpl = tps;
+            tmpl = tmpl.replace(emptyCmdReg, '');
         }
         return tmpl;
     },
