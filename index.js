@@ -12,6 +12,21 @@ let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
 let slog = require('./plugins/util-log');
 require('colors');
+
+if (!Object.values) {
+    Object.values = object => {
+        let result = [];
+        if (object) {
+            for (let p in object) {
+                if (object.hasOwnProperty(p)) {
+                    result.push(object[p]);
+                }
+            }
+        }
+        return result;
+    };
+}
+
 // let loading='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
 let genMsg = (completed, total) => {
     let len = 40;

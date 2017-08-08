@@ -12,12 +12,13 @@ let {
     maybeAttr
 } = require('./tmpl-attr-map');
 let holder = '\u001d';
+let loopReg = /\u0019/g;
 //let slashAnchorReg = /\u0004/g;
 //自闭合标签，需要开发者明确写上如 <input />，注意>前的/,不能是<img>
 //let selfCloseTag = /<([^>\s\/]+)\s+(mx-guid="g[^"]+")[^>]*?\/>/g;
 let extractAttrsReg = /<[^>\s\/]+\s+mx-guid="[^"]+"\s+([^>]+?)\/?>/;
 //属性正则
-let attrNameValueReg = /([^=\/\s]+)(?:\s*=\s*(["'])[\s\S]*?\2)?(?=$|\s)/g;
+let attrNameValueReg = /([^=\/\s]+)(?:\s*=\s*(?:(["'])[\s\S]*?\2|\S*))?(?=$|\s)/g;
 //模板引擎命令被替换的占位符
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
@@ -151,7 +152,6 @@ let getRange = (start, end, modifiers) => {
 let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
     let attrKeys = Object.create(null);
     let tmplKeys = Object.create(null);
-    //console.log('=====', tmpl, '-----', content);
     tmpl.replace(tmplCommandAnchorReg, m => {
         let temp = refTmplCommands[m];
         //console.log(temp);
@@ -187,12 +187,12 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
     Object.assign(attrKeys, tmplKeys);
     return {
         keys: Object.keys(attrKeys),
-        //attrKeys: attrKeys,
+        allKeys: attrKeys,
         tmplKeys
     };
 };
 //添加属性信息
-let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
+let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
     let attrsKeys = Object.create(null),
         tmplKeys = Object.create(null);
     tmpl.replace(extractAttrsReg, (match, attr) => {
@@ -285,13 +285,14 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
         }
         attr = commandAnchorRecover(attr, refTmplCommands);
         if (attr) {
-            info.attr = attr; //.replace(slashAnchorReg, '/');
+            info.attr = attr.trim(); //.replace(slashAnchorReg, '/');
             info.attrs = attrs;
         }
     });
     //只有普通标签才可以进行属性与内容刷新优化，对于view来讲，不管是属性还是模板都需要重新渲染
-    //
-    if (!info.hasView && (info.tmpl && info.attr)) { //有模板及属性
+    //如果含有子view的节点，只需要重新实例化，不需要渲染模板
+    //console.log(info,hasSubView, info.hasView);
+    if ((info.tmpl && info.attr) && (hasSubView || !info.hasView)) { //有模板及属性
         //接下来我们处理前面的属性和内容更新问题
         info.tmpl.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];
@@ -307,7 +308,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e) => {
             if (tmplKeys[info.keys[i]]) m = 1;
             //如果key存在属性中,则m为2或者或上1
             //console.log(info.keys);
-            if (attrsKeys[info.keys[i]] || (m && info.hasView)) m = m ? m | 2 : 2;
+            if (attrsKeys[info.keys[i]]) m = m ? m | 2 : 2;
             mask += m + '';
             if (m === 0) {
                 slog.ever('check key word:', info.keys[i].red, ' relate file:', e.shortFrom.gray);
@@ -527,7 +528,9 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                     let kInfo = newExtractUpdateKeys(remain, refTmplCommands, tContent, parentOwnKeys, extInfo);
                     if (kInfo.keys.length) {
                         tmplInfo.keys.push.apply(tmplInfo.keys, kInfo.keys);
-                        Object.assign(ownKeys, kInfo.tmplKeys);
+                        //当前节点是view且有子view，则子view的pKeys为当前节点属性和模板中的key
+                        //当前view节点因有子view节点，所以不输出界面
+                        Object.assign(ownKeys, n.hasMxView && n.hasSubView ? kInfo.allKeys : kInfo.tmplKeys);
                         if (n.tag == 'textarea') { //textarea特殊处理，因为textarea可以有节点内容
                             if (tmplCommandAnchorRegTest.test(content)) {
                                 let idx = n.contentStart - n.start - 1;
@@ -562,7 +565,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                             }
                             //console.log('wrapTag', wrapTag);
                             //对当前标签分析属性的局部更新
-                            addAttrs(n.tag, remain, tmplInfo, refTmplCommands, e);
+                            addAttrs(n.tag, remain, tmplInfo, refTmplCommands, e, n.hasSubView);
                             if (!tmplInfo.attr && !tmplInfo.tmpl) {
                                 removedGuids.push(guid);
                             } else {
@@ -601,14 +604,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
     }
     tmpl = tmpl.replace(virtualRoot, '$1');
     tmpl = commandAnchorRecover(tmpl, refTmplCommands); //恢复模板命令
-    for (let g of removedGuids) {
-        tmpl = tmpl.replace(' ' + g, '');
-        for (let s of list) {
-            if (s.tmpl) {
-                s.tmpl = s.tmpl.replace(' ' + g, '');
-            }
-        }
-    }
+    tmpl = tmpl.replace(loopReg, '');
     for (let s of list) {
         if (s.tmpl) {
             let r = getRange(s.tmplRange[0], s.tmplRange[1], modifiers);
@@ -619,8 +615,21 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                 s.tmpl = s.tmpl.slice(0, start) + m.replacement + s.tmpl.slice(end);
             }
             s.tmpl = commandAnchorRecover(s.tmpl, refTmplCommands);
+
+            if (loopReg.test(s.tmpl)) {
+                s.l = 1;
+                s.tmpl = s.tmpl.replace(loopReg, '');
+            }
         }
         delete s.tmplRange;
+    }
+    for (let g of removedGuids) {
+        tmpl = tmpl.replace(' ' + g, '');
+        for (let s of list) {
+            if (s.tmpl) {
+                s.tmpl = s.tmpl.replace(' ' + g, '');
+            }
+        }
     }
     return {
         tmpl,

@@ -35,6 +35,17 @@ let cmap = {
 };
 let stripChar = str => str.replace(creg, m => cmap[m]);
 let stripNum = str => str.replace(hreg, '$1');
+let loopNames = {
+    forEach: 1,
+    map: 1,
+    filter: 1,
+    some: 1,
+    every: 1,
+    reduce: 1,
+    reduceRight: 1,
+    find: 1,
+    each: 1
+};
 let genEventReg = type => { //获取事件正则，做绑定时，当原来已经存在如change,input等事件时，原来的事件仍需调用
     return regexp.get('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)\\)"');
 };
@@ -130,6 +141,8 @@ let variable = count => { //压缩变量
     \u0011  精准识别rqeuire
     \u0012  精准识别@符
     \u0017  模板中的纯字符串
+    \u0018  模板中的绑定参数对象
+    \u0019  模板中的循环
     第一遍用汉字
     第二遍用不可见字符
  */
@@ -162,7 +175,7 @@ module.exports = {
         };
         //console.log(fn);
         //return;
-
+        //console.log(fn);
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
@@ -600,9 +613,18 @@ module.exports = {
             m = modifiers[i];
             fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
         }
+        modifiers = [];
         //console.log(fn,compressVarToOriginal,modifiers);
         //重新遍历变量带前缀的代码
         ast = acorn.parse(fn);
+        let recordLoop = node => {
+            modifiers.push({
+                key: '\u0019',
+                start: node.start,
+                end: node.start,
+                name: ''
+            });
+        };
         walker.simple(ast, {
             VariableDeclarator(node) {
                 let key = stripChar(node.id.name); //把汉字前缀换成代码前缀
@@ -613,13 +635,16 @@ module.exports = {
                     if (!globalTracker[key]) { //全局追踪
                         globalTracker[key] = [];
                     }
-                    let value = 'unassigned';
+                    let hasValue = false;
+                    let value = null;
                     if (node.init) { //如果有赋值
+                        hasValue = true;
                         value = stripChar(fn.slice(node.init.start, node.init.end));
                     }
                     globalTracker[key].push({
                         pos: pos | 0,
-                        value: value
+                        hasValue,
+                        value
                     });
                 }
             },
@@ -632,10 +657,10 @@ module.exports = {
                 let list = globalTracker[key];
                 if (list) {
                     let found = false;
-                    for (let i = 0; i < list.length; i++) { //如果是首次赋值，则直接把原来的变成新值
-                        if (list[i].value == 'unassigned') {
-                            list[i].value = value;
-                            found = true;
+                    for (let i of list) {
+                        if (!i.hasValue) { //如果是首次赋值，则直接把原来的变成新值
+                            i.value = value;
+                            i.hasValue = found = true;
                             break;
                         }
                     }
@@ -646,13 +671,47 @@ module.exports = {
                         });
                     }
                 }
+            },
+            ForStatement: recordLoop,
+            WhileStatement: recordLoop,
+            DoWhileStatement: recordLoop,
+            ForOfStatement: recordLoop,
+            ForInStatement: recordLoop,
+            CallExpression: node => {
+                let args = node.arguments;
+                if (args && args.length > 0) {
+                    let a0 = args[0];
+                    let a1 = args[1];
+                    if (a0.type == 'FunctionExpression' ||
+                        a0.type == 'ArrowFunctionExpression' ||
+                        (a1 && (a1.type == 'FunctionExpression' ||
+                            a1.type == 'ArrowFunctionExpression'))) {
+                        let callee = node.callee;
+                        if (callee.type == 'MemberExpression') {
+                            let p = callee.property;
+                            if (loopNames.hasOwnProperty(p.name)) {
+                                modifiers.push({
+                                    key: '\u0019',
+                                    start: node.start,
+                                    end: node.start,
+                                    name: ''
+                                });
+                            }
+                        }
+                    }
+                }
             }
         });
+        modifiers.sort((a, b) => a.start - b.start);
+        for (let i = modifiers.length - 1, m; i >= 0; i--) {
+            m = modifiers[i];
+            fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
+        }
         //console.log(globalTracker);
         //fn = stripChar(fn);
+        //console.log(fn);
         fn = fn.replace(scharReg, '');
         fn = stripChar(fn);
-        //console.log(JSON.stringify(fn),htmlStore);
         fn = fn.replace(htmlHolderReg, m => htmlStore[m]);
         fn = fn.replace(tmplCmdReg, (match, operate, content) => {
             if (operate) {
@@ -793,7 +852,7 @@ module.exports = {
             return '<textarea' + attr + '>' + content + '</textarea>';
         });
         fn = fn.replace(tagReg, (match, tag, attrs) => {
-            let bindEvents = configs.bindEvents;
+            let bindEvents = configs.bindEvents.slice();
             let oldEvents = Object.create(null);
             let e;
             let hasMagixView = mxViewAttrReg.test(attrs); //是否有mx-view属性
@@ -817,66 +876,146 @@ module.exports = {
                 }
             };
             let findCount = 0;
-            let transformEvent = (exprInfo, source) => { //转换事件
-                if (exprInfo.evts) { //如果提供了绑定的事件，则使用提供的事件列表
-                    bindEvents = exprInfo.evts;
-                }
-                storeUserEvents(); //存储用户的事件
-                let expr = exprInfo.expr;
-                let f = '';
-                let fns = exprInfo.fns;
-                if (fns.length) { //传递的参数
-                    f = ',f:' + fns;
-                }
-                expr = analyseExpr(expr, source); //分析表达式
-                let now = '',
-                    info;
-                for (let i = 0; i < bindEvents.length; i++) {
-                    e = bindEvents[i];
-                    info = oldEvents[e];
-                    now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + f + '})" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
-                }
-                return now;
-            };
-            //console.log(match,JSON.stringify(tag),attrs);
-            attrs = attrs.replace(bindReg, (m, name, q, expr) => {
-                expr = expr.trim();
-                if (findCount > 0) {
-                    slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString))).red, 'at', sourceFile.gray);
-                    return '';
-                }
-                findCount++;
-                let exprInfo = extractFunctions(expr);
-                let now = transformEvent(exprInfo, m);
+            if (configs.multiBind) {
+                let bindStructs = {};
+                let transformEvent = (exprInfo, source, attrName) => { //转换事件
+                    if (exprInfo.evts) { //如果提供了绑定的事件，则使用提供的事件列表
+                        bindEvents = exprInfo.evts;
+                    } else {
+                        bindEvents = configs.bindEvents;
+                    }
+                    storeUserEvents(); //存储用户的事件
+                    let expr = exprInfo.expr;
+                    expr = analyseExpr(expr, source); //分析表达式
 
-                let replacement = '<%=';
-                if (hasMagixView && name.indexOf('view-') === 0) {
-                    replacement = '<%@';
+                    let info;
+                    for (let be of bindEvents) {
+                        info = oldEvents[be];
+                        if (!bindStructs[be]) {
+                            bindStructs[be] = {
+                                old: info ? info.now : ''
+                            };
+                        }
+                        let viewParams = attrName && attrName.indexOf('view-') === 0;
+                        let c = {
+                            p: expr,
+                            f: exprInfo.fns,
+                            n: viewParams ? attrName.slice(5) : ''
+                        };
+                        if (!bindStructs[be].c) {
+                            bindStructs[be].c = [];
+                        }
+                        let t = ['{p:\'' + c.p + '\''];
+                        if (c.f) {
+                            t.push(',f:' + c.f);
+                        }
+                        if (c.n) {
+                            t.push(',n:\'' + c.n + '\'');
+                        }
+                        t.push('}');
+                        bindStructs[be].c.push(t.join(''));
+                    }
+                };
+                attrs.replace(bindReg, (m, name, q, expr) => {
+                    expr = expr.trim();
+                    let exprInfo = extractFunctions(expr);
+                    transformEvent(exprInfo, m, name);
+                }).replace(bindReg2, (m, expr) => {
+                    expr = expr.trim();
+                    let exprInfo = extractFunctions(expr);
+                    transformEvent(exprInfo, m);
+                });
+
+                let t = [],
+                    info;
+                for (let bs in bindStructs) {
+                    info = bindStructs[bs];
+                    t.push(' mx-' + bs + '="' + configs.bindName + '({c:[' + info.c + ']' + (info.old ? info.old : '') + '})" ');
                 }
-                m = name + '=' + q + replacement + exprInfo.expr + '%>' + q;
-                return m + now;
-            }).replace(bindReg2, (m, expr) => {
-                expr = expr.trim();
-                if (findCount > 0) {
-                    slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString))).red, 'at', sourceFile.gray);
+                t = t.join('');
+                attrs = attrs.replace(bindReg, (m, name, q, expr) => {
+                    findCount++;
+                    let replacement = '<%=';
+                    let exprInfo = extractFunctions(expr);
+                    if (hasMagixView && name.indexOf('view-') === 0) {
+                        replacement = '<%@';
+                    }
+                    m = name + '=' + q + replacement + exprInfo.expr + '%>' + q;
+                    if (findCount == 1) {
+                        return m + t;
+                    }
+                    return m;
+                }).replace(bindReg2, () => {
+                    findCount++;
+                    if (findCount == 1) {
+                        return t;
+                    }
                     return '';
-                }
-                findCount++;
-                let exprInfo = extractFunctions(expr);
-                let now = transformEvent(exprInfo, m);
-                return now;
-            }).replace(pathReg, (m, expr) => {
+                });
+            } else {
+                let transformEvent = (exprInfo, source) => { //转换事件
+                    if (exprInfo.evts) { //如果提供了绑定的事件，则使用提供的事件列表
+                        bindEvents = exprInfo.evts;
+                    } else {
+                        bindEvents = configs.bindEvents;
+                    }
+                    storeUserEvents(); //存储用户的事件
+                    let expr = exprInfo.expr;
+                    let f = '';
+                    let fns = exprInfo.fns;
+                    if (fns.length) { //传递的参数
+                        f = ',f:' + fns;
+                    }
+                    expr = analyseExpr(expr, source); //分析表达式
+
+                    let now = '',
+                        info;
+                    for (let i = 0; i < bindEvents.length; i++) {
+                        e = bindEvents[i];
+                        info = oldEvents[e];
+                        now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + f + '})" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
+                    }
+                    return now;
+                };
+                attrs = attrs.replace(bindReg, (m, name, q, expr) => {
+                    expr = expr.trim();
+                    if (findCount > 0) {
+                        slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')).red, 'at', sourceFile.gray);
+                        return '';
+                    }
+                    findCount++;
+                    let exprInfo = extractFunctions(expr);
+                    let now = transformEvent(exprInfo, m, name);
+
+                    //console.log(exprInfo, name, now);
+                    let replacement = '<%=';
+                    if (hasMagixView && name.indexOf('view-') === 0) {
+                        replacement = '<%@';
+                    }
+                    m = name + '=' + q + replacement + exprInfo.expr + '%>' + q;
+                    return m + now;
+                }).replace(bindReg2, (m, expr) => {
+                    expr = expr.trim();
+                    if (findCount > 0) {
+                        slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')).red, 'at', sourceFile.gray);
+                        return '';
+                    }
+                    findCount++;
+                    let exprInfo = extractFunctions(expr);
+                    let now = transformEvent(exprInfo, m);
+                    return now;
+                });
+            }
+            attrs = attrs.replace(pathReg, (m, expr) => {
                 expr = expr.trim();
                 //console.log(JSON.stringify(expr));
                 expr = analyseExpr(expr, m);
                 return expr;
             }).replace(tmplCmdReg, stripNum);
             if (findCount > 0) {
-                for (let i = 0; i < bindEvents.length; i++) {
-                    e = oldEvents[bindEvents[i]];
-                    if (e) {
-                        attrs = attrs.replace(e.old, '');
-                    }
+                for (let old in oldEvents) {
+                    let info = oldEvents[old];
+                    attrs = attrs.replace(info.old, '');
                 }
             }
             return '<' + tag + attrs + '>';

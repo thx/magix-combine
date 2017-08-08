@@ -14,10 +14,12 @@ module.exports = {
     htmlminifierOptions: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
         collapseWhitespace: true, //空白
-        quoteCharacter: '"',
-        removeEmptyAttributes: true,
-        collapseInlineTagWhitespace: true,
-        caseSensitive: true
+        quoteCharacter: '"', //属性引号
+        removeEmptyAttributes: true, //移除空的属性
+        collapseInlineTagWhitespace: true, //移除标签间的空白
+        caseSensitive: true, //保持大小写
+        removeRedundantAttributes: true, //移除默认的属性，如input当type="text"时 type可被移除
+        sortClassName: true //排序，有利于gzip压缩
     },
     log: true, //日志及进度条
     checker: {
@@ -39,6 +41,7 @@ module.exports = {
     compressCss: true, //是否压缩css内容
     compressCssSelectorNames: true, //是否压缩css选择器名称，默认只添加前缀，方便调试
     addEventPrefix: true, //mx事件增加前缀
+    multiBind: false, //是否支持多个绑定
     bindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     bindName: 'syncValue', //绑定表达式<%:expr%>绑定的处理名称
     globalCss: [], //全局样式

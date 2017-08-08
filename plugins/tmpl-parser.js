@@ -1,16 +1,21 @@
 let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
+
 module.exports = input => {
     let ctrls = [];
     let pos = 0;
     let tokens = [];
+    let id = 0;
+    let tokensMap = Object.create(null);
     new HTMLParser(input, {
         html5: true,
         start(tag, attrs, unary) {
             let token = {
+                id: 't' + id++,
                 tag,
                 hasContent: true,
                 start: pos
             };
+            tokensMap[token.id] = token;
             let parent = ctrls[ctrls.length - 1];
             if (parent) {
                 if (!parent.children) {
@@ -18,6 +23,7 @@ module.exports = input => {
                 }
                 parent.children.push(token);
                 token.isChild = true;
+                token.pId = parent.id;
             }
             ctrls.push(token);
             tokens.push(token);
@@ -29,8 +35,10 @@ module.exports = input => {
                 temp = a.name;
                 if (temp == 'mx-guid') {
                     token.guid = a.value;
+                } else if (temp == 'mx-view') {
+                    token.hasMxView = true;
                 }
-                if (a.quote && a.value) {
+                if (a.value) {
                     temp += '=' + a.quote + a.value + a.quote;
                 }
                 pos = input.indexOf(temp, pos) + temp.length;
@@ -59,9 +67,22 @@ module.exports = input => {
             pos = input.indexOf(text, pos) + text.length;
         }
     });
-    for (let i = tokens.length; i--;) {
-        if (tokens[i].isChild) {
+    for (let i = tokens.length, token; i--;) {
+        token = tokens[i];
+        if (token.isChild) {
             tokens.splice(i, 1);
+        }
+        if (token.hasMxView) {
+            let pId = token.pId;
+            while (pId) {
+                let pToken = tokensMap[pId];
+                if (pToken) {
+                    pToken.hasSubView = true;
+                    pId = pToken.pId;
+                } else {
+                    break;
+                }
+            }
         }
     }
     return tokens;

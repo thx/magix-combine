@@ -55,11 +55,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         e.refLeakGlobal = {
             reassigns: []
         };
-
         if (magixTmpl) {
             fileContent = tmplVars.process(fileContent, reject, e, extInfo);
         }
-
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
         if (configs.outputTmplWithEvents) {
@@ -75,6 +73,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         }
         if (magixTmpl) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
+            //console.log(tmplCmd.recover(fileContent,refTmplCommands));
             if (e.refLeakGlobal.exists) {
                 slog.ever('segment failed'.red, 'at', e.shortHTMLFile.magenta, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
                 if (e.refLeakGlobal.reassigns) {

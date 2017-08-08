@@ -2,6 +2,17 @@
     检测js代码中的循环嵌套，在以往的代码review中，通常3层以上的循环都可以通过合理的数据结构避免
  */
 let slog = require('./util-log');
+let loopNames = {
+    forEach: 1,
+    map: 1,
+    filter: 1,
+    some: 1,
+    every: 1,
+    reduce: 1,
+    reduceRight: 1,
+    find: 1,
+    each: 1
+};
 module.exports = (node, comments, tmpl, e) => {
     let outerExprs = [];
     let addedOuterExprs = Object.create(null);
@@ -38,6 +49,7 @@ module.exports = (node, comments, tmpl, e) => {
                 case 'WhileStatement':
                 case 'DoWhileStatement':
                 case 'ForOfStatement':
+                case 'ForInStatement':
                     if (!uncheck(expr.start)) {
                         if (!outerLoop) {
                             outerLoop = expr;
@@ -48,15 +60,17 @@ module.exports = (node, comments, tmpl, e) => {
                     break;
                 case 'CallExpression': //检测是否是[].forEach  _.each $.each调用
                     let args = expr.arguments;
-                    if (args && args.length == 1) {
+                    if (args && args.length > 1) {
                         let a0 = args[0];
+                        let a1 = args[1];
                         if (a0.type == 'FunctionExpression' ||
-                            a0.type == 'ArrowFunctionExpression') {
+                            a0.type == 'ArrowFunctionExpression' ||
+                            (a1 && (a1.type == 'FunctionExpression' ||
+                                a1.type == 'ArrowFunctionExpression'))) {
                             let callee = expr.callee;
                             if (callee.type == 'MemberExpression') {
                                 let p = callee.property;
-                                if (p.name == 'forEach' ||
-                                    p.name == 'each') {
+                                if (loopNames.hasOwnProperty(p.name)) {
                                     let key = a0.start + '@' + a0.end;
                                     enterFns[key] = 1;
                                     if (!uncheck(expr.start)) {

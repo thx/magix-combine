@@ -4,7 +4,7 @@
 let configs = require('./util-config');
 let checker = require('./checker');
 let deps = require('./util-deps');
-let classReg = /\bclass\s*=\s*(['"])([^'"]+)(?:\1)/g;
+let classReg = /\bclass\s*=\s*"([^"]+)"/g;
 let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
 let selfCssReg = /@:([\w\-]+)/g;
@@ -40,7 +40,7 @@ module.exports = {
             }
             return key;
         };
-        let classProcessor = (m, q, c) => {
+        let classProcessor = (m, c) => {
             if (tmplCommandAnchorReg.test(m)) {
                 tmplCommandAnchorReg.lastIndex = 0;
                 m.replace(tmplCommandAnchorReg, tm => {
@@ -50,7 +50,7 @@ module.exports = {
                     }
                 });
             }
-            return 'class=' + q + c.replace(classNameReg, classResult) + q;
+            return 'class="' + c.replace(classNameReg, classResult) + '"';
         };
         let selfCssClass = (m, key) => {
             if (numReg.test(key)) return m;

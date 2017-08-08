@@ -61,17 +61,17 @@ module.exports = tmpl => {
     for (let tag of tags) {
         if (tag.close) {
             if (!tagsStack.length) {
-                throw new Error(tag.match + ' doesn\'t have corresponding open tag at line ' + tag.line);
+                throw new Error(`${tag.match} doesn't have corresponding open tag at line  ${tag.line}`);
             }
             let last = tagsStack.pop();
             if (tag.name != last.name) {
-                throw new Error(tag.match + ' at line ' + tag.line + ' doesn\'t match open tag ' + last.match + ' at line ' + last.line);
+                throw new Error(`${tag.match} at line ${tag.line} doesn't match open tag ${last.match} at line ${last.line}`);
             }
         } else {
             tagsStack.push(tag);
         }
     }
     for (let tag of tagsStack) {
-        throw new Error('unclosed tag ' + tag.match + ' at line ' + tag.line);
+        throw new Error(`unclosed tag ${tag.match} at line ${tag.line}`);
     }
 };

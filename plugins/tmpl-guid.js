@@ -10,7 +10,7 @@ let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 let holder = '\u001f';
 //let slashReg = /\//g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
-let mxViewAttrReg = /\bmx-view\b/;
+let mxViewAttrReg = /\bmx-view\b=(['"])[\s\S]+?\1/;
 //let subReg = (() => {
 //    let temp = '<([^>\\s\\/]+)([^>]*?)>(#)</\\1>';
 //    let start = 5; //嵌套9层在同一个view中也足够了
@@ -96,6 +96,17 @@ let getContentWithoutGuid = (n, tmpl) => {
     }
     return tmpl;
 };
+let collectGuids = (nodes, removedGuids) => { //移除某个节点下的所有guid，用于mx-view这样的节点，子节点不能有guid
+    if (nodes) {
+        for (let n of nodes) {
+            collectGuids(n.children, removedGuids);
+            if (n.guid) {
+                removedGuids.push(n.guid);
+                delete n.guid;
+            }
+        }
+    }
+};
 module.exports = {
     add(tmpl, tmplCommands, refLealGlobal) {
         let g = 0;
@@ -132,17 +143,6 @@ module.exports = {
             //如果剩余内容+属性配对，则保留guid
             //如果剩余内容+属性不配对，则删除guid
             let removedGuids = [];
-            let collectGuids = nodes => { //移除某个节点下的所有guid，用于mx-view这样的节点，子节点不能有guid
-                if (nodes) {
-                    for (let n of nodes) {
-                        collectGuids(n.children);
-                        if (n.guid) {
-                            removedGuids.push(n.guid);
-                            delete n.guid;
-                        }
-                    }
-                }
-            };
             let walk = nodes => {
                 for (let n of nodes) {
                     let attrs = n.hasAttrs ? tmpl.slice(n.attrsStart, n.attrsEnd) : '';
@@ -151,8 +151,16 @@ module.exports = {
                             walk(n.children);
                         }
                         let content;
-                        if (n.tag == 'textarea' || mxViewAttrReg.test(attrs)) { //mx-view特殊处理
-                            collectGuids(n.children); //子节点不能有guid
+                        let special = n.tag == 'textarea';
+                        if (!special) {
+                            let mxViewAttr = attrs.match(mxViewAttrReg);
+                            if (mxViewAttr) { //mx-view中有全局变量
+                                mxViewAttr = tmplCmd.recover(mxViewAttr[0], tmplCommands);
+                                special = globalRegTest.test(mxViewAttr) && !n.hasSubView;
+                            }
+                        }
+                        if (special) { //mx-view特殊处理
+                            collectGuids(n.children, removedGuids); //子节点不能有guid
                             content = tmpl.slice(n.contentStart, n.contentEnd);
                         } else {
                             //获取所有除了guid之外的节点内容
@@ -229,6 +237,7 @@ module.exports = {
         if (refLealGlobal) {
             refLealGlobal.exists = globalRegTest.test(checkTmpl);
         }
+        //console.log(tmpl);
         //console.log(tmpl,tmplCommands);
         return tmpl;
     }
