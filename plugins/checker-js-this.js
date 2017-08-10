@@ -32,6 +32,7 @@
     self 检测
  */
 let slog = require('./util-log');
+let chalk = require('chalk');
 module.exports = (node, tmpl, e, ref) => {
     let exprs = [];
     let varTracker = Object.create(null);
@@ -130,6 +131,6 @@ module.exports = (node, tmpl, e, ref) => {
     let msg = ref.settingsAlias ? 'global settings is: ' : 'prev you used: ';
     exprs.forEach(expr => {
         let part = tmpl.slice(expr.start, expr.end);
-        slog.ever(expr.tip.red, 'at', e.shortFrom.gray, 'near', part.magenta, expr.prev ? msg + expr.prev.red : '');
+        slog.ever(chalk.red(expr.tip), 'at', chalk.grey(e.shortFrom), 'near', chalk.magenta(part), expr.prev ? msg + chalk.red(expr.prev) : '');
     });
 };

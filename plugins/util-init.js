@@ -15,6 +15,9 @@ module.exports = () => {
         if (!configs.disableMagixUpdater) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
+        if (!configs.tmplCommand) {
+            configs.tmplCommand = /<%[\s\S]*?%>/g;
+        }
         if (!configs.cssSelectorPrefix) {
             configs.cssSelectorPrefix = 'mx' + md5(configs.tmplFolder, 3, 'md5CssFileLen') + '-';
         }

@@ -45,7 +45,7 @@ module.exports = {
                 tmplCommandAnchorReg.lastIndex = 0;
                 m.replace(tmplCommandAnchorReg, tm => {
                     let cmd = refTmplCommands[tm];
-                    if (tmplCmdReg.test(cmd)) {
+                    if (cmd && tmplCmdReg.test(cmd)) {
                         refTmplCommands[tm] = cmd.replace(stringReg, cmdProcessor);
                     }
                 });

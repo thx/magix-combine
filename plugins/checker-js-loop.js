@@ -2,6 +2,7 @@
     检测js代码中的循环嵌套，在以往的代码review中，通常3层以上的循环都可以通过合理的数据结构避免
  */
 let slog = require('./util-log');
+let chalk = require('chalk');
 let loopNames = {
     forEach: 1,
     map: 1,
@@ -106,6 +107,6 @@ module.exports = (node, comments, tmpl, e) => {
     walk(node.body.body, 0);
     outerExprs.forEach(expr => {
         let part = tmpl.slice(expr.start, expr.end);
-        slog.ever('avoid nested loops'.red, 'at', e.shortFrom.gray, 'near', part.magenta);
+        slog.ever(chalk.red('avoid nested loops'), 'at', chalk.gray(e.shortFrom), 'near', chalk.magenta(part));
     });
 };

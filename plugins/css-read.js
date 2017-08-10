@@ -6,6 +6,7 @@ let path = require('path');
 
 let less = require('less');
 let sass = require('node-sass');
+let chalk = require('chalk');
 
 let utils = require('./util');
 let slog = require('./util-log');
@@ -19,7 +20,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject) =>
         configs.sassOptions.data = content;
         sass.render(cssCompileConfigs, (err, result) => {
             if (err) {
-                slog.ever('scss error:', (err + '').red);
+                slog.ever('scss error:', chalk.red(err + ''));
                 return reject(err);
             }
             resolve({
@@ -31,7 +32,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject) =>
     } else if (ext == '.less') {
         less.render(content, cssCompileConfigs, (err, result) => {
             if (err) {
-                slog.ever('less error:', (err + '').red);
+                slog.ever('less error:', chalk.red(err + ''));
                 return reject(err);
             }
             resolve({

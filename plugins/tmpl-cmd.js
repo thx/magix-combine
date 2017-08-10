@@ -1,6 +1,8 @@
 /*
     模板指令处理
  */
+
+let chalk = require('chalk');
 let configs = require('./util-config');
 let htmlminifier = require('html-minifier');
 let jm = require('./js-min');
@@ -14,13 +16,13 @@ let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCmdReg = /<%([@=!:~])?([\s\S]+?)%>|$/g;
 let outputCmdReg = /<%([=!@:~])?([\s\S]*?)%>/g;
 let ctrlCmdReg = /<%[^=!@:~][\s\S]*?%>\s*/g;
-let phCmdReg = /&\u0008\d+&\u0008/g;
-let continuedCmdReg = /(?:&\u0008\d+&\u0008){2,}/g;
+let phCmdReg = /\u0008\d+\u0008/g;
+let continuedCmdReg = /(?:\u0008\d+\u0008){2,}/g;
 let bwCmdReg = /%>\s*<%/g;
 let blockCmdReg = /([\{\}]);/g;
 let continuedSemicolonReg = /;+/g;
 let emptyCmdReg = /<%\s*%>/g;
-let phKey = '&\u0008';
+let phKey = '\u0008';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
 let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
@@ -45,7 +47,7 @@ module.exports = {
                         fns = ',' + attrObject.parseObject(fns, '\u0017', '\u0018');
                         //console.log(fns);
                     } catch (ex) {
-                        slog.ever(('check:' + fns).red);
+                        slog.ever(chalk.red('check:' + fns));
                     }
                     expr = expr.slice(0, leftBrace) + fns;
                 }
@@ -121,15 +123,13 @@ module.exports = {
     store(tmpl, dataset) { //保存模板引擎命令
         let idx = dataset.___idx || 0;
         if (configs.tmplCommand) {
-            return tmpl.replace(configs.tmplCommand, (match, key) => {
-                //if (!dataset[match]) {
+            tmpl = tmpl.replace(configs.tmplCommand, (match, key) => {
                 idx++;
                 key = anchor + idx + anchor;
                 dataset[match] = key;
                 dataset[key] = match;
                 dataset.___idx = idx;
-                //}
-                return dataset[match];
+                return key;
             });
         }
         return tmpl;

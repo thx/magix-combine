@@ -16,7 +16,11 @@ let resolveAtPath = (content, from) => {
         if (l.charAt(0) == '.') { //以.开头我们认为是相对路径，则转完整模块路径
             tp = q + path.normalize(folder + l + p);
         } else {
-            tp = q + path.relative(folder, l + p);
+            let t = path.relative(folder, l + p);
+            if (t.charAt(0) != '.' && t.charAt(0) != '/') {
+                t = './' + t;
+            }
+            tp = q + t;
         }
         tp = tp.replace(sepReg, '/');
         return tp;

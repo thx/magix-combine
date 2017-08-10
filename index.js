@@ -11,7 +11,7 @@ let cssGlobal = require('./plugins/css-global');
 let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
 let slog = require('./plugins/util-log');
-require('colors');
+let chalk = require('chalk');
 
 if (!Object.values) {
     Object.values = object => {
@@ -48,7 +48,7 @@ let genMsg = (completed, total) => {
         sc = ' ' + sc;
         diff--;
     }
-    return sc + '/' + st + ' ' + barLeft.blue + barRight.grey + ' ' + (percent * 100).toFixed(2) + '%';
+    return sc + '/' + st + ' ' + chalk.blue(barLeft) + chalk.grey(barRight) + ' ' + (percent * 100).toFixed(2) + '%';
 };
 module.exports = {
     walk: fd.walk,

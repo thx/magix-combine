@@ -3,6 +3,7 @@
  */
 let path = require('path');
 let fs = require('fs');
+let chalk = require('chalk');
 let util = require('util');
 let fd = require('./util-fd');
 let deps = require('./util-deps');
@@ -27,7 +28,7 @@ let holder = '\u001f';
 let removeVdReg = /\u0002/g;
 let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
-
+let unsupportCharsReg = /[\u0000-\u0008\u0011-\u0019\u001e\u001f]/g;
 
 let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file, extInfo) => {
     let key = prefix + holder + magixTmpl + holder + fileContent;
@@ -35,11 +36,18 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
     if (!fCache) {
         e.srcHTMLFile = file;
         e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+        if (unsupportCharsReg.test(fileContent)) {
+            slog.log(chalk.red(`unsupport character : ${unsupportCharsReg.source}`), 'at', chalk.magenta(e.shortHTMLFile));
+            reject(new Error('unsupport character'));
+            return;
+        }
         try {
             unmatchChecker(fileContent);
         } catch (ex) {
-            slog.ever(('tags unmatched ' + ex.message).red, 'at', e.shortHTMLFile.magenta);
+            slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
+            return;
         }
         let temp = Object.create(null);
         cache[key] = temp;
@@ -68,14 +76,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
-            slog.ever(('minify html error : ' + ex.message).red, 'at', e.shortHTMLFile.magenta);
+            slog.ever(chalk.red('minify html error : ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             reject(ex);
+            return;
         }
         if (magixTmpl) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
             //console.log(tmplCmd.recover(fileContent,refTmplCommands));
             if (e.refLeakGlobal.exists) {
-                slog.ever('segment failed'.red, 'at', e.shortHTMLFile.magenta, 'more info:', 'https://github.com/thx/magix-combine/issues/21'.magenta);
+                slog.ever(chalk.red('segment failed'), 'at', chalk.magenta(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/thx/magix-combine/issues/21'));
                 if (e.refLeakGlobal.reassigns) {
                     e.refLeakGlobal.reassigns.forEach(it => {
                         slog.ever(it);
@@ -83,17 +92,23 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
                 }
             }
         }
-
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
         for (let p in refTmplCommands) {
             let cmd = refTmplCommands[p];
             if (util.isString(cmd)) {
                 refTmplCommands[p] = cmd.replace(removeVdReg, '')
-                    .replace(removeIdReg, '').replace(stringReg, '$1');
+                    .replace(removeIdReg, '')
+                    .replace(stringReg, '$1');
             }
         }
-        let info = tmplPartial.process(fileContent, refTmplCommands, e, extInfo);
-        temp.info = info;
+        if (magixTmpl) {
+            let info = tmplPartial.process(fileContent, refTmplCommands, e, extInfo);
+            temp.info = info;
+        } else {
+            temp.info = {
+                tmpl: tmplCmd.recover(fileContent, refTmplCommands)
+            };
+        }
         fCache = temp;
     }
     return fCache;

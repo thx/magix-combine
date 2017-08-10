@@ -41,8 +41,16 @@ let clone = object => {
 let cloneAssign = (dest, src) => {
     Object.assign(dest, clone(src));
 };
+let uId = (fix, str) => {
+    let id;
+    do {
+        id = Math.random().toString(36).replace(/[\d\.]/g, '');
+    } while (~str.indexOf(id));
+    return (fix || '') + id + (fix || '');
+};
 module.exports = {
     clone,
+    uId,
     cloneAssign,
     extractModuleId
 };

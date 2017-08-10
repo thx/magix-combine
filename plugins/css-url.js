@@ -5,11 +5,12 @@
 let urlReg = /url\(([^\)]+)\)/g;
 let configs = require('./util-config');
 let slog = require('./util-log');
+let chalk = require('chalk');
 module.exports = (css, name) => {
     css = css.replace(urlReg, (match, content) => {
         content = configs.cssUrlMatched(content);
         if (configs.checker.cssUrl) {
-            slog.ever('css-url match:', content, name.gray);
+            slog.ever('css-url match:', content, chalk.grey(name));
         }
         return 'url(' + content + ')';
     });

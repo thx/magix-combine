@@ -3,6 +3,7 @@
  */
 let configs = require('./util-config');
 let slog = require('./util-log');
+let chalk = require('chalk');
 let filesToSelectors = Object.create(null); //记录样式文件中有哪些选择器
 let filesUndeclared = Object.create(null); //记录html文件未声明的样式
 let markUsedTemp = Object.create(null); //临时记录使用过哪些选择器，针对后期动态新增的全局选择器。目前已不推荐使用全局样式
@@ -212,10 +213,10 @@ module.exports = {
                 let info = fileGlobals[p];
                 let keys = Object.keys(info);
                 let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
-                slog.ever(short.gray + ' avoid use ' + (keys + '').red);
+                slog.ever(chalk.grey(short) + ' avoid use ' + chalk.red(keys + ''));
             }
             if (outCss) {
-                slog.ever('──────────────────────────────'.gray);
+                slog.ever(chalk.grey('──────────────────────────────'));
             }
             outCss = false;
             if (existsSelectors.length) {
@@ -223,12 +224,12 @@ module.exports = {
                 existsSelectors.forEach(item => {
                     let cShort = item.current.replace(configs.moduleIdRemovedPath, '').slice(1);
                     let pShort = item.prev.replace(configs.moduleIdRemovedPath, '').slice(1);
-                    slog.ever('css:already exists', item.name.red, 'file', cShort.grey, 'prev files', pShort.blue);
+                    slog.ever('css:already exists', chalk.red(item.name), 'file', chalk.grey(cShort), 'prev files', chalk.blue(pShort));
                 });
                 existsSelectors = [];
             }
             if (outCss) {
-                slog.ever('──────────────────────────────'.gray);
+                slog.ever(chalk.grey('──────────────────────────────'));
             }
             outCss = false;
             for (p in unexists) {
@@ -239,7 +240,7 @@ module.exports = {
                     keys = keys.map(key => {
                         return key.replace(configs.moduleIdRemovedPath, '').slice(1);
                     });
-                    slog.ever(short.gray + ' can not find', keys.reverse().join(',').red);
+                    slog.ever(chalk.grey(short) + ' can not find', chalk.red(keys.reverse().join(',')));
                 }
             }
             outCss = false;
@@ -268,15 +269,15 @@ module.exports = {
             if (outCss) {
                 for (p in composeTagsAndSelectors) {
                     keys = composeTagsAndSelectors[p];
-                    slog.ever(p.gray + ' never used', keys.red);
+                    slog.ever(chalk.grey(p) + ' never used', chalk.red(keys));
                 }
-                slog.ever('──────────────────────────────'.gray);
+                slog.ever(chalk.grey('──────────────────────────────'));
             }
             for (p in filesUndeclared) {
                 keys = Object.keys(filesUndeclared[p]);
                 if (keys.length) {
                     let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
-                    slog.ever(short.gray + ' never declared', ('.' + keys.join(' .')).red);
+                    slog.ever(chalk.grey(short) + ' never declared', chalk.red('.' + keys.join(' .')));
                 }
             }
         }

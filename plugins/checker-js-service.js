@@ -3,6 +3,7 @@
  */
 let stringReg = /^['"]/;
 let slog = require('./util-log');
+let chalk = require('chalk');
 /*
     let fn=(err,bag)=>{
         var list=bag.get('list');
@@ -602,11 +603,11 @@ module.exports = (node, comments, tmpl, e) => {
             return a.pos - b.pos;
         }).forEach(it => {
             if (it.type == 'bc') {
-                slog.ever(('avoid use: ' + it.part).red, 'at', e.shortFrom.gray, 'use', it.replacement.red, 'instead');
+                slog.ever(chalk.red('avoid use: ' + it.part), 'at', chalk.grey(e.shortFrom), 'use', chalk.red(it.replacement), 'instead');
             } else if (it.type == 'ao') {
-                slog.ever(('avoid use: ' + it.part).red, 'at', e.shortFrom.gray, 'more info:', 'https://github.com/thx/magix/issues/38'.magenta);
+                slog.ever(chalk.red('avoid use: ' + it.part), 'at', chalk.grey(e.shortFrom), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/38'));
             } else {
-                slog.ever(('may trigger an error: ' + it.part).red, 'at', e.shortFrom.gray, 'near', it.near.magenta);
+                slog.ever(chalk.red('may trigger an error: ' + it.part), 'at', chalk.grey(e.shortFrom), 'near', chalk.magenta(it.near));
             }
         });
         //console.log(safeguardMap, '@@@', memberExpressions, '@@@', varTracker, '@@@', safeguard);

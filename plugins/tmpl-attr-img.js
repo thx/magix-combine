@@ -1,6 +1,7 @@
 /*
     处理img标签，加入修改src的钩子，用于动态加载如webp格式的图片
 */
+let chalk = require('chalk');
 let configs = require('./util-config');
 let slog = require('./util-log');
 let tmplCmd = require('./tmpl-cmd');
@@ -11,7 +12,7 @@ module.exports = (e, tagName, match, refTmplCommands, toSrc) => {
             value = tmplCmd.recover(value, refTmplCommands);
             value = configs.tmplImgSrcMatched(value);
             if (configs.checker.tmplAttrImg) {
-                slog.ever('tmpl-attr-img match:', toSrc(value), e.shortHTMLFile.gray);
+                slog.ever('tmpl-attr-img match:', toSrc(value), chalk.grey(e.shortHTMLFile));
             }
             return 'src=' + q + value + q;
         });

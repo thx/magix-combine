@@ -3,6 +3,7 @@
     mx单文件转换->开始编译钩子(beforeProcessor,es6->es3)->js中的@规则识别及代码检查->处理样式->处理模板->处理js代码片断->编译结束钩子->缓存文件内容
  */
 let util = require('util');
+let chalk = require('chalk');
 let fd = require('./util-fd');
 let jsMx = require('./js-mx');
 let jsRequire = require('./js-require');
@@ -89,7 +90,7 @@ let processContent = (from, to, content, inwatch) => {
         }
     }
     if (configs.log && inwatch) {
-        slog.ever('compile:', from.blue);
+        slog.ever('compile:', chalk.blue(from));
     }
     return before.then(content => {
         return jsRequire.process({
@@ -122,13 +123,13 @@ let processContent = (from, to, content, inwatch) => {
                 }
             });
         } catch (ex) {
-            slog.ever('parse js ast error:', ex.message.red);
+            slog.ever('parse js ast error:', chalk.red(ex.message));
             let arr = tmpl.split(/\r\n|\r|\n/);
             let line = ex.loc.line - 1;
             if (arr[line]) {
-                slog.ever('near code:', arr[line].green);
+                slog.ever('near code:', chalk.green(arr[line]));
             }
-            slog.ever(('js file: ' + e.from).red);
+            slog.ever(chalk.red('js file: ' + e.from));
             return Promise.reject(ex);
         }
         let modifiers = [];
@@ -220,6 +221,26 @@ let processContent = (from, to, content, inwatch) => {
         if (contentInfo) e.contentInfo = contentInfo;
         return cssProcessor(e, inwatch);
     }).then(tmplProcessor).then(jsSnippet).then(e => {
+        if (e.addedWrapper) {
+            let mxViews = e.tmplMxViewsArray || [];
+            let reqs = [],
+                vars = [];
+            if (configs.addTmplViewsToDependencies) {
+                for (let v of mxViews) {
+                    let p = atpath.resolvePath('"@' + v + '"', e.moduleId);
+                    reqs.push(p);
+                    vars.push('require(' + p + ');');
+                }
+            }
+            reqs = reqs.join(',');
+            if (e.requires.length && reqs) {
+                reqs = ',' + reqs;
+            }
+            e.content = e.content.replace(e.requiresAnchorKey, reqs);
+            e.content = e.content.replace(e.varsAnchorKey, vars.join('\r\n'));
+        }
+        return e;
+    }).then(e => {
         if (execAfterProcessor) {
             return configs.compileAfterProcessor(e);
         }

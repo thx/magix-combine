@@ -1,6 +1,8 @@
 /*
     子模板拆分
  */
+
+let chalk = require('chalk');
 let tmplCmd = require('./tmpl-cmd');
 let slog = require('./util-log');
 //let regexp = require('./util-rcache');
@@ -170,18 +172,20 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
     });
     content.replace(tmplCommandAnchorReg, m => { //查找模板命令
         let temp = refTmplCommands[m];
-        temp.replace(dataKeysReg, (m, name) => { //数据key
-            name = name.trim();
-            if (!pKeys || !pKeys[name]) { //不在父作用域内
-                if (extInfo.tmplScopedUpdateBy) {
-                    if (extInfo.tmplScopedUpdateBy[name]) {
+        if (temp) {
+            temp.replace(dataKeysReg, (m, name) => { //数据key
+                name = name.trim();
+                if (!pKeys || !pKeys[name]) { //不在父作用域内
+                    if (extInfo.tmplScopedUpdateBy) {
+                        if (extInfo.tmplScopedUpdateBy[name]) {
+                            tmplKeys[name] = 1;
+                        }
+                    } else if (!configs.lazyAnalysisTmpl) {
                         tmplKeys[name] = 1;
                     }
-                } else if (!configs.lazyAnalysisTmpl) {
-                    tmplKeys[name] = 1;
                 }
-            }
-        });
+            });
+        }
     });
     //
     Object.assign(attrKeys, tmplKeys);
@@ -212,9 +216,11 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
         //console.log(attr);
         attr.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];
-            value.replace(dataKeysReg, (m, vname) => {
-                attrsKeys[vname] = 1;
-            });
+            if (value) {
+                value.replace(dataKeysReg, (m, vname) => {
+                    attrsKeys[vname] = 1;
+                });
+            }
         });
         let hasProps = Object.create(null);
         originalAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, (match, name) => {
@@ -250,7 +256,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
             prop = props[i];
             if (attrsMap[prop] == 1) {
                 if (configs.checker.tmplDuplicateAttr) {
-                    slog.ever('duplicate attr:', prop.blue, ' near:', e.toTmplSrc(attr, refTmplCommands), ' relate file:', e.shortFrom.gray);
+                    slog.ever('duplicate attr:', chalk.blue(prop), ' near:', e.toTmplSrc(attr, refTmplCommands), ' relate file:', chalk.grey(e.shortFrom));
                 }
                 continue;
             }
@@ -296,9 +302,11 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
         //接下来我们处理前面的属性和内容更新问题
         info.tmpl.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];
-            value.replace(dataKeysReg, (m, vname) => {
-                tmplKeys[vname] = 1;
-            });
+            if (value) {
+                value.replace(dataKeysReg, (m, vname) => {
+                    tmplKeys[vname] = 1;
+                });
+            }
         });
         //console.log(info.keys, tmplKeys, attrsKeys);
         let mask = '';
@@ -311,7 +319,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
             if (attrsKeys[info.keys[i]]) m = m ? m | 2 : 2;
             mask += m + '';
             if (m === 0) {
-                slog.ever('check key word:', info.keys[i].red, ' relate file:', e.shortFrom.gray);
+                slog.ever('check key word:', chalk.red(info.keys[i]), ' relate file:', chalk.grey(e.shortFrom));
             }
         }
         //最后产出的结果可能如：

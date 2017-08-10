@@ -3,9 +3,11 @@
     压缩模板引擎代码
  */
 let acorn = require('acorn');
+let chalk = require('chalk');
 let walker = require('acorn/dist/walk');
 let tmplCmd = require('./tmpl-cmd');
 let configs = require('./util-config');
+let utils = require('./util');
 let slog = require('./util-log');
 let regexp = require('./util-rcache');
 let tmplCmdReg = /<%([@=!:~])?([\s\S]+?)%>|$/g;
@@ -22,7 +24,6 @@ let vphGlb = String.fromCharCode(0x5168); //全
 let creg = /[\u7528\u58f0\u56fa\u5168]/g;
 let hreg = /([\u0001\u0002])\d+/g;
 let compressVarReg = /\u0001\d+[a-zA-Z\_$]+/g;
-let htmlHolderReg = /\u0005\d+\u0005/g;
 let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
@@ -153,6 +154,9 @@ module.exports = {
         let index = 0;
         let htmlStore = Object.create(null);
         let htmlIndex = 0;
+        let htmlKey = utils.uId('\u0005', tmpl);
+        let htmlHolderReg = new RegExp(htmlKey + '\\d+' + htmlKey, 'g');
+
         //console.log(tmpl);
         tmpl.replace(tmplCmdReg, (match, operate, content, offset) => {
             let start = 2;
@@ -161,7 +165,7 @@ module.exports = {
                 content = '(' + content + ')';
             }
             let source = tmpl.slice(index, offset + start);
-            let key = '\u0005' + (htmlIndex++) + '\u0005';
+            let key = htmlKey + (htmlIndex++) + htmlKey;
             htmlStore[key] = source;
             index = offset + match.length - 2;
             fn.push(';`' + key + '`;', content);
@@ -179,10 +183,10 @@ module.exports = {
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
-            slog.ever('parse html cmd ast error:', ex.message.red);
+            slog.ever('parse html cmd ast error:', chalk.red(ex.message));
             let html = recoverHTML(fn.slice(Math.max(ex.loc.column - 10, 0)));
-            slog.ever('near html:', (html.slice(0, 100)).green);
-            slog.ever('html file:', sourceFile.gray);
+            slog.ever('near html:', chalk.green(html.slice(0, 100)));
+            slog.ever('html file:', chalk.grey(sourceFile));
             reject(ex);
         }
         let globalExists = Object.assign(Object.create(null), configs.tmplGlobalVars);
@@ -324,13 +328,13 @@ module.exports = {
                         });
                     }
                     if (!globalExists[tname]) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
-                        slog.ever(('undeclare variable:' + lname).red, 'at', sourceFile.gray);
+                        slog.ever(chalk.red('undeclare variable:' + lname), 'at', chalk.grey(sourceFile));
                     }
                     globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
                     if (globalExists[tname] > 2) {
                         if (e.refGlobalLeak && !e.refGlobalLeak['_' + lname]) {
                             e.refGlobalLeak['_' + lname] = 1;
-                            e.refGlobalLeak.reassigns.push(('avoid reassign variable:' + lname).red + ' at ' + sourceFile.gray);
+                            e.refGlobalLeak.reassigns.push(chalk.red('avoid reassign variable:' + lname) + ' at ' + chalk.grey(sourceFile));
                         }
                     }
                 } else if (node.left.type == 'MemberExpression') {
@@ -339,7 +343,7 @@ module.exports = {
                         start = start.object;
                     } //模板中使用如<%list.x=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
                     if (!globalExists[start.name]) {
-                        slog.ever(('avoid writeback: ' + fn.slice(node.start, node.end)).red, 'at', sourceFile.gray);
+                        slog.ever(chalk.red('avoid writeback: ' + fn.slice(node.start, node.end)), 'at', chalk.grey(sourceFile));
                     }
                 }
             },
@@ -372,7 +376,7 @@ module.exports = {
             ArrowFunctionExpression: node => fnRange.push(node),
             ForOfStatement: node => {
                 if (configs.checker.tmplCmdFnOrForOf) {
-                    slog.ever(('avoid use ForOfStatement: ' + fn.slice(node.start, node.right.end + 1)).red, 'at', sourceFile.gray, 'more info:', 'https://github.com/thx/magix/issues/37'.magenta);
+                    slog.ever(chalk.red('avoid use ForOfStatement: ' + fn.slice(node.start, node.right.end + 1)), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37'));
                 }
             }
         });
@@ -395,7 +399,7 @@ module.exports = {
                     fns.push('){}');
                 }
                 if (configs.checker.tmplCmdFnOrForOf) {
-                    slog.ever(('avoid use Function: ' + fns.join('')).red, 'at', sourceFile.gray, 'more info:', 'https://github.com/thx/magix/issues/37'.magenta); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
+                    slog.ever(chalk.red('avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
                 }
                 let params = Object.create(null);
                 let pVarsMap = Object.create(null);
@@ -809,7 +813,7 @@ module.exports = {
             if (!info) {
                 let tipExpr = toOriginalExpr(srcExpr.trim());
                 expr = toOriginalExpr(expr);
-                slog.ever(('can not resolve expr: ' + tipExpr).red, 'at', sourceFile.gray);
+                slog.ever(chalk.red('can not resolve expr: ' + tipExpr), 'at', chalk.grey(sourceFile));
                 return ['<%throw new Error("can not resolve bind expr: ' + expr + ' read more: https://github.com/thx/magix/issues/37")%>'];
             }
             if (info != '\u0003') { //递归查找,第3种情况
@@ -980,7 +984,7 @@ module.exports = {
                 attrs = attrs.replace(bindReg, (m, name, q, expr) => {
                     expr = expr.trim();
                     if (findCount > 0) {
-                        slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')).red, 'at', sourceFile.gray);
+                        slog.ever(chalk.red('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')), 'at', chalk.grey(sourceFile));
                         return '';
                     }
                     findCount++;
@@ -997,7 +1001,7 @@ module.exports = {
                 }).replace(bindReg2, (m, expr) => {
                     expr = expr.trim();
                     if (findCount > 0) {
-                        slog.ever(('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')).red, 'at', sourceFile.gray);
+                        slog.ever(chalk.red('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')), 'at', chalk.grey(sourceFile));
                         return '';
                     }
                     findCount++;

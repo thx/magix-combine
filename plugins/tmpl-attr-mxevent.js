@@ -4,9 +4,11 @@
     2.　检测单双引号的实体转义
     3.　检测不支持的写法
  */
+let chalk = require('chalk');
 let configs = require('./util-config');
 let checker = require('./checker');
 let slog = require('./util-log');
+let utils = require('./util');
 let attrObject = require('./tmpl-attr-object');
 let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
@@ -34,12 +36,12 @@ let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
         }
     });
 };
-let cmdPHReg = /\u00aa\u00ff\d+\u00aa\u00ff/g;
 let htmlQEntityReg = /(\\*)(&quot;?|&#x22;?|&#x27;?|&#34;?|&#39;?)/g;
-let cmdKey = String.fromCharCode(0xaa, 0xff);
 let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     let index = 0;
     let store = Object.create(null);
+    let cmdKey = utils.uId('\u00aa', params);
+    let cmdPHReg = new RegExp(cmdKey + '\\d+' + cmdKey, 'g');
     params = '(' + params.replace(cmdReg, m => {
         let k = cmdKey + index++ + cmdKey;
         store[k] = m;
@@ -56,7 +58,17 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
                 return s && s.length % 2 ? m : s + '\\' + n;
             });
             if (raw != replacement) {
-                slog.ever('beware!'.red, 'You should use', replacement.magenta, 'instead of', raw.magenta, 'at', e.shortHTMLFile.gray, 'in', mxEvent.replace(removeTempReg, '').magenta);
+                let tip = replacement
+                    .replace(cmdPHReg, m => store[m])
+                    .replace(cmdReg, m => refTmplCommands[m])
+                    .replace(removeTempReg, '');
+
+                let tipRaw = raw
+                    .replace(cmdPHReg, m => store[m])
+                    .replace(cmdReg, m => refTmplCommands[m])
+                    .replace(removeTempReg, '');
+
+                slog.ever(chalk.red('beware!'), 'You should use', chalk.magenta(tip), 'instead of', chalk.magenta(tipRaw), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
             }
             let eq = attrObject.escapeQ(replacement, q);
             replacement = replacement.replace(cmdPHReg, m => store[m]);
@@ -82,7 +94,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
                     if (oCmd) {
                         oCmd.replace(unsupportOutCmdReg, m => {
                             m = m.replace(removeTempReg, '');
-                            slog.ever(('unsupport ' + m).red, 'at', e.shortHTMLFile.gray, 'in', mxEvent.replace(removeTempReg, '').magenta);
+                            slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
                         });
                     }
                 });
@@ -130,7 +142,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                         left = m.slice(0, left + 1);
                         right = (params || '') + m.slice(right);
                     } else {
-                        slog.ever(('bad event:' + m).red, 'at', e.shortHTMLFile.gray);
+                        slog.ever(chalk.red('bad event:' + m), 'at', chalk.grey(e.shortHTMLFile));
                         left = m;
                         right = '';
                     }

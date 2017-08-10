@@ -3,6 +3,7 @@
  */
 let path = require('path');
 let fs = require('fs');
+let chalk = require('chalk');
 let fd = require('./util-fd');
 let jsContent = require('./js-content');
 let deps = require('./util-deps');
@@ -28,7 +29,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
                         fd.write(to, e.content);
                     }
                     if (configs.log && inwatch) {
-                        slog.ever('finish:', from.green);
+                        slog.ever('finish:', chalk.green(from));
                     }
                     resolve();
                 }).catch(reject);

@@ -23,7 +23,6 @@ let selfCloseTags = {
 };
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script|svg)[^>]*>[\s\S]*?<\/\1>/g;
-let cmdReg = /<%[\s\S]*?%>/g;
 let tagReg = /<(\/)?([^>\s\/]+)[^>]*>?/igm;
 let brReg = /(?:\r\n|\r|\n)/;
 let brPlaceholder = m => {
@@ -31,9 +30,12 @@ let brPlaceholder = m => {
     return new Array(count).join('\n');
 };
 let cleanHTML = tmpl => {
-    return tmpl.replace(commentReg, brPlaceholder)
-        .replace(tagRemovedReg, brPlaceholder)
-        .replace(cmdReg, brPlaceholder);
+    tmpl = tmpl.replace(commentReg, brPlaceholder)
+        .replace(tagRemovedReg, brPlaceholder);
+    if (configs.tmplCommand) {
+        tmpl = tmpl.replace(configs.tmplCommand, brPlaceholder);
+    }
+    return tmpl;
 };
 module.exports = tmpl => {
     tmpl = cleanHTML(tmpl);
