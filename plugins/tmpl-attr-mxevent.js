@@ -15,6 +15,7 @@ let walker = require('acorn/dist/walk');
 let tmplChecker = checker.Tmpl;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let cmdReg = /\u0007\d+\u0007/g;
+let onlyCmdReg = /^\u0007\d+\u0007$/;
 let dOutCmdReg = /<%([=!@])([\s\S]+?)%>/g;
 let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 let stringReg = /^['"]/;
@@ -26,7 +27,9 @@ let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
         let cmd = refTmplCommands[cm];
         if (cmd) {
             cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
-                tmplChecker.checkMxEventParamsCMD(o, toSrc(m), toSrc(c), mxEvent, e);
+                if (!onlyCmdReg.test(str)) {
+                    tmplChecker.checkMxEventParamsCMD(o, toSrc(m), toSrc(c), mxEvent, e, toSrc(str));
+                }
                 if (o == '=') {
                     return '<%=$eq(' + c + ')%>';
                 }
@@ -89,15 +92,31 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
             let value = node.value;
             if (value.type == 'Identifier') {
                 let cmd = value.name.replace(cmdPHReg, m => store[m]);
-                cmd.replace(cmdReg, cm => {
-                    let oCmd = refTmplCommands[cm];
-                    if (oCmd) {
-                        oCmd.replace(unsupportOutCmdReg, m => {
-                            m = m.replace(removeTempReg, '');
-                            slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
+                onlyCmdReg.lastIndex = 0;
+                if (onlyCmdReg.test(cmd)) {
+                    cmd = refTmplCommands[cmd];
+                    let modify = false;
+                    cmd.replace(dOutCmdReg, (m, o) => {
+                        modify = o == '@';
+                    });
+                    if (modify) {
+                        modifiers.push({
+                            start: value.start,
+                            end: value.end,
+                            content: '\'' + value.name + '\''
                         });
                     }
-                });
+                } else {
+                    cmd.replace(cmdReg, cm => {
+                        let oCmd = refTmplCommands[cm];
+                        if (oCmd) {
+                            oCmd.replace(unsupportOutCmdReg, m => {
+                                m = m.replace(removeTempReg, '');
+                                slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
+                            });
+                        }
+                    });
+                }
             }
         },
         Literal: processString

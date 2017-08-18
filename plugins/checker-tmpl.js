@@ -115,12 +115,12 @@ module.exports = {
             }
         }
     },
-    checkMxEventParamsCMD(operate, match, content, mxEvent, e) {
+    checkMxEventParamsCMD(operate, match, content, mxEvent, e, srcStr) {
         if (configs.checker.tmplAttrMxEvent) {
             if (operate == '!') {
                 slog.ever(chalk.red('avoid use ' + match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'use', chalk.red('<%=' + content + '%>'), 'instead');
             } else if (operate == '@') {
-                slog.ever(chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent));
+                slog.ever(chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'near', chalk.magenta(srcStr));
             }
         }
     },

@@ -224,7 +224,6 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
         });
         let hasProps = Object.create(null);
         originalAttr.replace(tmplCommandAnchorReg, '').replace(attrNameValueReg, (match, name) => {
-            //console.log(name);
             hasProps[name] = 1;
         });
         let attrs = [];

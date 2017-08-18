@@ -1010,12 +1010,12 @@ module.exports = {
                     return now;
                 });
             }
-            attrs = attrs.replace(pathReg, (m, expr) => {
-                expr = expr.trim();
-                //console.log(JSON.stringify(expr));
-                expr = analyseExpr(expr, m);
-                return expr;
-            }).replace(tmplCmdReg, stripNum);
+            //attrs = attrs.replace(pathReg, (m, expr) => {
+            //    expr = expr.trim();
+            //    //console.log(JSON.stringify(expr));
+            //    expr = analyseExpr(expr, m);
+            //    return expr;
+            //}).replace(tmplCmdReg, stripNum);
             if (findCount > 0) {
                 for (let old in oldEvents) {
                     let info = oldEvents[old];
@@ -1024,11 +1024,13 @@ module.exports = {
             }
             return '<' + tag + attrs + '>';
         });
-        let processCmd = cmd => {
-            //console.log(cmd, JSON.stringify(cmd), stringStore);
-            return recoverString(stripNum(cmd));
-        };
-        fn = tmplCmd.recover(fn, cmdStore, processCmd);
+        fn = tmplCmd.recover(fn, cmdStore);
+        fn = fn.replace(pathReg, (m, expr) => {
+            expr = expr.trim();
+            expr = analyseExpr(expr, m);
+            return expr;
+        });
+        fn = recoverString(stripNum(fn));
         if (configs.compressTmplVariable) {
             let refVarsMap = Object.create(null);
             for (let p in compressVarToOriginal) {

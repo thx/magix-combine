@@ -5,8 +5,9 @@
 let regexp = require('./util-rcache');
 let utils = require('./util');
 let anchorKey = utils.uId('\x1e%\x1e$\x1e', '');
+let package = require('../package.json');
 let exportsReg = /\bmodule\.exports\b\s*=\s*/g;
-let header = '/*\r\n    generate by magix-combine: https://github.com/thx/magix-combine\r\n    author: kooboy_li@163.com\r\n */\r\n';
+let header = '/*\r\n    generate by magix-combine@' + package.version + ': https://github.com/thx/magix-combine\r\n    author: kooboy_li@163.com\r\n    loader: ${loader}\r\n */\r\n';
 let tmpls = {
     cmd: 'define(\'${moduleId}\',[${requires}<!--' + anchorKey + '_requires-->\r\n],function(require,exports,module){\r\n/*${vars}*/\r\n<!--' + anchorKey + '_vars-->\r\n${content}\r\n});',
     amd: 'define(\'${moduleId}\',[\'require\',\'exports\',\'module\',${requires}<!--' + anchorKey + '_requires-->\r\n],function(require,exports,module){\r\n<!--' + anchorKey + '_vars-->\r\n${content}\r\n});',

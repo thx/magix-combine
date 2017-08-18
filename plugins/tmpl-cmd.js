@@ -101,13 +101,15 @@ module.exports = {
                 return k;
             });
             //把多个连续的控制命令做压缩
-            tmpl = tmpl.replace(continuedCmdReg, m => {
-                m = m.replace(phCmdReg, n => stores[n]) //命令还原
-                    .replace(bwCmdReg, ';')
-                    .replace(blockCmdReg, '$1')
-                    .replace(continuedSemicolonReg, ';'); //删除中间的%><%及分号
-                return m;
-            });
+            if (!configs.debug) {
+                tmpl = tmpl.replace(continuedCmdReg, m => {
+                    m = m.replace(phCmdReg, n => stores[n]) //命令还原
+                        .replace(bwCmdReg, ';')
+                        .replace(blockCmdReg, '$1')
+                        .replace(continuedSemicolonReg, ';'); //删除中间的%><%及分号
+                    return m;
+                });
+            }
             tmpl = tmpl.replace(phCmdReg, n => stores[n]); //其它命令还原
             tmpl = tmpl.replace(bwCmdReg, '%><%');
             tmpl = tmpl.replace(tmplCmdReg, m => {

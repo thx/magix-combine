@@ -21,5 +21,8 @@ module.exports = () => {
         if (!configs.cssSelectorPrefix) {
             configs.cssSelectorPrefix = 'mx' + md5(configs.tmplFolder, 3, 'md5CssFileLen') + '-';
         }
+        if (configs.debug) {
+            configs.compressCss = false;
+        }
     }
 };
