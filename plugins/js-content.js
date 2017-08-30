@@ -20,8 +20,8 @@ let walker = require('acorn/dist/walk');
 let fileCache = require('./js-fcache');
 let jsSnippet = require('./js-snippet');
 
-let stringReg = /^['"]/;
 let mxTailReg = /\.mx$/;
+let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /(['"])(@moduleId)\1/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
@@ -135,60 +135,72 @@ let processContent = (from, to, content, inwatch) => {
         let modifiers = [];
         let toTops = [];
         let toBottoms = [];
-        let processString = node => { //存储字符串，减少分析干扰
-            stringReg.lastIndex = 0;
+        let processString = (node, tl) => { //存储字符串，减少分析干扰
+            if (!tl) {
+                stringReg.lastIndex = 0;
+                if (!stringReg.test(node.raw)) return;
+            }
             let add = false;
-            if (stringReg.test(node.raw)) {
-                if (moduleIdReg.test(node.raw)) {
-                    node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
-                    add = true;
-                } else if (cssFileReg.test(node.raw) || htmlFileReg.test(node.raw)) {
-                    node.raw = node.raw.replace(/@/g, '\u0012@');
-                    add = true;
-                } else if (othersFileReg.test(node.raw)) {
-                    let replacement = '';
-                    node.raw.replace(othersFileReg, (m, q, actions, file) => {
-                        if (actions) {
-                            actions = actions.split(',');
-                            //let as = [];
-                            //if (actions.indexOf('compile') > -1) {
-                            //    as.push('compile');
-                            //}
-                            replacement = q + /*as.join('') +*/ '\u0012@' + file + q;
-                            if (actions.indexOf('top') > -1) {
-                                toTops.push(replacement);
-                                replacement = '';
-                            } else if (actions.indexOf('bottom') > -1) {
-                                toBottoms.push(replacement);
-                                replacement = '';
-                            }
-                        } else {
-                            replacement = node.raw.replace(/@/g, '\u0012@');
+            if (tl && node.raw == '@moduleId') {
+                node.raw = e.moduleId;
+                add = true;
+            } else if (moduleIdReg.test(node.raw)) {
+                node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
+                add = true;
+            } else if (cssFileReg.test(node.raw) || htmlFileReg.test(node.raw)) {
+                node.raw = node.raw.replace(/@/g, '\u0012@');
+                add = true;
+            } else if (othersFileReg.test(node.raw)) {
+                let replacement = '';
+                node.raw.replace(othersFileReg, (m, q, actions, file) => {
+                    if (actions) {
+                        actions = actions.split(',');
+                        //let as = [];
+                        //if (actions.indexOf('compile') > -1) {
+                        //    as.push('compile');
+                        //}
+                        replacement = q + /*as.join('') +*/ '\u0012@' + file + q;
+                        if (actions.indexOf('top') > -1) {
+                            toTops.push(replacement);
+                            replacement = '';
+                        } else if (actions.indexOf('bottom') > -1) {
+                            toBottoms.push(replacement);
+                            replacement = '';
                         }
-                    });
-                    node.raw = replacement;
-                    add = true;
-                } else if (configs.useAtPathConverter) {
-                    let raw = node.raw;
-                    //字符串以@开头，且包含/
-                    if (raw.charAt(1) == '@' && raw.indexOf('/') > 0) {
-                        //如果是2个@@开头则是转义
-                        if (raw.charAt(2) == '@' && raw.lastIndexOf('@') == 2) {
-                            node.raw = raw.slice(0, 1) + raw.slice(2);
-                            add = true;
-                        } else if (raw.lastIndexOf('@') == 1) { //只有一个，路径转换
-                            node.raw = atpath.resolvePath(node.raw, e.moduleId);
-                            add = true;
+                    } else {
+                        replacement = node.raw.replace(/@/g, '\u0012@');
+                    }
+                });
+                node.raw = replacement;
+                add = true;
+            } else if (configs.useAtPathConverter) {
+                let raw = node.raw;
+                //字符串以@开头，且包含/
+                let i = tl ? 0 : 1;
+                if (raw.charAt(i) == '@' && raw.indexOf('/') > 0) {
+                    //如果是2个@@开头则是转义
+                    if (raw.charAt(i + 1) == '@' && raw.lastIndexOf('@') == i + 1) {
+                        node.raw = raw.slice(0, i) + raw.slice(i + 1);
+                        add = true;
+                    } else if (raw.lastIndexOf('@') == i) { //只有一个，路径转换
+                        if (tl) {
+                            raw = '"' + raw + '"';
                         }
+                        raw = atpath.resolvePath(raw, e.moduleId);
+                        if (tl) {
+                            raw = raw.slice(1, -1);
+                        }
+                        node.raw = raw;
+                        add = true;
                     }
                 }
-                if (add) {
-                    modifiers.push({
-                        start: node.start,
-                        end: node.end,
-                        content: node.raw
-                    });
-                }
+            }
+            if (add) {
+                modifiers.push({
+                    start: node.start,
+                    end: node.end,
+                    content: node.raw
+                });
             }
         };
         walker.simple(ast, {
@@ -198,7 +210,13 @@ let processContent = (from, to, content, inwatch) => {
                     processString(node);
                 }
             },
-            Literal: processString
+            Literal: processString,
+            TemplateLiteral(node) {
+                for (let q of node.quasis) {
+                    q.raw = q.value.raw;
+                    processString(q, true);
+                }
+            }
         });
         let walkerProcessor = checker.JS.getWalker(comments, tmpl, e);
         walker.simple(ast, walkerProcessor);
@@ -227,7 +245,13 @@ let processContent = (from, to, content, inwatch) => {
                 vars = [];
             if (configs.addTmplViewsToDependencies) {
                 for (let v of mxViews) {
-                    let p = atpath.resolvePath('"@' + v + '"', e.moduleId);
+                    let mName = v.slice(0, v.indexOf('/'));
+                    let p;
+                    if (mName == e.pkgName) {
+                        p = atpath.resolvePath('"@' + v + '"', e.moduleId);
+                    } else {
+                        p = `"${v}"`;
+                    }
                     reqs.push(p);
                     vars.push('require(' + p + ');');
                 }

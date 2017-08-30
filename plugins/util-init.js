@@ -12,14 +12,14 @@ module.exports = () => {
         configs.compileFileExtNamesReg = new RegExp('\\.(?:' + configs.compileFileExtNames.join('|') + ')$');
         configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + configs.tmplFileExtNames.join('|') + ')$');
         configs.moduleIdRemovedPath = configs.tmplFolder; //把路径中开始到模板目录移除就基本上是模块路径了
-        if (!configs.disableMagixUpdater) {
+        if (!configs.disableMagixUpdater && !configs.tmplCommand) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
         if (!configs.tmplCommand) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
         if (!configs.cssSelectorPrefix) {
-            configs.cssSelectorPrefix = 'mx' + md5(configs.tmplFolder, 3, 'md5CssFileLen') + '-';
+            configs.cssSelectorPrefix = 'mx' + md5(configs.tmplFolder, 3, 'md5CssFileLen');
         }
         if (configs.debug) {
             configs.compressCss = false;

@@ -51,9 +51,11 @@ module.exports = {
                     let dId;
                     if (reqInfo.dependedId) {
                         dId = JSON.stringify(reqInfo.dependedId);
-                        deps.push(dId);
                         if (reqInfo.variable) {
+                            deps.push(dId);
                             vars.push(reqInfo.variable);
+                        } else {
+                            noKeyDeps.push(dId);
                         }
                     }
                     if (key != reqInfo.variable || depId != reqInfo.dependedId) {
@@ -85,6 +87,7 @@ module.exports = {
             deps = deps.concat(noKeyDeps);
         }
         e.moduleId = moduleId;
+        e.pkgName = moduleId.slice(0, moduleId.indexOf('/'));
         e.deps = deps;
         e.vars = vars;
         e.requires = deps;

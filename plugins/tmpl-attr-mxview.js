@@ -43,6 +43,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
             //console.log(match);
             let attrs = [];
             match = match.replace(viewAttrReg, (m, name, q, content) => {
+                let oName = name;
                 let cmdTemp = []; //处理属性中带命令的情况
                 name = tmplChecker.checkMxViewParams(name, e);
                 content.replace(cmdReg, cm => {
@@ -58,7 +59,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 }
                 content = cs.join('');
                 attrs.push(name + '=' + content); //处理成最终的a=b形式
-                return '';
+                return 'view-' + oName;
             });
             match = match.replace(mxViewAttrReg, (m, q, content) => {
                 attrs = attrs.join('&'); //把参数加到mx-viewk中
@@ -70,12 +71,12 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 return 'mx-view=' + q + content + q;
             });
         }
-
         match.replace(mxViewAttrReg, (m, q, content) => {
             let i = content.indexOf('?');
             if (i > -1) {
                 content = content.slice(0, i);
             }
+            cmdReg.lastIndex = 0;
             if (!cmdReg.test(content)) {
                 if (!e.tmplMxViews) {
                     e.tmplMxViews = Object.create(null);

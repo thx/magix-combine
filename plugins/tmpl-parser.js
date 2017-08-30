@@ -38,7 +38,7 @@ module.exports = input => {
                 } else if (temp == 'mx-view') {
                     token.hasMxView = true;
                 }
-                if (a.value) {
+                if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;
                 }
                 pos = input.indexOf(temp, pos) + temp.length;

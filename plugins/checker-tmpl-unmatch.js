@@ -23,7 +23,7 @@ let selfCloseTags = {
 };
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script|svg)[^>]*>[\s\S]*?<\/\1>/g;
-let tagReg = /<(\/)?([^>\s\/]+)[^>]*>?/igm;
+let tagReg = /<(\/)?([a-z0-9A-Z_]+)[^>]*>?/igm;
 let brReg = /(?:\r\n|\r|\n)/;
 let brPlaceholder = m => {
     let count = m.split(brReg).length;
@@ -39,6 +39,7 @@ let cleanHTML = tmpl => {
 };
 module.exports = tmpl => {
     tmpl = cleanHTML(tmpl);
+    //console.log(tmpl);
     let tags = [];
     let lines = tmpl.split(brReg);
     let lineCount = 1;

@@ -111,6 +111,15 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[c
         fns = fns.replace(leftOuputReg, '\'<%=').replace(rightOutputReg, '%>\'');
         //console.log(fns);
     }
+    if (!evts) {
+        evts = configs.bindEvents.slice();
+    }
+    if (evts.indexOf('focusout') == -1) {
+        evts.push('focusout');
+    }
+    if (evts.indexOf('focusin') == -1) {
+        evts.push('focusin');
+    }
     return {
         expr,
         evts,
@@ -376,7 +385,7 @@ module.exports = {
             ArrowFunctionExpression: node => fnRange.push(node),
             ForOfStatement: node => {
                 if (configs.checker.tmplCmdFnOrForOf) {
-                    slog.ever(chalk.red('avoid use ForOfStatement: ' + fn.slice(node.start, node.right.end + 1)), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37'));
+                    slog.ever(chalk.red('translate ForOfStatement: ' + fn.slice(node.start, node.right.end + 1)), 'to', chalk.red('ForStatement'), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37'));
                 }
             }
         });
@@ -824,18 +833,33 @@ module.exports = {
         let analyseExpr = (expr, source) => {
             //console.log(expr);
             let result = find(expr, source); //获取表达式信息
+            let host = [];
             //slog.ever('result', result);
             //把形如 ["user","[name]","[key[value]"]=> user.<%=name%>.<%=key[value]%>
             for (let i = 0, one; i < result.length; i++) {
                 one = result[i];
                 if (one.charAt(0) == '[' && one.charAt(one.length - 1) == ']') {
+                    host.push(stripNum(one));
                     one = '<%=' + one.slice(1, -1) + '%>';
+                } else {
+                    host.push((i === 0 ? '' : '.') + stripNum(one));
                 }
                 //one = stripNum(one);
                 result[i] = one;
             }
+            let last = host.pop();
+            host = host.join('');
+            if (host) {
+                host = '<%@\u0003.' + host + '%>';
+                if (last.charAt(0) === '[' && last.charAt(last.length - 1) === ']') {
+                    host += '\x1e<%=$eq(' + last.slice(1, -1) + ')%>';
+                }
+            }
             result = result.join('.');
-            return result;
+            return {
+                host,
+                result
+            };
         };
         fn = tmplCmd.store(fn, cmdStore); //存储代码，只分析模板
         //textarea情况：<textarea><%:taValue%></textarea>处理成=><textarea <%:taValue%>><%=taValue%></textarea>
@@ -855,6 +879,7 @@ module.exports = {
             attr = tmplCmd.store(attr, cmdStore);
             return '<textarea' + attr + '>' + content + '</textarea>';
         });
+        let beCount = 0;
         fn = fn.replace(tagReg, (match, tag, attrs) => {
             let bindEvents = configs.bindEvents.slice();
             let oldEvents = Object.create(null);
@@ -883,16 +908,17 @@ module.exports = {
             if (configs.multiBind) {
                 let bindStructs = {};
                 let transformEvent = (exprInfo, source, attrName) => { //转换事件
-                    if (exprInfo.evts) { //如果提供了绑定的事件，则使用提供的事件列表
-                        bindEvents = exprInfo.evts;
-                    } else {
-                        bindEvents = configs.bindEvents;
-                    }
+                    bindEvents = exprInfo.evts;
                     storeUserEvents(); //存储用户的事件
                     let expr = exprInfo.expr;
                     expr = analyseExpr(expr, source); //分析表达式
-
                     let info;
+                    if (!bindStructs.__) {
+                        bindStructs.__ = [];
+                    }
+                    if (expr.host && bindStructs.__.indexOf(expr.host) === -1) {
+                        bindStructs.__.push(expr.host);
+                    }
                     for (let be of bindEvents) {
                         info = oldEvents[be];
                         if (!bindStructs[be]) {
@@ -902,7 +928,7 @@ module.exports = {
                         }
                         let viewParams = attrName && attrName.indexOf('view-') === 0;
                         let c = {
-                            p: expr,
+                            p: expr.result,
                             f: exprInfo.fns,
                             n: viewParams ? attrName.slice(5) : ''
                         };
@@ -933,10 +959,31 @@ module.exports = {
                 let t = [],
                     info;
                 for (let bs in bindStructs) {
-                    info = bindStructs[bs];
-                    t.push(' mx-' + bs + '="' + configs.bindName + '({c:[' + info.c + ']' + (info.old ? info.old : '') + '})" ');
+                    if (bs != '__') {
+                        info = bindStructs[bs];
+                        let c = '';
+                        let old = info.old;
+                        if (bs != 'focusin') {
+                            c += 'c:[' + info.c + ']';
+                        } else {
+                            old = old.slice(1);
+                        }
+                        if (old) {
+                            c += old;
+                        }
+                        if (c) {
+                            c = '{' + c + '}';
+                        }
+                        t.push(' mx-' + bs + '="' + configs.bindName + '(' + c + ')" ');
+                    }
                 }
                 t = t.join('');
+                let beId = (beCount++).toString(32);
+                let host = bindStructs.__;
+                if (host && host.length) {
+                    beId += host.join('');
+                }
+                t = ' mx-beid="\x1f\x1e' + beId + '"' + t;
                 attrs = attrs.replace(bindReg, (m, name, q, expr) => {
                     findCount++;
                     let replacement = '<%=';
@@ -958,11 +1005,7 @@ module.exports = {
                 });
             } else {
                 let transformEvent = (exprInfo, source) => { //转换事件
-                    if (exprInfo.evts) { //如果提供了绑定的事件，则使用提供的事件列表
-                        bindEvents = exprInfo.evts;
-                    } else {
-                        bindEvents = configs.bindEvents;
-                    }
+                    bindEvents = exprInfo.evts;
                     storeUserEvents(); //存储用户的事件
                     let expr = exprInfo.expr;
                     let f = '';
@@ -977,9 +1020,29 @@ module.exports = {
                     for (let i = 0; i < bindEvents.length; i++) {
                         e = bindEvents[i];
                         info = oldEvents[e];
-                        now += '  mx-' + e + '="' + configs.bindName + '({p:\'' + expr + '\'' + (info ? info.now : '') + f + '})" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
+                        let c = '';
+                        let old = info ? info.now : '';
+                        if (e == 'focusin') {
+                            old = old.slice(1);
+                        } else {
+                            c = 'p:\'' + expr.result + '\'';
+                        }
+                        if (old) {
+                            c += old;
+                        }
+                        if (f && e != 'focusin') {
+                            c += f;
+                        }
+                        if (c) {
+                            c = '{' + c + '}';
+                        }
+                        now += '  mx-' + e + '="' + configs.bindName + '(' + c + ')" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
                     }
-                    return now;
+                    let beId = (beCount++).toString(32);
+                    if (expr.host) {
+                        beId += expr.host;
+                    }
+                    return ' mx-beid="\x1f\x1e' + beId + '"' + now;
                 };
                 attrs = attrs.replace(bindReg, (m, name, q, expr) => {
                     expr = expr.trim();

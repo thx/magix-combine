@@ -229,7 +229,6 @@ module.exports = (e, inwatch) => {
                     }
                 };
                 let processFile = (name, ext) => {
-                    debugger;
                     count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
 
                     let file, scopedStyle = false;

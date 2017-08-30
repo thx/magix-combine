@@ -41,20 +41,28 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reject(new Error('unsupport character'));
             return;
         }
+        if (configs.checker.tmplTagsMatch) {
+            try {
+                unmatchChecker(fileContent);
+            } catch (ex) {
+                slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+                ex.message += ' at ' + e.shortHTMLFile;
+                reject(ex);
+                return;
+            }
+        }
+        let temp = Object.create(null);
+        cache[key] = temp;
         try {
-            unmatchChecker(fileContent);
+            fileContent = tmplMxTag.process(fileContent, {
+                file
+            });
         } catch (ex) {
-            slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever(chalk.red('parser tmpl-mxtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
             return;
         }
-        let temp = Object.create(null);
-        cache[key] = temp;
-
-        fileContent = tmplMxTag.process(fileContent, {
-            file
-        });
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
         //console.log(fileContent);

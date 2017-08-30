@@ -15,12 +15,12 @@ let fd = require('./util-fd');
 
 let jsMx = require('./js-mx');
 
-let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject) => {
+let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, shortFile) => {
     if (ext == '.scss') {
         configs.sassOptions.data = content;
         sass.render(cssCompileConfigs, (err, result) => {
             if (err) {
-                slog.ever('scss error:', chalk.red(err + ''));
+                slog.ever('scss error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
             resolve({
@@ -32,7 +32,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject) =>
     } else if (ext == '.less') {
         less.render(content, cssCompileConfigs, (err, result) => {
             if (err) {
-                slog.ever('less error:', chalk.red(err + ''));
+                slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
             resolve({
@@ -50,7 +50,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject) =>
     } else if (ext == '.mx') {
         content = fd.read(file);
         let info = jsMx.process(content, file);
-        compileContent(file, info.style, info.styleType, resolve, reject);
+        compileContent(file, info.style, info.styleType, resolve, reject, shortFile);
     }
 };
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
@@ -67,8 +67,9 @@ module.exports = (file, name, e) => {
             cssCompileConfigs.file = file;
         }
         if (info && name == 'style') {
-            compileContent(file, info.style, styleType, cssCompileConfigs, resolve, reject);
+            compileContent(file, info.style, styleType, cssCompileConfigs, resolve, reject, e, file);
         } else {
+            let shortFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
             fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
                 if (err) {
                     resolve({
@@ -78,7 +79,7 @@ module.exports = (file, name, e) => {
                     });
                 } else {
                     let fileContent = fd.read(file);
-                    compileContent(file, fileContent, styleType, cssCompileConfigs, resolve, reject);
+                    compileContent(file, fileContent, styleType, cssCompileConfigs, resolve, reject, shortFile);
                 }
             });
         }

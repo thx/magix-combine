@@ -36,7 +36,8 @@ module.exports = {
         tmplAttrMxEvent: true, //mx事件
         tmplAttrMxView: true, //mx view
         tmplDuplicateAttr: true, //重复的属性
-        tmplCmdFnOrForOf: true
+        tmplCmdFnOrForOf: true, //模板中函数或for of检测
+        tmplTagsMatch: true //标签配对
     },
     compressCss: true, //是否压缩css内容
     compressCssSelectorNames: true, //是否压缩css选择器名称，默认只添加前缀，方便调试

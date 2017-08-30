@@ -23,8 +23,17 @@ module.exports = e => {
     let loader = e.loader;
     let tmpl = header + (tmpls[loader] || tmpls.iife);
     for (let p in e) {
-        let reg = regexp.get('\\$\\{' + p + '\\}', 'g');
-        tmpl = tmpl.replace(reg, regexp.encode(e[p]));
+        let reg = regexp.get('(,?)\\$\\{' + p + '\\}', 'g');
+        let v = e[p];
+        tmpl = tmpl.replace(reg, (m, c) => {
+            if (c) {
+                if (v && v.length) {
+                    return c + v;
+                }
+                return '';
+            }
+            return v;
+        });
     }
     if (loader == 'kissy') {
         tmpl = tmpl.replace(exportsReg, 'return ');

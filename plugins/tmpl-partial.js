@@ -624,7 +624,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
             s.tmpl = commandAnchorRecover(s.tmpl, refTmplCommands);
 
             if (loopReg.test(s.tmpl)) {
-                s.l = 1;
+                //s.l = 1;
                 s.tmpl = s.tmpl.replace(loopReg, '');
             }
         }

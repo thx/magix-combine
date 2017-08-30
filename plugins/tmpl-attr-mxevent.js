@@ -19,7 +19,7 @@ let onlyCmdReg = /^\u0007\d+\u0007$/;
 let dOutCmdReg = /<%([=!@])([\s\S]+?)%>/g;
 let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 let stringReg = /^['"]/;
-let mxEventReg = /\bmx-(?!view|vframe|init|owner|autonomy|datafrom|guid)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+let mxEventReg = /\bmx-(?!view|vframe|init|owner|autonomy|datafrom|guid|beid)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
 let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
