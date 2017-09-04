@@ -98,7 +98,7 @@ module.exports = {
                         if (result.tag == 'view' || has) {
                             content = viewTag(result, extInfo);
                         } else {
-                            content = configs.mxTagProcessor(result, extInfo);
+                            content = configs.mxTagProcessor(result, extInfo) || '';
                         }
                         tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
                         updateOffset(n.start, content.length - (n.end - n.start));

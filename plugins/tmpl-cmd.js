@@ -97,7 +97,7 @@ module.exports = {
             //存储非输出命令(控制命令)
             tmpl = tmpl.replace(ctrlCmdReg, (m, k) => {
                 k = phKey + (idx++) + phKey; //占位符
-                stores[k] = m; //存储
+                stores[k] = ` ${m} `; //存储
                 return k;
             });
             //把多个连续的控制命令做压缩

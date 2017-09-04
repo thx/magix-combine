@@ -963,7 +963,7 @@ module.exports = {
                         info = bindStructs[bs];
                         let c = '';
                         let old = info.old;
-                        if (bs != 'focusin') {
+                        if (bs != 'focusin' && bs != 'focusout') {
                             c += 'c:[' + info.c + ']';
                         } else {
                             old = old.slice(1);
@@ -1022,7 +1022,7 @@ module.exports = {
                         info = oldEvents[e];
                         let c = '';
                         let old = info ? info.now : '';
-                        if (e == 'focusin') {
+                        if (e == 'focusin' || e == 'focusout') {
                             old = old.slice(1);
                         } else {
                             c = 'p:\'' + expr.result + '\'';
@@ -1030,7 +1030,7 @@ module.exports = {
                         if (old) {
                             c += old;
                         }
-                        if (f && e != 'focusin') {
+                        if (f && e != 'focusin' && e != 'focusout') {
                             c += f;
                         }
                         if (c) {
@@ -1091,7 +1091,7 @@ module.exports = {
         fn = fn.replace(pathReg, (m, expr) => {
             expr = expr.trim();
             expr = analyseExpr(expr, m);
-            return expr;
+            return expr.result;
         });
         fn = recoverString(stripNum(fn));
         if (configs.compressTmplVariable) {

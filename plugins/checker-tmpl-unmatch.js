@@ -23,7 +23,7 @@ let selfCloseTags = {
 };
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script|svg)[^>]*>[\s\S]*?<\/\1>/g;
-let tagReg = /<(\/)?([a-z0-9A-Z_]+)[^>]*>?/igm;
+let tagReg = /<(\/)?([a-z0-9\-]+)[^>]*>?/img;
 let brReg = /(?:\r\n|\r|\n)/;
 let brPlaceholder = m => {
     let count = m.split(brReg).length;
@@ -45,6 +45,7 @@ module.exports = tmpl => {
     let lineCount = 1;
     for (let line of lines) {
         line.replace(tagReg, (m, close, name) => {
+            //console.log(m,close,name);
             //自闭合不检测
             if (selfCloseTags.hasOwnProperty(name)) return;
             //自定义的mx-tag不检测
