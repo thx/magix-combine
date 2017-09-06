@@ -9,6 +9,11 @@ let templateReg = /<template>([\s\S]+?)<\/template>/i;
 let pureTagReg = /<[\w-]+[^>]*>/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let commentPHReg = /\u0000\d+\u0000/g;
+let names = configs.tmplFileExtNames.slice();
+if (names.indexOf('mx') == -1) {
+    names.push('mx');
+}
+let tmplFileReg = new RegExp('\\.(?:' + names.join('|') + ')$');
 let processTmpl = (tmpl, shortFrom) => {
     let store = Object.create(null);
     let comment = Object.create(null);
@@ -37,7 +42,7 @@ let processMx = (content, shortFrom) => {
 module.exports = {
     process(from) {
         return new Promise(resolve => {
-            if (configs.tmplFileExtNamesReg.test(from)) {
+            if (tmplFileReg.test(from)) {
                 let content = fd.read(from);
                 let shortFrom = from.replace(configs.moduleIdRemovedPath, '');
                 if (mxTailReg.test(from)) {

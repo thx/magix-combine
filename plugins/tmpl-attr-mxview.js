@@ -10,6 +10,7 @@ let tmplChecker = checker.Tmpl;
 
 let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
 let viewAttrReg = /\bview-([\w\-]+)=(["'])([\s\S]*?)\2/g;
+//let mxViewParamsReg = /\bmx-params\s*=\s*(['"])([^'"]+?)\1/;
 let cmdReg = /\u0007\d+\u0007/g;
 let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
 
@@ -71,6 +72,21 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 return 'mx-view=' + q + content + q;
             });
         }
+        /*let mxParams = '';
+        match = match.replace(mxViewParamsReg, (m, q, c) => {
+            mxParams = c;
+            return '';
+        });
+        if (mxParams) {
+            match = match.replace(mxViewAttrReg, (m, q, content) => {
+                if (content.indexOf('?') > -1) {
+                    content = content + '&\x1e=' + mxParams;
+                } else {
+                    content = content + '?\x1e=' + mxParams;
+                }
+                return 'mx-view=' + q + content + q;
+            });
+        }*/
         match.replace(mxViewAttrReg, (m, q, content) => {
             let i = content.indexOf('?');
             if (i > -1) {
@@ -81,8 +97,10 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 if (!e.tmplMxViews) {
                     e.tmplMxViews = Object.create(null);
                 }
-                e.tmplMxViews[content] = 1;
-                e.tmplMxViewsArray = Object.keys(e.tmplMxViews);
+                if (!e.tmplMxViews[content]) {
+                    e.tmplMxViews[content] = 1;
+                    e.tmplMxViewsArray = Object.keys(e.tmplMxViews);
+                }
             }
         });
         let testCmd = (m, q, content) => {

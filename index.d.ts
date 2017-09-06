@@ -59,7 +59,11 @@ declare module "magix-combine" {
          */
         cssTagsInFiles: {
             [tag: string]: string
-        }
+        },
+        /**
+         * 模块包名
+         */
+        pkgName: string
     }
     interface IRequireInfo {
         /**
@@ -136,6 +140,18 @@ declare module "magix-combine" {
          * mx view
          */
         tmplAttrMxView: boolean
+        /**
+         * 重复的属性
+         */
+        tmplDuplicateAttr: boolean
+        /**
+         * 模板中函数或for of检测
+         */
+        tmplCmdFnOrForOf: boolean
+        /**
+         * 标签配对
+         */
+        tmplTagsMatch: boolean
     }
     interface IConfig {
         /**
@@ -186,18 +202,23 @@ declare module "magix-combine" {
          * 是否输出日志信息。默认为true
          */
         log?: boolean
+
+        /**
+         * 编译成调试版本，默认false
+         */
+        debug?: boolean
         /**
          * 检测对象
          */
         checker?: ICheckerConfig
         /**
-         * 是否压缩css内容。默认为true
+         * 是否把模板中的view打包到js中的文件依赖中，默认false
          */
-        compressCss?: boolean
+        addTmplViewsToDependencies?: boolean
         /**
-         * 是否压缩css选择器名称。默认为false
+         * 是否支持多绑定，默认false
          */
-        compressCssSelectorNames?: boolean
+        multiBind?: boolean
         /**
          * 是否增加事件前缀，开启该选项有利于提高magix查找vframe的效率。默认为true
          */
@@ -207,7 +228,7 @@ declare module "magix-combine" {
          */
         bindEvents?: string[]
         /**
-         * 绑定表达式<%:expr%>绑定的处理名称。默认为s\u0011e\u0011t
+         * 绑定表达式<%:expr%>绑定的处理名称。默认为syncValue
          */
         bindName?: string
         /**
@@ -229,7 +250,7 @@ declare module "magix-combine" {
         /**
          * 待编译的文件后缀，默认为["js","mx"]
          */
-        compileFileExtNames?: string[]
+        jsFileExtNames?: string[]
         /**
          * 待编译的模板文件后缀，默认为["html","mx"]
          */
@@ -265,11 +286,11 @@ declare module "magix-combine" {
         /**
          * 开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
          */
-        compileBeforeProcessor?: (content: string, from?: string) => Promise<string> | string
+        compileJSStart?: (content: string, from?: string) => Promise<string> | string
         /**
          * 结束编译时的处理器
          */
-        compileAfterProcessor?: (e: ICombineResult) => ICombineResult | Promise<ICombineResult>
+        compileJSEnd?: (e: ICombineResult) => ICombineResult | Promise<ICombineResult>
         /**
          * 对mx-tag这样的标签做加工处理
          */
@@ -283,9 +304,13 @@ declare module "magix-combine" {
          */
         cssNamesProcessor?: (tmpl: string, cssNamesMap?: object) => string
         /**
-         * 编辑转换模板中的命令字符串
+         * 转换模板中的命令字符串
          */
         compileTmplCommand?: (tmpl: string, config: IConfig) => string
+        /**
+         * 转换模板
+         */
+        compileTmpl?: (tmpl: string) => string
         /**
          * 对css中匹配到的url做处理
          */

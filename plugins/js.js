@@ -19,12 +19,12 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
             promise = deps.runFileDepend(from);
         }
         if (fs.existsSync(from)) {
-            if (configs.compileFileExtNamesReg.test(from)) {
+            if (configs.jsFileExtNamesReg.test(from)) {
                 promise.then(() => {
                     return jsContent.process(from, to, 0, inwatch);
                 }).then(e => {
                     if (e.writeFile) {
-                        to = to.replace(configs.compileFileExtNamesReg, '.js');
+                        to = to.replace(configs.jsFileExtNamesReg, '.js');
                         configs.beforeWriteFile(e);
                         fd.write(to, e.content);
                     }

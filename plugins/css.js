@@ -13,6 +13,7 @@ let deps = require('./util-deps');
 let checker = require('./checker');
 let cssGlobal = require('./css-global');
 let utils = require('./util');
+let urlReg = /url\(([^\)]+)\)/g;
 let cloneAssign = utils.cloneAssign;
 let {
     cssNameNewProcessor,
@@ -48,6 +49,7 @@ module.exports = (e, inwatch) => {
     let gCSSNamesToFiles = Object.create(null);
     let currentFile = '';
     let cssContentCache = Object.create(null);
+    let cssUrlCache = {};
     let gCSSTagToFiles = Object.create(null);
 
     return cssGlobal.process({
@@ -212,8 +214,10 @@ module.exports = (e, inwatch) => {
                             replacement = q + c + q;
                         } else { //输出整个css文件内容
                             //console.log(fileContent);
+                            fileContent = fileContent.replace(urlReg, (m, u) => {
+                                return cssUrlCache[u] || '';
+                            });
                             let css = JSON.stringify(fileContent);
-                            css = cssUrl(css, shortCssFile);
                             replacement = '"' + cssNamesKey + '",' + css;
                         }
                         tail = tail ? tail : '';
@@ -228,13 +232,31 @@ module.exports = (e, inwatch) => {
                         resume();
                     }
                 };
+                let processUrl = (css, sname) => {
+                    css.replace(urlReg, (m, u) => {
+                        count++;
+                        if (cssUrlCache.hasOwnProperty(u)) {
+                            check();
+                        } else {
+                            cssUrlCache[u] = 1;
+                            cssUrl(u, sname).then(c => {
+                                cssUrlCache[u] = c;
+                                check();
+                            }).catch(reject);
+                        }
+                    });
+                    return css;
+                };
                 let processFile = (name, ext) => {
                     count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
 
                     let file, scopedStyle = false;
+                    let shortCssFile;
                     if (name == 'scoped' && ext == '.style') {
                         file = name + ext;
                         scopedStyle = true;
+
+                        shortCssFile = file;
                         configs.scopedCss.forEach(sc => {
                             deps.addFileDepend(sc, e.from, e.to);
                         });
@@ -247,6 +269,7 @@ module.exports = (e, inwatch) => {
                             deps.addFileDepend(file, e.from, e.to);
                             e.fileDeps[file] = 1;
                         }
+                        shortCssFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
                     }
                     if (!cssContentCache[file]) { //文件尚未读取
                         cssContentCache[file] = 1;
@@ -266,9 +289,9 @@ module.exports = (e, inwatch) => {
                                 css: ''
                             };
                             if (info.exists && info.content) {
-                                if (configs.compressCss) {
+                                if (!configs.debug) {
                                     cssnano.process(info.content, configs.cssnanoOptions).then(r => {
-                                        cssContentCache[file].css = r.css;
+                                        cssContentCache[file].css = processUrl(r.css, shortCssFile);
                                         check();
                                     }, error => {
                                         if (e.contentInfo) {
@@ -278,13 +301,13 @@ module.exports = (e, inwatch) => {
                                         check();
                                     });
                                 } else {
-                                    cssContentCache[file].css = info.content.replace(cssCommentReg, '');
+                                    cssContentCache[file].css = processUrl(info.content.replace(cssCommentReg, ''), shortCssFile);
                                     check();
                                 }
                             } else {
                                 check();
                             }
-                        }, reject);
+                        }).catch(reject);
                     } else {
                         check();
                     }

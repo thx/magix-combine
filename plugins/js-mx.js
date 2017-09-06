@@ -11,7 +11,7 @@ let styleTypesMap = {
     'text/less': '.less',
     'text/scss': '.scss',
     'less': '.less',
-    'scss': 'scss'
+    'scss': '.scss'
 };
 module.exports = {
     process(content, from) {

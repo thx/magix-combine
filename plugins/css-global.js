@@ -120,7 +120,7 @@ let processScope = ctx => {
                     } catch (e) {
                         reject(e);
                     }
-                    c = cssAtRule(c, cssNamesKey);
+                    c = cssAtRule(c, cssNamesKey, true);
                     checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                     checker.CSS.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
                     scopedStyle += c;
@@ -148,7 +148,7 @@ let processScope = ctx => {
                     if (values.length > 1) {
                         namesToFiles[p + '!r'] = values;
                         let key = '';
-                        if (configs.compressCss) { //压缩
+                        if (!configs.debug) { //压缩
                             key = genCssSelector(p, genCssNamesKey(values[0]));
                         } else { //非压缩时，采用这个重名在这几个文件中的路径做为key,如 mx-app-snippets-list-and-app-snippets-form
                             let keys = [],
@@ -213,6 +213,7 @@ module.exports = {
     reset(file) {
         if (file && (configs.globalCssMap[file] || configs.scopedCssMap[file])) {
             globalPromise = null;
+            cssAtRule.reset();
         }
         let info = lazyGlobalInfo[file];
         if (info) {

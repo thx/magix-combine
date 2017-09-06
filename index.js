@@ -8,6 +8,7 @@ let jsContent = require('./plugins/js-content');
 let deps = require('./plugins/util-deps');
 let checker = require('./plugins/checker');
 let cssGlobal = require('./plugins/css-global');
+let cssUrl = require('./plugins/css-url');
 let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
 let slog = require('./plugins/util-log');
@@ -68,6 +69,7 @@ module.exports = {
         checker.CSS.reset();
         jsFileCache.clear(from);
         cssGlobal.reset(from);
+        cssUrl.clear(from);
     },
     config(cfg) {
         for (let p in cfg) {
@@ -130,7 +132,7 @@ module.exports = {
                 let tasks = [];
                 let once = 3;
                 fd.walk(configs.tmplFolder, filepath => {
-                    if (configs.compileFileExtNamesReg.test(filepath)) {
+                    if (configs.jsFileExtNamesReg.test(filepath)) {
                         let from = path.resolve(filepath);
                         let to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
                         total++;

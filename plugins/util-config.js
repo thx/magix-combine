@@ -39,8 +39,6 @@ module.exports = {
         tmplCmdFnOrForOf: true, //模板中函数或for of检测
         tmplTagsMatch: true //标签配对
     },
-    compressCss: true, //是否压缩css内容
-    compressCssSelectorNames: true, //是否压缩css选择器名称，默认只添加前缀，方便调试
     addEventPrefix: true, //mx事件增加前缀
     addTmplViewsToDependencies: false, //是否把模板中的view做为依赖提前加载
     multiBind: false, //是否支持多个绑定
@@ -50,8 +48,8 @@ module.exports = {
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
-    compileFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
-    tmplFileExtNames: ['html', 'mx'], //模板后缀
+    jsFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
+    tmplFileExtNames: ['html', 'haml', 'pug', 'jade', 'tpl'], //模板后缀
     tmplConstVars: {}, //模板中不会变的变量，减少子模板的分析
     tmplUnchangableVars: {}, //同上
     tmplGlobalVars: {}, //模板中全局变量
@@ -67,22 +65,25 @@ module.exports = {
     beforeWriteFile(e) {
         return e;
     },
-    compileBeforeProcessor(content, from) { //开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
+    compileJSStart(content, from) { //开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
         return content;
     },
-    compileAfterProcessor(e) { //结束编译
+    compileJSEnd(e) { //结束编译
         return e;
     },
     mxTagProcessor(tmpl, e) { //mx-tag的处理器
         return '';
     },
-    tmplTagProcessor(tag) {
+    tmplTagProcessor(tag) { //为了tmpl-naked准备的，遇到模板标签如何处理
         return tag;
     },
     cssNamesProcessor(tmpl, cssNamesMap) { //模板中class名称的处理器
         return tmpl;
     },
     compileTmplCommand(tmpl) {
+        return tmpl;
+    },
+    compileTmpl(tmpl) {
         return tmpl;
     },
     cssUrlMatched(url) { //样式中匹配到url时的处理器

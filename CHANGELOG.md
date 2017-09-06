@@ -1,3 +1,11 @@
+## 3.5.7
+1. `css-url`改成异步
+2. 增加模板编译，比如支持`haml`或`pug`
+3. 重命名`compileBeforeProcessor`=>`compileJSStart`及`compileAfterProcessor`=>`compileJSEnd`
+4. 支持模板文件除`html`外的扩展名
+5. 移除`compressCss`配置项，统一使用`debug`
+6. 全局化`@keyframes`及`@font-face`
+
 ## 3.5.6
 1. 修复模板中控制命令的压缩
 2. 修复标签配对的处理

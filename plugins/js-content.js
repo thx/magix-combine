@@ -24,8 +24,9 @@ let mxTailReg = /\.mx$/;
 let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /(['"])(@moduleId)\1/;
-let cssFileReg = /@(?:[\w\.\-\/\\]+?)(?:\.css|\.less|\.scss|\.mx|\.style)/;
-let htmlFileReg = /(['"])(?:raw|magix|updater)?@[^'"]+\.html((?::const\[[^\[\]]+\]|:global\[[^\[\]]+\]|:updateby\[[^\[\]]+\])+)?\1/;
+let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|mx|style)/;
+let tmplExtNames = configs.tmplFileExtNames;
+let htmlFileReg = new RegExp('([\'"])(?:raw|magix|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\1');
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
 let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
 let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;
@@ -84,7 +85,8 @@ let processContent = (from, to, content, inwatch) => {
     let before = Promise.resolve(content);
     let originalContent = content;
     if (execBeforeProcessor) {
-        before = configs.compileBeforeProcessor(content, from);
+        let processor = configs.compileBeforeProcessor || configs.compileJSStart;
+        before = processor(content, from);
         if (util.isString(before)) {
             before = Promise.resolve(before);
         }
@@ -245,15 +247,18 @@ let processContent = (from, to, content, inwatch) => {
                 vars = [];
             if (configs.addTmplViewsToDependencies) {
                 for (let v of mxViews) {
-                    let mName = v.slice(0, v.indexOf('/'));
+                    let i = v.indexOf('/');
+                    let mName = i === -1 ? null : v.slice(0, i);
                     let p;
-                    if (mName == e.pkgName) {
+                    if (mName === e.pkgName) {
                         p = atpath.resolvePath('"@' + v + '"', e.moduleId);
                     } else {
                         p = `"${v}"`;
                     }
-                    reqs.push(p);
-                    vars.push('require(' + p + ');');
+                    if (e.deps.indexOf(p) === -1) {
+                        reqs.push(p);
+                        vars.push('require(' + p + ');');
+                    }
                 }
             }
             reqs = reqs.join(',');
@@ -266,7 +271,8 @@ let processContent = (from, to, content, inwatch) => {
         return e;
     }).then(e => {
         if (execAfterProcessor) {
-            return configs.compileAfterProcessor(e);
+            let processor = configs.compileAfterProcessor || configs.compileJSEnd;
+            return processor(e);
         }
         return e;
     }).then(e => {

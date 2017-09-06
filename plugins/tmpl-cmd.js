@@ -8,6 +8,7 @@ let htmlminifier = require('html-minifier');
 let jm = require('./js-min');
 let attrObject = require('./tmpl-attr-object');
 let slog = require('./util-log');
+let tmplParser = require('./tmpl-parser');
 //模板文件，模板引擎命令处理，因为我们用的是字符串模板，常见的模板命令如<%=output%> {{output}}，这种通常会影响我们的分析，我们先把它们做替换处理
 let anchor = '\u0007';
 let tmplCommandAnchorCompressReg = /(\u0007\d+\u0007)\s+(?=[<>])/g;
@@ -15,14 +16,16 @@ let tmplCommandAnchorCompressReg2 = /([<>])\s+(\u0007\d+\u0007)/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCmdReg = /<%([@=!:~])?([\s\S]+?)%>|$/g;
 let outputCmdReg = /<%([=!@:~])?([\s\S]*?)%>/g;
-let ctrlCmdReg = /<%[^=!@:~][\s\S]*?%>\s*/g;
-let phCmdReg = /\u0008\d+\u0008/g;
-let continuedCmdReg = /(?:\u0008\d+\u0008){2,}/g;
-let bwCmdReg = /%>\s*<%/g;
+let phCmdReg = /\u0000\d+\u0000/g;
+let phAllCmdReg = /([\u0000\u0001])\d+\1/g;
+let continuedCmdReg = /(?:\u0000\d+\u0000){2,}/g;
+let bwCmdReg = /%><%/g;
+let bwSpaceCmdReg = /%>\s*<%/g;
 let blockCmdReg = /([\{\}]);/g;
 let continuedSemicolonReg = /;+/g;
 let emptyCmdReg = /<%\s*%>/g;
-let phKey = '\u0008';
+let phKey = '\u0000';
+let outPhKey = '\u0001';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
 let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
@@ -95,13 +98,78 @@ module.exports = {
             //     return '<%' + (oper || '') + jm.jsmin(content) + '%>';
             // });
             //存储非输出命令(控制命令)
-            tmpl = tmpl.replace(ctrlCmdReg, (m, k) => {
-                k = phKey + (idx++) + phKey; //占位符
-                stores[k] = ` ${m} `; //存储
+            /*tmpl = tmpl.replace(outputCmdReg, (m, o, c) => {
+                if (o) {
+                    if (o == '@') {
+                        return '<%$p+=$i(' + c + ')%>';
+                    } else if (o == '=') {
+                        return '<%$p+=$e(' + c + ')%>';
+                    } else if (o == '!') {
+                        return '<%$p+=$n(' + c + ')%>';
+                    }
+                }
+                return m;
+            });*/
+            tmpl = tmpl.replace(outputCmdReg, (m, o, c, k) => {
+                k = o ? outPhKey : phKey;
+                k = k + (idx++) + k; //占位符
+                stores[k] = m; //存储
                 return k;
             });
-            //把多个连续的控制命令做压缩
             if (!configs.debug) {
+                tmpl = '<mxv-root>' + tmpl + '</mxv-root>';
+                let tokens = tmplParser(tmpl);
+                let modifiers = [];
+                let recordContent = n => {
+                    let c = tmpl.slice(n.contentStart, n.contentEnd);
+                    if (c) {
+                        let current = {
+                            start: n.contentStart
+                        };
+                        if (n.children) {
+                            for (let r of n.children) {
+                                current.end = r.start;
+                                if (current.start != current.end) {
+                                    modifiers.push(current);
+                                }
+                                current = {
+                                    start: r.end
+                                };
+                            }
+                        }
+                        current.end = n.contentEnd;
+                        if (current.start != current.end) {
+                            modifiers.push(current);
+                        }
+                    }
+                };
+                let walk = nodes => {
+                    for (let n of nodes) {
+                        if (n.hasContent) {
+                            if (n.children) {
+                                walk(n.children);
+                            }
+                            recordContent(n);
+                        }
+                    }
+                };
+                walk(tokens);
+                modifiers.sort((a, b) => a.start - b.start);
+                for (let m, i = modifiers.length; i--;) {
+                    m = modifiers[i];
+                    let c = tmpl.slice(m.start, m.end);
+                    c = c.replace(continuedCmdReg, m => {
+                        m = m.replace(phCmdReg, n => stores[n]) //命令还原
+                            .replace(bwSpaceCmdReg, ';')
+                            .replace(blockCmdReg, '$1')
+                            .replace(continuedSemicolonReg, ';'); //删除中间的%><%及分号
+                        return m;
+                    });
+                    tmpl = tmpl.slice(0, m.start) + c + tmpl.slice(m.end);
+                }
+                tmpl = tmpl.slice(10, -11);
+                //console.log(JSON.stringify(tmpl));
+                //把多个连续的控制命令做压缩
                 tmpl = tmpl.replace(continuedCmdReg, m => {
                     m = m.replace(phCmdReg, n => stores[n]) //命令还原
                         .replace(bwCmdReg, ';')
@@ -110,8 +178,7 @@ module.exports = {
                     return m;
                 });
             }
-            tmpl = tmpl.replace(phCmdReg, n => stores[n]); //其它命令还原
-            tmpl = tmpl.replace(bwCmdReg, '%><%');
+            tmpl = tmpl.replace(phAllCmdReg, n => stores[n]); //其它命令还原
             tmpl = tmpl.replace(tmplCmdReg, m => {
                 borderChars.lastIndex = 0;
                 if (borderChars.test(m)) { //删除不必要的分号

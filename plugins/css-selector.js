@@ -20,7 +20,7 @@ let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.
 let genCssNamesKey = (file, ignorePrefix) => {
     //获取模块的id
     let cssId = utils.extractModuleId(file);
-    if (configs.compressCss) {
+    if (!configs.debug) {
         cssId = md5(cssId, configs.md5CssFileLen, 'md5CssFileLen');
     } else {
         cssId = '_' + cssId.replace(slashReg, '_') + '_';
@@ -34,7 +34,7 @@ let genCssNamesKey = (file, ignorePrefix) => {
 let genCssSelector = (selector, cssNameKey) => {
     let mappedName = selector;
     let split = '-';
-    if (configs.compressCss && configs.compressCssSelectorNames) { //压缩，我们采用md5处理，同样的name要生成相同的key
+    if (!configs.debug) { //压缩，我们采用md5处理，同样的name要生成相同的key
         split = '';
         if (selector.length > configs.md5CssSelectorLen) {
             mappedName = md5(selector, configs.md5CssSelectorLen);

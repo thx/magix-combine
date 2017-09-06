@@ -14,7 +14,7 @@ let cssTailReg = /\.(?:css|less|scss)/i;
 let startSlashReg = /^\//;
 let extractModuleId = file => {
     let id = file.replace(configs.moduleIdRemovedPath, '')
-        .replace(configs.compileFileExtNamesReg, '')
+        .replace(configs.jsFileExtNamesReg, '')
         .replace(cssTailReg, '')
         .replace(sepReg, '/')
         .replace(startSlashReg, '');
