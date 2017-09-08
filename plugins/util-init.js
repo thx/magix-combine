@@ -20,5 +20,18 @@ module.exports = () => {
         if (!configs.cssSelectorPrefix) {
             configs.cssSelectorPrefix = 'x' + md5(configs.tmplFolder, 3, 'md5CssFileLen');
         }
+
+        let tmplExtNames = configs.tmplFileExtNames;
+
+        let names = tmplExtNames.slice();
+        if (names.indexOf('mx') == -1) {
+            names.push('mx');
+        }
+        configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + names.join('|') + ')$');
+
+        configs.htmlFileReg = new RegExp('([\'"])(?:raw|magix|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\1');
+
+        //模板处理，即处理view.html文件
+        configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|magix|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\2', 'g');
     }
 };

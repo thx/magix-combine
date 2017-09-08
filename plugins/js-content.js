@@ -25,8 +25,6 @@ let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /(['"])(@moduleId)\1/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|mx|style)/;
-let tmplExtNames = configs.tmplFileExtNames;
-let htmlFileReg = new RegExp('([\'"])(?:raw|magix|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\1');
 let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
 let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
 let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;
@@ -149,7 +147,7 @@ let processContent = (from, to, content, inwatch) => {
             } else if (moduleIdReg.test(node.raw)) {
                 node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
                 add = true;
-            } else if (cssFileReg.test(node.raw) || htmlFileReg.test(node.raw)) {
+            } else if (cssFileReg.test(node.raw) || configs.htmlFileReg.test(node.raw)) {
                 node.raw = node.raw.replace(/@/g, '\u0012@');
                 add = true;
             } else if (othersFileReg.test(node.raw)) {

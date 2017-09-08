@@ -195,6 +195,7 @@ module.exports = {
     },
     processTmpl() {
         slog.hook();
+
         return new Promise((resolve, reject) => {
             initEnv();
             let ps = [];

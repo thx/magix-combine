@@ -20,9 +20,6 @@ let unmatchChecker = require('./checker-tmpl-unmatch');
 let tmplVars = require('./tmpl-vars');
 let slog = require('./util-log');
 
-let tmplExtNames = configs.tmplFileExtNames;
-//模板处理，即处理view.html文件
-let fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|magix|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\2', 'g');
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]+)\]/g;
 let sep = path.sep;
@@ -144,7 +141,7 @@ module.exports = e => {
             fileContentCache = Object.create(null);
 
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
-        e.content = e.content.replace(fileTmplReg, (match, prefix, quote, ctrl, name, ext, flags) => {
+        e.content = e.content.replace(configs.fileTmplReg, (match, prefix, quote, ctrl, name, ext, flags) => {
             name = atpath.resolvePath(name, moduleId);
             //console.log(raw,name,prefix,configs.outputTmplWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.' + ext);
