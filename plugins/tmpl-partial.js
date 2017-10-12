@@ -10,8 +10,7 @@ let configs = require('./util-config');
 let tmplParser = require('./tmpl-parser');
 let {
     getProps,
-    getBooleanProps,
-    maybeAttr
+    getBooleanProps
 } = require('./tmpl-attr-map');
 let holder = '\u001d';
 let loopReg = /\u0019/g;
@@ -123,7 +122,7 @@ let getRange = (start, end, modifiers) => {
                     if (extInfo.tmplScopedUpdateBy[name]) {
                         attrKeys[name] = 1;
                     }
-                } else if (!configs.lazyAnalysisTmpl) {
+                } else if (!configs.tmplLazyAnalysis) {
                     attrKeys[name] = 1;
                 }
             }
@@ -137,7 +136,7 @@ let getRange = (start, end, modifiers) => {
                     if (extInfo.tmplScopedUpdateBy[name]) {
                         tmplKeys[name] = 1;
                     }
-                } else if (!configs.lazyAnalysisTmpl) {
+                } else if (!configs.tmplLazyAnalysis) {
                     tmplKeys[name] = 1;
                 }
             }
@@ -164,7 +163,8 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
                     if (extInfo.tmplScopedUpdateBy[name]) {
                         attrKeys[name] = 1;
                     }
-                } else if (!configs.lazyAnalysisTmpl) {
+                } else if (!extInfo.tmplScopedConstVars ||
+                    !extInfo.tmplScopedConstVars[name]) {
                     attrKeys[name] = 1;
                 }
             }
@@ -180,7 +180,8 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
                         if (extInfo.tmplScopedUpdateBy[name]) {
                             tmplKeys[name] = 1;
                         }
-                    } else if (!configs.lazyAnalysisTmpl) {
+                    } else if (!extInfo.tmplScopedConstVars ||
+                        !extInfo.tmplScopedConstVars[name]) {
                         tmplKeys[name] = 1;
                     }
                 }
@@ -188,17 +189,23 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
         }
     });
     //
-    Object.assign(attrKeys, tmplKeys);
+    let allKeys = Object.assign({}, attrKeys, tmplKeys);
     return {
-        keys: Object.keys(attrKeys),
-        allKeys: attrKeys,
+        keys: Object.keys(allKeys),
+        attrAKeys: Object.keys(attrKeys),
+        attrKeys,
+        allKeys,
         tmplKeys
     };
 };
 //添加属性信息
-let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
-    let attrsKeys = Object.create(null),
+let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView, kInfo) => {
+    debugger;
+    let attrsKeys = kInfo.attrKeys,
         tmplKeys = Object.create(null);
+    if (!kInfo.attrAKeys.length) {
+        return;
+    }
     tmpl.replace(extractAttrsReg, (match, attr) => {
         let originalAttr = attr;
         let mxView = '';
@@ -213,7 +220,6 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
             attr += ' ' + mxView;
         }
         if (!attr) return;
-        //console.log(attr);
         attr.replace(tmplCommandAnchorReg, match => {
             let value = refTmplCommands[match];
             if (value) {
@@ -238,10 +244,13 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
         }
 
         let props = [];
+        let propsMap = getProps(tag, type);
+        let propsBooleanMap = getBooleanProps(tag, type);
+
         let extractProps = attr.replace(tmplCommandAnchorReg, match => {
             let temp = commandAnchorRecover(match, refTmplCommands);
             temp.replace(stringReg, (match, q, content) => {
-                if (!hasProps[content] && maybeAttr(content)) {
+                if (!hasProps[content] && propsMap.hasOwnProperty(content)) {
                     props.push(content);
                 }
             });
@@ -254,7 +263,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
         for (let i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
-                if (configs.checker.tmplDuplicateAttr) {
+                if (e.checker.tmplDuplicateAttr) {
                     slog.ever('duplicate attr:', chalk.blue(prop), ' near:', e.toTmplSrc(attr, refTmplCommands), ' relate file:', chalk.grey(e.shortFrom));
                 }
                 continue;
@@ -272,11 +281,11 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
                 t.q = 1; //decode html
             }
 
-            let propInfo = getBooleanProps(tag, type);
+            let propInfo = propsBooleanMap; // getBooleanProps(tag, type);
             if (propInfo && propInfo[prop]) {
                 t.b = 1; // boolean prop
             }
-            propInfo = getProps(tag, type);
+            propInfo = propsMap; // getProps(tag, type);
             if (propInfo) {
                 let fixedName = propInfo[prop];
                 if (fixedName) {
@@ -289,7 +298,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView) => {
             attrs.push(t);
         }
         attr = commandAnchorRecover(attr, refTmplCommands);
-        if (attr) {
+        if (attr && attrs.length) {
             info.attr = attr.trim(); //.replace(slashAnchorReg, '/');
             info.attrs = attrs;
         }
@@ -543,7 +552,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                                 let idx = n.contentStart - n.start - 1;
                                 match = match.slice(0, idx) + ' value="' + escapeHTML(content) + '"' + match.slice(idx);
                             }
-                            addAttrs(n.tag, match, tmplInfo, refTmplCommands, e);
+                            addAttrs(n.tag, match, tmplInfo, refTmplCommands, e, false, kInfo);
                             delete tmplInfo.s; //这3行删除不必要的属性，节省资源
                             delete tmplInfo.tmpl;
                             delete tmplInfo.mask;
@@ -572,7 +581,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                             }
                             //console.log('wrapTag', wrapTag);
                             //对当前标签分析属性的局部更新
-                            addAttrs(n.tag, remain, tmplInfo, refTmplCommands, e, n.hasSubView);
+                            addAttrs(n.tag, remain, tmplInfo, refTmplCommands, e, n.hasSubView, kInfo);
                             if (!tmplInfo.attr && !tmplInfo.tmpl) {
                                 removedGuids.push(guid);
                             } else {
@@ -589,7 +598,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                         tmplInfo.keys.push.apply(tmplInfo.keys, kInfo.keys);
                         list.push(tmplInfo);
                         //属性分析
-                        addAttrs(n.tag, match, tmplInfo, refTmplCommands, e);
+                        addAttrs(n.tag, match, tmplInfo, refTmplCommands, e, false, kInfo);
                     } else { //记录移除的guid
                         removedGuids.push(guid);
                     }

@@ -10,10 +10,13 @@ let configs = require('./util-config');
 let utils = require('./util');
 let slog = require('./util-log');
 let regexp = require('./util-rcache');
-let tmplCmdReg = /<%([@=!:~])?([\s\S]+?)%>|$/g;
+let md5 = require('./util-md5');
+let tmplCmdReg = /<%([@=!:~#])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
 let bindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
 let bindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
+let ssKeyReg = /\s*<%#([\s\S]*?)%>\s*/g;
+let ssKeyMatchReg = /^([^'"]+?)?(?:\s*,?\s*(['"])([^\[\]"']+)\2)?$/;
 let pathReg = /<%~([\s\S]+?)%>/g;
 let textaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
@@ -24,10 +27,12 @@ let vphGlb = String.fromCharCode(0x5168); //全
 let creg = /[\u7528\u58f0\u56fa\u5168]/g;
 let hreg = /([\u0001\u0002])\d+/g;
 let compressVarReg = /\u0001\d+[a-zA-Z\_$]+/g;
+let tmplStringReg = /\u0017([^\u0017]*?)\u0017/g;
 let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
+let revisableReg = /@\{[\w\.\-]+\}/;
 let cmap = {
     [vphUse]: '\u0001',
     [vphDcd]: '\u0002',
@@ -112,7 +117,7 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[c
         //console.log(fns);
     }
     if (!evts) {
-        evts = configs.bindEvents.slice();
+        evts = configs.tmplBindEvents.slice();
     }
     if (evts.indexOf('focusout') == -1) {
         evts.push('focusout');
@@ -164,27 +169,23 @@ module.exports = {
         let htmlIndex = 0;
         let htmlKey = utils.uId('\u0005', tmpl);
         let htmlHolderReg = new RegExp(htmlKey + '\\d+' + htmlKey, 'g');
-
         //console.log(tmpl);
         tmpl.replace(tmplCmdReg, (match, operate, content, offset) => {
             let start = 2;
             if (operate) {
                 start = 3;
-                content = '(' + content + ')';
+                if (content.trim()) {
+                    content = '(' + content + ')';
+                }
             }
             let source = tmpl.slice(index, offset + start);
             let key = htmlKey + (htmlIndex++) + htmlKey;
             htmlStore[key] = source;
             index = offset + match.length - 2;
-            fn.push(';`' + key + '`;', content);
+            fn.push(';`' + key + '`;', content || '');
         });
         fn = fn.join(''); //移除<%%> 使用`变成标签模板分析
         let ast;
-        let recoverHTML = fn => {
-            fn = fn.replace(scharReg, '');
-            fn = fn.replace(htmlHolderReg, m => htmlStore[m]);
-            return fn;
-        };
         //console.log(fn);
         //return;
         //console.log(fn);
@@ -192,9 +193,6 @@ module.exports = {
             ast = acorn.parse(fn);
         } catch (ex) {
             slog.ever('parse html cmd ast error:', chalk.red(ex.message));
-            let html = recoverHTML(fn.slice(Math.max(ex.loc.column - 10, 0)));
-            slog.ever('near html:', chalk.green(html.slice(0, 100)));
-            slog.ever('html file:', chalk.grey(sourceFile));
             reject(ex);
         }
         let globalExists = Object.assign(Object.create(null), configs.tmplGlobalVars);
@@ -282,6 +280,11 @@ module.exports = {
             if (stringReg.test(node.raw)) {
                 let q = node.raw.match(stringReg)[0];
                 let key = '\u0004' + (stringIndex++) + '\u0004';
+                if (revisableReg.test(node.raw) && !configs.debug) {
+                    node.raw = node.raw.replace(revisableReg, m => {
+                        return md5(m, 'revisableStringLen', '_');
+                    });
+                }
                 stringStore[key] = node.raw;
                 modifiers.push({
                     key: '',
@@ -326,7 +329,7 @@ module.exports = {
                 if (node.left.type == 'Identifier') {
                     let lname = node.left.name;
                     let tname = lname; // compressVarsMap[lname] || lname;
-                    if (configs.compressTmplVariable) { //如果压缩，则压缩变量
+                    if (!configs.debug && configs.tmplCompressVariable) { //如果压缩，则压缩变量
                         modifiers.push({
                             key: '',
                             start: node.left.start,
@@ -357,7 +360,7 @@ module.exports = {
             },
             VariableDeclarator(node) { //变量声明
                 let tname = node.id.name;
-                if (configs.compressTmplVariable) {
+                if (!configs.debug && configs.tmplCompressVariable) {
                     let cname = variable(varCount++);
                     if (!compressVarsMap[tname]) { //可能使用同一个key进行多次声明，我们要处理这种情况
                         compressVarsMap[tname] = [];
@@ -383,7 +386,7 @@ module.exports = {
             FunctionExpression: node => fnRange.push(node),
             ArrowFunctionExpression: node => fnRange.push(node),
             ForOfStatement: node => {
-                if (configs.checker.tmplCmdFnOrForOf) {
+                if (e.checker.tmplCmdFnOrForOf) {
                     slog.ever(chalk.red('translate ForOfStatement: ' + fn.slice(node.start, node.right.end + 1)), 'to', chalk.red('ForStatement'), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37'));
                 }
             }
@@ -406,7 +409,7 @@ module.exports = {
                 } else {
                     fns.push('){}');
                 }
-                if (configs.checker.tmplCmdFnOrForOf) {
+                if (e.checker.tmplCmdFnOrForOf) {
                     slog.ever(chalk.red('avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
                 }
                 let params = Object.create(null);
@@ -418,12 +421,19 @@ module.exports = {
                 for (let i = 0, p; i < node.params.length; i++) { //处理参数
                     p = node.params[i];
                     params[p.name] = 1; //记录有哪些参数
-                    if (configs.compressTmplVariable) { //如果启用变量压缩
+                    if (!configs.debug && configs.tmplCompressVariable) { //如果启用变量压缩
                         modifiers.push({ //压缩参数
                             key: vphDcd + p.start,
                             start: p.start,
                             end: p.end,
                             name: pVarsMap[p.name] = variable(varCount++)　 //压缩参数
+                        });
+                    } else {
+                        modifiers.push({
+                            key: vphDcd + p.start,
+                            start: p.start,
+                            end: p.end,
+                            name: p.name
                         });
                     }
                 }
@@ -459,7 +469,8 @@ module.exports = {
                                     }
                                 }
                                 //如果该参数从修改器中移除，则表示是当前方法的形参，如果启用压缩，则使用压缩后的变量
-                                if (find && configs.compressTmplVariable) {
+                                if (find) {
+                                    //if (!configs.debug && configs.tmplCompressVariable) {
                                     let v = pVarsMap[expr.name] || expr.name;
                                     modifiers.push({
                                         key: vphUse + expr.end,
@@ -468,6 +479,7 @@ module.exports = {
                                         name: v
                                     });
                                     compressVarToOriginal['\u0001' + expr.end + v] = expr.name;
+                                    //}
                                 }
                             }
                         } else if (Array.isArray(expr)) {
@@ -611,7 +623,7 @@ module.exports = {
         //console.log(compressVarsMap, fnRange);
         //根据start大小排序，这样修改后的fn才是正确的
         modifiers.sort((a, b) => a.start - b.start);
-        if (configs.compressTmplVariable) { //直接修改修改器中的值即可
+        if (!configs.debug && configs.tmplCompressVariable) { //直接修改修改器中的值即可
             for (let i = 0, m; i < modifiers.length; i++) {
                 m = modifiers[i];
                 if (m.type) {
@@ -779,7 +791,7 @@ module.exports = {
             return list;
         };
         let toOriginalExpr = expr => {
-            if (configs.compressTmplVariable) {
+            if (!configs.debug && configs.tmplCompressVariable) {
                 expr = stripNum(expr.replace(compressVarReg, m => compressVarToOriginal[m] || m));
             } else {
                 expr = stripNum(expr);
@@ -847,18 +859,42 @@ module.exports = {
                 result[i] = one;
             }
             let last = host.pop();
-            host = host.join('');
-            if (host) {
-                host = '<%@\u0003.' + host + '%>';
-                if (last.charAt(0) === '[' && last.charAt(last.length - 1) === ']') {
-                    host += '\x1e<%=$eq(' + last.slice(1, -1) + ')%>';
-                }
+            if (last.charAt(0) === '[' &&
+                last.charAt(last.length - 1) === ']') {
+                host = [host.join(''), last.slice(1, -1)];
+            } else {
+                host = [host.join('')];
             }
             result = result.join('.');
             return {
                 host,
                 result
             };
+        };
+        let ssCount = 0;
+        let genSSId = (vars, props) => {
+            vars = vars.trim();
+            props = props.trim();
+
+            let r = [];
+            if (vars.length) {
+                let es = null;
+                if (vars.charAt(0) === '[' &&
+                    vars.charAt(vars.length - 1) === ']') {
+                    es = vars.slice(1, -1).split(',');
+                } else {
+                    es = [vars];
+                }
+                for (let e of es) {
+                    if (e) {
+                        r.push('<%@' + e + '%>');
+                    }
+                }
+            }
+            if (props.length) {
+                r.push('[' + props.replace(tmplStringReg, '$1') + ']');
+            }
+            return r.join('\x1e');
         };
         fn = tmplCmd.store(fn, cmdStore); //存储代码，只分析模板
         //textarea情况：<textarea><%:taValue%></textarea>处理成=><textarea <%:taValue%>><%=taValue%></textarea>
@@ -878,16 +914,18 @@ module.exports = {
             attr = tmplCmd.store(attr, cmdStore);
             return '<textarea' + attr + '>' + content + '</textarea>';
         });
-        let beCount = 0;
         fn = fn.replace(tagReg, (match, tag, attrs) => {
-            let bindEvents = configs.bindEvents.slice();
+            let bindEvents = configs.tmplBindEvents.slice();
             let oldEvents = Object.create(null);
             let e;
             let hasMagixView = mxViewAttrReg.test(attrs); //是否有mx-view属性
-            //slog.ever(cmdStore, attrs);
+            //console.log(cmdStore, attrs);
             attrs = tmplCmd.recover(attrs, cmdStore, recoverString); //还原
 
             let replacement = (m, name, params) => {
+                name = name.replace(revisableReg, m => {
+                    return md5(m, 'revisableStringLen', '_');
+                });
                 let now = ',m:\'' + name + '\',a:' + (params || '{}');
                 let old = m; //tmplCmd.recover(m, cmdStore);
                 oldEvents[e] = {
@@ -904,7 +942,7 @@ module.exports = {
                 }
             };
             let findCount = 0;
-            if (configs.multiBind) {
+            if (configs.tmplMultiBindEvents) {
                 let bindStructs = {};
                 let transformEvent = (exprInfo, source, attrName) => { //转换事件
                     bindEvents = exprInfo.evts;
@@ -916,7 +954,7 @@ module.exports = {
                         bindStructs.__ = [];
                     }
                     if (expr.host && bindStructs.__.indexOf(expr.host) === -1) {
-                        bindStructs.__.push(expr.host);
+                        bindStructs.__.push.apply(bindStructs.__, expr.host);
                     }
                     for (let be of bindEvents) {
                         info = oldEvents[be];
@@ -937,6 +975,7 @@ module.exports = {
                         let t = ['{p:\'' + c.p + '\''];
                         if (c.f) {
                             t.push(',f:' + c.f);
+                            bindStructs.__.be = true;
                         }
                         if (c.n) {
                             t.push(',n:\'' + c.n + '\'');
@@ -973,16 +1012,14 @@ module.exports = {
                         if (c) {
                             c = '{' + c + '}';
                         }
-                        t.push(' mx-' + bs + '="' + configs.bindName + '(' + c + ')" ');
+                        t.push(' mx-' + bs + '="' + configs.tmplBindName + '(' + c + ')" ');
                     }
                 }
                 t = t.join('');
-                let beId = (beCount++).toString(32);
                 let host = bindStructs.__;
-                if (host && host.length) {
-                    beId += host.join('');
+                if (host && host.be) {
+                    t = ' <%#[' + host.join(',') + ']%> ' + t;
                 }
-                t = ' mx-beid="\x1f\x1e' + beId + '"' + t;
                 attrs = attrs.replace(bindReg, (m, name, q, expr) => {
                     findCount++;
                     let replacement = '<%=';
@@ -1007,12 +1044,15 @@ module.exports = {
                     bindEvents = exprInfo.evts;
                     storeUserEvents(); //存储用户的事件
                     let expr = exprInfo.expr;
+
                     let f = '';
                     let fns = exprInfo.fns;
+                    let ssKey = '';
+                    let rexpr = analyseExpr(expr, source); //分析表达式
                     if (fns.length) { //传递的参数
                         f = ',f:' + fns;
+                        ssKey = '<%#[' + rexpr.host.join(',') + ']%>';
                     }
-                    expr = analyseExpr(expr, source); //分析表达式
 
                     let now = '',
                         info;
@@ -1024,7 +1064,7 @@ module.exports = {
                         if (e == 'focusin' || e == 'focusout') {
                             old = old.slice(1);
                         } else {
-                            c = 'p:\'' + expr.result + '\'';
+                            c = 'p:\'' + rexpr.result + '\'';
                         }
                         if (old) {
                             c += old;
@@ -1035,13 +1075,9 @@ module.exports = {
                         if (c) {
                             c = '{' + c + '}';
                         }
-                        now += '  mx-' + e + '="' + configs.bindName + '(' + c + ')" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
+                        now += '  mx-' + e + '="' + configs.tmplBindName + '(' + c + ')" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
                     }
-                    let beId = (beCount++).toString(32);
-                    if (expr.host) {
-                        beId += expr.host;
-                    }
-                    return ' mx-beid="\x1f\x1e' + beId + '"' + now;
+                    return ssKey + now;
                 };
                 attrs = attrs.replace(bindReg, (m, name, q, expr) => {
                     expr = expr.trim();
@@ -1072,12 +1108,17 @@ module.exports = {
                     return now;
                 });
             }
-            //attrs = attrs.replace(pathReg, (m, expr) => {
-            //    expr = expr.trim();
-            //    //console.log(JSON.stringify(expr));
-            //    expr = analyseExpr(expr, m);
-            //    return expr;
-            //}).replace(tmplCmdReg, stripNum);
+            let ssIdExpr = [];
+            attrs = attrs.replace(ssKeyReg, (m, expr) => {
+                m = expr.match(ssKeyMatchReg);
+                let ssId = genSSId(m[1] || '', m[3] || '');
+                ssIdExpr.push(ssId);
+                return '';
+            });
+            if (ssIdExpr.length) {
+                let ssId = '\x1f' + (ssCount++).toString(16) + ssIdExpr.join('\x1e');
+                attrs = ' mx-ssid="' + ssId + '" ' + attrs;
+            }
             if (findCount > 0) {
                 for (let old in oldEvents) {
                     let info = oldEvents[old];
@@ -1093,7 +1134,7 @@ module.exports = {
             return expr.result;
         });
         fn = recoverString(stripNum(fn));
-        if (configs.compressTmplVariable) {
+        if (!configs.debug && configs.tmplCompressVariable) {
             let refVarsMap = Object.create(null);
             for (let p in compressVarToOriginal) {
                 refVarsMap[stripNum(p)] = compressVarToOriginal[p];

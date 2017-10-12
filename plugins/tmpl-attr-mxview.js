@@ -13,6 +13,14 @@ let viewAttrReg = /\bview-([\w\-]+)=(["'])([\s\S]*?)\2/g;
 //let mxViewParamsReg = /\bmx-params\s*=\s*(['"])([^'"]+?)\1/;
 let cmdReg = /\u0007\d+\u0007/g;
 let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
+// let paramsReg = /([^=&?\/#]+)=?[^&#?]*/g;
+
+// let hyphenateRE = /(?=[^-])([A-Z]+)/g;
+// let hyphenate = fcache(str => {
+//     return str
+//         .replace(hyphenateRE, '-$1')
+//         .toLowerCase();
+// });
 
 let encodeMore = {
     '!': '%21',
@@ -28,23 +36,35 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
     mxViewAttrReg.lastIndex = 0;
     if (mxViewAttrReg.test(match)) { //带有mx-view属性才处理
         if (configs.useAtPathConverter) { //如果启用@路径转换规则
-            let escape = false;
             match = match.replace(mxViewAttrReg, (m, q, c) => {
                 if (c.indexOf('@@') === 0) {
-                    escape = true;
                     return 'mx-view="' + c.slice(1) + '"';
                 }
-                return m;
+                return atpath.resolvePath(m, e.moduleId);
             });
-            if (!escape) {
-                match = atpath.resolvePath(match, e.moduleId); //先把view对应的路径转换过来
-            }
         }
+
+        match.replace(mxViewAttrReg, (m, q, content) => {
+            let i = content.indexOf('?');
+            if (i > -1) {
+                content = content.slice(0, i);
+            }
+            cmdReg.lastIndex = 0;
+            if (!cmdReg.test(content)) {
+                if (!e.tmplMxViews) {
+                    e.tmplMxViews = Object.create(null);
+                }
+                if (!e.tmplMxViews[content]) {
+                    e.tmplMxViews[content] = 1;
+                    e.tmplMxViewsArray = Object.keys(e.tmplMxViews);
+                }
+            }
+        });
         if (viewAttrReg.test(match)) { //如果是view-开头的属性
             //console.log(match);
             let attrs = [];
             match = match.replace(viewAttrReg, (m, name, q, content) => {
-                let oName = name;
+                //let oName = name;
                 let cmdTemp = []; //处理属性中带命令的情况
                 name = tmplChecker.checkMxViewParams(name, e);
                 content.replace(cmdReg, cm => {
@@ -60,7 +80,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 }
                 content = cs.join('');
                 attrs.push(name + '=' + content); //处理成最终的a=b形式
-                return 'view-' + oName;
+                return ''; //'view-' + oName;
             });
             match = match.replace(mxViewAttrReg, (m, q, content) => {
                 attrs = attrs.join('&'); //把参数加到mx-viewk中
@@ -87,22 +107,6 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 return 'mx-view=' + q + content + q;
             });
         }*/
-        match.replace(mxViewAttrReg, (m, q, content) => {
-            let i = content.indexOf('?');
-            if (i > -1) {
-                content = content.slice(0, i);
-            }
-            cmdReg.lastIndex = 0;
-            if (!cmdReg.test(content)) {
-                if (!e.tmplMxViews) {
-                    e.tmplMxViews = Object.create(null);
-                }
-                if (!e.tmplMxViews[content]) {
-                    e.tmplMxViews[content] = 1;
-                    e.tmplMxViewsArray = Object.keys(e.tmplMxViews);
-                }
-            }
-        });
         let testCmd = (m, q, content) => {
             q = content.indexOf('?');
             if (q >= 0) {

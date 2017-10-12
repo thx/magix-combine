@@ -23,7 +23,7 @@ let selfCloseTags = {
 };
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script|svg)[^>]*>[\s\S]*?<\/\1>/g;
-let tagReg = /<(\/)?([a-z0-9\-]+)[^>]*>?/img;
+let tagReg = /<(\/)?([a-z0-9\-]+)[^>]*>?/ig;
 let brReg = /(?:\r\n|\r|\n)/;
 let brPlaceholder = m => {
     let count = m.split(brReg).length;
@@ -39,25 +39,57 @@ let cleanHTML = tmpl => {
 };
 module.exports = tmpl => {
     tmpl = cleanHTML(tmpl);
-    //console.log(tmpl);
     let tags = [];
     let lines = tmpl.split(brReg);
     let lineCount = 1;
     for (let line of lines) {
-        line.replace(tagReg, (m, close, name) => {
-            //console.log(m,close,name);
+        line.replace(tagReg, (m, close, name, offset) => {
             //自闭合不检测
             if (selfCloseTags.hasOwnProperty(name)) return;
-            //自定义的mx-tag不检测
-            if (name.indexOf('mx-') === 0) return;
+            //自定义的mx-tag检测
+            let checkTag = true;
+            if (name.indexOf('mx-') === 0 && !close) {//非闭合mx标签
+                let start = lineCount - 1;
+                let results = [];
+                let i = line.indexOf('>', offset);//当前行有没有'>'结束
+                if (i > -1) {//只需要检测当前行
+                    results.push(line.slice(offset, i));
+                } else {
+                    while (start < lines.length) {//从当前行向后查找'>'结束
+                        let current = lines[start++];
+                        i = current.indexOf('>');
+                        if (i > -1) {
+                            results.push(current.slice(0, i));
+                            break;
+                        } else {
+                            results.push(current);
+                        }
+                    }
+                }
+                let near = results.join('');//当前标签的片断
+                let found = null;
+                i = near.length;
+                while (i) {//从后向前查'/'自闭合
+                    found = near.charAt(--i);
+                    if (found !== ' ' && found != '/') {
+                        break;
+                    }
+                    if (found == '/') {//如果自定义的mx标签已经闭合，则不需要再检查
+                        checkTag = false;
+                        break;
+                    }
+                }
+            }
             //用户指定的不检测的标签
             if (configs.tmplUncheckTags.hasOwnProperty(name)) return;
-            tags.push({
-                line: lineCount,
-                close: !!close,
-                match: m,
-                name: name
-            });
+            if (checkTag) {
+                tags.push({
+                    line: lineCount,
+                    close: !!close,
+                    match: m,
+                    name: name
+                });
+            }
         });
         lineCount++;
     }

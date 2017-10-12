@@ -7,7 +7,7 @@ let deps = require('./util-deps');
 let classReg = /\bclass\s*=\s*"([^"]+)"/g;
 let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
-let selfCssReg = /@:([\w\-]+)/g;
+let selfCssReg = /@\$([\w\-]+)/g;
 let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCmdReg = /<%([=!])?([\s\S]+?)%>/;

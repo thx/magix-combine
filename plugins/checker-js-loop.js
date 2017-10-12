@@ -26,7 +26,13 @@ module.exports = (node, comments, tmpl, e) => {
                 }
             }
             let c = tmpl.charAt(p);
-            if (c != ' ' && c != ';' && c != '\r' && c != '\n' && c != '\t') {
+            if (c != ' ' &&
+                c != ';' &&
+                c != '\r' &&
+                c != '\n' &&
+                c != '\t' &&
+                c != '\u2028' &&
+                c != '\u2029') {
                 return false;
             }
         }
@@ -89,9 +95,9 @@ module.exports = (node, comments, tmpl, e) => {
             }
             let key = expr.start + '@' + expr.end;
             if (walkSub && (enterFns[key] || (
-                    expr.type != 'FunctionDeclaration' &&
-                    expr.type != 'FunctionExpression' &&
-                    expr.type != 'ArrowFunctionExpression'))) {
+                expr.type != 'FunctionDeclaration' &&
+                expr.type != 'FunctionExpression' &&
+                expr.type != 'ArrowFunctionExpression'))) {
                 if (Array.isArray(expr)) {
                     for (let i = 0; i < expr.length; i++) {
                         walk(expr[i], lc, outerLoop);

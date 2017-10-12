@@ -48,6 +48,18 @@ let tagsBooleanPrpos = {
     },
     form: {
         novalidate: 1
+    },
+    img: {
+        ismap: 1
+    },
+    hr: {
+        noshade: 1
+    },
+    area: {
+        nohref: 1
+    },
+    td: {
+        nowrap: 1
     }
 };
 let tagsProps = {
@@ -66,6 +78,8 @@ let tagsProps = {
         hidden: 'hidden'
     },
     input: {
+        name: 'name',
+        autofocus: 'autofocus',
         maxlength: 'maxLength',
         minlength: 'minLength',
         disabled: 'disabled',
@@ -111,6 +125,7 @@ let tagsProps = {
         accept: 'accept'
     },
     textarea: {
+        autofocus: 'autofocus',
         cols: 'cols',
         rows: 'rows',
         value: 'value',
@@ -127,19 +142,22 @@ let tagsProps = {
         required: 'required'
     },
     form: {
+        autocomplete: 'autocomplete',
         novalidate: 'noValidate',
         'accept-charset': 'acceptCharset',
         action: 'action',
         target: 'target',
         method: 'method',
-        enctype: 'enctype'
+        enctype: 'enctype',
+        name: 'name'
     },
     iframe: {
         src: 'src',
         scrolling: 'scrolling',
         sandbox: 'sandbox',
         width: 'width',
-        height: 'height'
+        height: 'height',
+        name: 'name'
     },
     a: {
         href: 'href',
@@ -156,8 +174,9 @@ let tagsProps = {
         coords: 'coords',
         shape: 'shape',
         target: 'target',
-        nohref: 'nohref',
-        alt: 'alt'
+        nohref: 'noHref',
+        alt: 'alt',
+        name: 'name'
     },
     th: {
         colspan: 'colSpan',
@@ -165,14 +184,16 @@ let tagsProps = {
     },
     td: {
         colspan: 'colSpan',
-        rowspan: 'rowSpan'
+        rowspan: 'rowSpan',
+        nowrap: 'noWrap'
     },
     img: {
         src: 'src',
         alt: 'alt',
         width: 'width',
         height: 'height',
-        usemap: 'useMap'
+        usemap: 'useMap',
+        ismap: 'isMap'
     },
     audio: {
         autoplay: 'autoplay',
@@ -195,7 +216,8 @@ let tagsProps = {
     button: {
         autofocus: 'autofocus',
         disabled: 'disabled',
-        value: 'value'
+        value: 'value',
+        name: 'name'
     },
     canvas: {
         width: 'width',
@@ -204,22 +226,41 @@ let tagsProps = {
     progress: {
         max: 'max',
         value: 'value'
+    },
+    hr: {
+        noshade: 'noShade'
     }
 };
-let allAttrs = Object.create(null);
-
-for (let p in tagsProps) {
-    for (let a in tagsProps[p]) {
-        allAttrs[a] = 1;
+let allAttrs = {
+    '*': {
+        style: 'style',
+    },
+    label: {
+        'for': 'for'
+    },
+    input: {
+        type: 'type'
+    },
+    button: {
+        type: 'type'
     }
-}
+};
 
 module.exports = {
-    maybeAttr(attr) {
-        return allAttrs[attr];
+    getAll(tag, type) {
+        let all = Object.assign({}, allAttrs['*'], (allAttrs[tag] || {}), tagsProps['*']);
+        let tags = tagsProps[tag];
+        if (tags) {
+            all = Object.assign(all, tags);
+        }
+        tags = tagsProps[tag + '&' + type];
+        if (tags) {
+            all = Object.assign(all, tags);
+        }
+        return all;
     },
     getProps(tag, type) {
-        let globals = tagsProps['*'];
+        let globals = Object.assign({}, tagsProps['*']);
         let tags = tagsProps[tag];
         if (tags) {
             globals = Object.assign(globals, tags);
@@ -231,7 +272,7 @@ module.exports = {
         return globals;
     },
     getBooleanProps(tag, type) {
-        let globals = tagsBooleanPrpos['*'];
+        let globals = Object.assign({}, tagsBooleanPrpos['*']);
         let tags = tagsBooleanPrpos[tag];
         if (tags) {
             globals = Object.assign(globals, tags);

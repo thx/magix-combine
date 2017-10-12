@@ -13,6 +13,7 @@ let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
 let slog = require('./plugins/util-log');
 let chalk = require('chalk');
+let util = require('util');
 
 if (!Object.values) {
     Object.values = object => {
@@ -76,14 +77,21 @@ module.exports = {
             if (p !== 'checker' &&
                 p != 'tmplConstVars' &&
                 p != 'tmplUnchangableVars' &&
-                p != 'tmplGlobalVars') {
+                p != 'tmplGlobalVars' &&
+                p != 'mxTagViewsMap') {
                 configs[p] = cfg[p];
             }
         }
-        if (cfg && cfg.hasOwnProperty('checker') && !cfg.checker) {
-            configs.checker = {};
-        } else {
-            configs.checker = Object.assign(configs.checker, cfg.checker);
+        if (cfg) {
+            if (cfg.hasOwnProperty('checker')) {
+                if (cfg.checker) {
+                    if (util.isObject(cfg.checker)) {
+                        configs.checker = Object.assign(configs.checker, cfg.checker);
+                    }
+                } else {
+                    configs.checker = {};
+                }
+            }
         }
         let scopedCssMap = Object.create(null);
         let globalCssMap = Object.create(null);
@@ -108,18 +116,23 @@ module.exports = {
             to: 'tmplConstVars'
         }, {
             src: 'tmplGlobalVars'
+        }, {
+            src: 'mxTagViewsMap'
         }];
-        for (let s of specials) {
-            if (cfg[s.src]) {
-                if (Array.isArray(cfg[s.src])) {
-                    for (let v of cfg[s.src]) {
-                        configs[s.to || s.src][v] = 1;
+        if (cfg) {
+            for (let s of specials) {
+                if (cfg[s.src]) {
+                    if (Array.isArray(cfg[s.src])) {
+                        for (let v of cfg[s.src]) {
+                            configs[s.to || s.src][v] = 1;
+                        }
+                    } else {
+                        Object.assign(configs[s.to || s.src], cfg[s.src]);
                     }
-                } else {
-                    Object.assign(configs[s.to || s.src], cfg[s.src]);
                 }
             }
         }
+        return configs;
     },
     combine() {
         slog.hook();

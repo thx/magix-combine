@@ -11,7 +11,7 @@ module.exports = (e, tagName, match, refTmplCommands, toSrc) => {
         match = match.replace(srcReg, (m, q, value) => {
             value = tmplCmd.recover(value, refTmplCommands);
             value = configs.tmplImgSrcMatched(value);
-            if (configs.checker.tmplAttrImg) {
+            if (e.checker.tmplAttrImg) {
                 slog.ever('tmpl-attr-img match:', toSrc(value), chalk.grey(e.shortHTMLFile));
             }
             return 'src=' + q + value + q;

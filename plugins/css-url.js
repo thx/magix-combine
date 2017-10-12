@@ -6,11 +6,11 @@ let configs = require('./util-config');
 let slog = require('./util-log');
 let chalk = require('chalk');
 let cache = {};
-let processor = (url, short) => {
+let processor = (url, short, e) => {
     if (cache.hasOwnProperty(url)) {
         return Promise.resolve(cache[url]);
     } else {
-        if (configs.checker.cssUrl) {
+        if (e.checker.cssUrl) {
             slog.ever('css-url match:', url, chalk.grey(short));
         }
         let content = configs.cssUrlMatched(url);

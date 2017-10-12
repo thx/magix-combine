@@ -10,6 +10,8 @@ let checker = require('./checker');
 let slog = require('./util-log');
 let utils = require('./util');
 let attrObject = require('./tmpl-attr-object');
+let md5 = require('./util-md5');
+let regexp = require('./util-rcache');
 let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
 let tmplChecker = checker.Tmpl;
@@ -19,7 +21,7 @@ let onlyCmdReg = /^\u0007\d+\u0007$/;
 let dOutCmdReg = /<%([=!@])([\s\S]+?)%>/g;
 let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 let stringReg = /^['"]/;
-let mxEventReg = /\bmx-(?!view|vframe|init|owner|autonomy|datafrom|guid|beid|params)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+let mxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
 let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
@@ -132,12 +134,18 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     return params.slice(1, -1);
 };
 module.exports = (e, match, refTmplCommands, toSrc) => {
-    if (configs.addEventPrefix) { //增加事件前缀
+    if (configs.tmplAddEventPrefix) { //增加事件前缀
         match = match.replace(mxEventReg, (m, name, double, single) => { //查找事件
             tmplChecker.checkMxEventName(name, e);
             if (double || single) {
                 let originalMatch = toSrc(m);
                 tmplChecker.checkMxEvengSingQuote(single, originalMatch, e);
+                let revisableReg = regexp.get('mx-' + name + '\\s*=\\s*([\'"])\\s*(@\\{[\\w\\.\\-]+\\})');
+                if (!configs.debug) {
+                    m = m.replace(revisableReg, (m, q, key) => {
+                        return 'mx-' + name + '=' + q + md5(key, 'revisableStringLen','_');
+                    });
+                }
                 if (configs.disableMagixUpdater) {
                     let left = m.indexOf('=');
                     let idx = left;
@@ -171,7 +179,8 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                         c = left.charAt(start);
                         start++;
                     } while (c != '"' && c != '\'');
-                    return left.slice(0, start) + holder + magixHolder + left.slice(start) + right;
+                    let rest = left.slice(start) + right;
+                    return left.slice(0, start) + holder + magixHolder + rest;
                 }
             }
             return m;

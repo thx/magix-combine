@@ -68,35 +68,23 @@ module.exports = (e, inwatch) => {
             if (cssTmplReg.test(e.content)) { //有需要处理的@规则
                 cssTmplReg.lastIndex = 0;
                 let count = 0;
+                let tempMatchToFile = Object.create(null);
+                let folder = path.dirname(e.from);
                 let resume = () => {
                     e.content = e.content.replace(cssTmplReg, (m, q, prefix, name, ext, keys, key, tail) => {
-                        let file, scopedStyle;
-                        let markUsedFiles;
-                        let shortCssFile;
-                        if (ext == '.style') {
-                            if (name == 'scoped') {
-                                scopedStyle = true;
-                                markUsedFiles = configs.scopedCss;
-                            }
-                        }
-                        if (scopedStyle) {
-                            file = name + ext;
-                            shortCssFile = file;
-                        } else {
-                            name = atpath.resolveName(name, e.moduleId);
-                            if (e.contentInfo && name == 'style') {
-                                file = e.from;
-                            } else {
-                                file = path.resolve(path.dirname(e.from) + sep + name + ext);
-                            }
-                            markUsedFiles = file;
-                            shortCssFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
-                        }
+                        let info = tempMatchToFile[m];
+                        let { file,
+                            scopedStyle,
+                            shortCssFile,
+                            markUsedFiles } = info;
                         let fileName = path.basename(file);
                         let r = cssContentCache[file];
                         //从缓存中获取当前文件的信息
                         //如果不存在就返回一个不存在的提示
                         if (!r.exists) {
+                            if (q) {
+                                m = m.slice(1, -1);
+                            }
                             checker.CSS.markUnexists(m, e.from);
                             return q + 'unfound:' + name + ext + q;
                         }
@@ -239,7 +227,7 @@ module.exports = (e, inwatch) => {
                             check();
                         } else {
                             cssUrlCache[u] = 1;
-                            cssUrl(u, sname).then(c => {
+                            cssUrl(u, sname, e).then(c => {
                                 cssUrlCache[u] = c;
                                 check();
                             }).catch(reject);
@@ -247,30 +235,37 @@ module.exports = (e, inwatch) => {
                     });
                     return css;
                 };
-                let processFile = (name, ext) => {
+                let processFile = (match, name, ext, file) => {
                     count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
 
-                    let file, scopedStyle = false;
+                    let scopedStyle = false;
                     let shortCssFile;
+                    let markUsedFiles;
                     if (name == 'scoped' && ext == '.style') {
                         file = name + ext;
                         scopedStyle = true;
-
                         shortCssFile = file;
                         configs.scopedCss.forEach(sc => {
                             deps.addFileDepend(sc, e.from, e.to);
                         });
+                        markUsedFiles = configs.scopedCss;
                     } else {
                         name = atpath.resolveName(name, e.moduleId); //先处理名称
                         if (e.contentInfo && name == 'style') {
                             file = e.from;
                         } else {
-                            file = path.resolve(path.dirname(e.from) + sep + name + ext);
                             deps.addFileDepend(file, e.from, e.to);
                             e.fileDeps[file] = 1;
                         }
+                        markUsedFiles = file;
                         shortCssFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
                     }
+                    tempMatchToFile[match] = {
+                        markUsedFiles,
+                        scopedStyle,
+                        file,
+                        shortCssFile
+                    };
                     if (!cssContentCache[file]) { //文件尚未读取
                         cssContentCache[file] = 1;
                         let promise;
@@ -324,7 +319,12 @@ module.exports = (e, inwatch) => {
                     }
                 };
                 e.content.replace(cssTmplReg, (m, q, prefix, name, ext) => {
-                    tasks.push([name, ext]);
+                    let file = path.resolve(folder + sep + name + ext);
+                    if (configs.scopedCssMap[file]) {
+                        name = 'scoped';
+                        ext = '.style';
+                    }
+                    tasks.push([m, name, ext, file]);
                 });
                 doTask();
             } else {

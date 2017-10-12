@@ -17,11 +17,12 @@ let tmplAttr = require('./tmpl-attr');
 let tmplClass = require('./tmpl-attr-class');
 let tmplPartial = require('./tmpl-partial');
 let unmatchChecker = require('./checker-tmpl-unmatch');
+let tmplSyntaxChecker = require('./checker-js-tmplsyntax');
 let tmplVars = require('./tmpl-vars');
 let slog = require('./util-log');
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
-let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]+)\]/g;
+let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]*)\]/g;
 let sep = path.sep;
 let holder = '\u001f';
 let removeVdReg = /\u0002/g;
@@ -41,7 +42,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             return;
         }
         try {
-            fileContent = configs.compileTmpl(fileContent, e);
+            fileContent = configs.compileTmplStart(fileContent, e);
         } catch (ex) {
             slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
@@ -49,19 +50,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             return;
         }
 
-        try {
-            fileContent = tmplMxTag.process(fileContent, {
-                file
-            });
-        } catch (ex) {
-            slog.ever(chalk.red('parser tmpl-mxtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
-            ex.message += ' at ' + e.shortHTMLFile;
-            reject(ex);
-            return;
-        }
+        //convert tmpl syntax
 
-
-        if (configs.checker.tmplTagsMatch) {
+        if (e.checker.tmplTagsMatch) {
             try {
                 unmatchChecker(fileContent);
             } catch (ex) {
@@ -72,11 +63,60 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             }
         }
 
+        try {
+            fileContent = tmplMxTag.process(fileContent, {
+                file,
+                shortHTMLFile: e.shortHTMLFile
+            });
+        } catch (ex) {
+            slog.ever(chalk.red('parser tmpl-mxtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            ex.message += ' at ' + e.shortHTMLFile;
+            reject(ex);
+            return;
+        }
+
+
+        if (e.checker.tmplTagsMatch) {
+            try {
+                unmatchChecker(fileContent);
+            } catch (ex) {
+                slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+                ex.message += ' at ' + e.shortHTMLFile;
+                reject(ex);
+                return;
+            }
+        }
+
+
+
         let temp = Object.create(null);
         cache[key] = temp;
 
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
+
+        if (e.checker.tmplCmdSyntax) {
+            try {
+                tmplSyntaxChecker(fileContent);
+            } catch (ex) {
+                slog.ever(chalk.red('tmpl js syntax error: ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile), 'near');
+                for (let i = 0; i < ex.lines.length; i++) {
+                    let c = ex.lines[i];
+                    if (i == ex.index) {
+                        let left = c.slice(0, ex.column);
+                        let right = c.slice(ex.column);
+                        slog.ever(chalk.red(left) + chalk.bold.red(right));
+                    } else {
+                        slog.ever(chalk.magenta(c));
+                    }
+                }
+                for (let cause of ex.reasons) {
+                    slog.ever(chalk.red('check ' + cause.value + ' of line: ' + cause.line));
+                }
+                reject(ex);
+                return;
+            }
+        }
         //console.log(fileContent);
 
         let refTmplCommands = Object.create(null);
@@ -88,7 +128,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
-        if (configs.outputTmplWithEvents) {
+        if (configs.tmplOutputWithEvents) {
             let tmplEvents = tmplEvent.extract(fileContent);
             temp.events = tmplEvents;
         }
@@ -112,6 +152,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
                 }
             }
         }
+
+        fileContent = configs.compileTmplEnd(fileContent);
+        //console.log(JSON.stringify(fileContent),refTmplCommands);
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
         for (let p in refTmplCommands) {
             let cmd = refTmplCommands[p];
@@ -139,11 +182,10 @@ module.exports = e => {
             from = e.from,
             moduleId = e.moduleId,
             fileContentCache = Object.create(null);
-
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
         e.content = e.content.replace(configs.fileTmplReg, (match, prefix, quote, ctrl, name, ext, flags) => {
             name = atpath.resolvePath(name, moduleId);
-            //console.log(raw,name,prefix,configs.outputTmplWithEvents);
+            //console.log(raw,name,prefix,configs.tmplOutputWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.' + ext);
             let fileContent = name;
             let singleFile = (name == 'template' && e.contentInfo);
@@ -159,24 +201,20 @@ module.exports = e => {
                 let flagsInfo = {};
                 if (flags) {
                     flags.replace(tmplVarsReg, (m, key, vars) => {
+                        vars = vars.trim();
+                        vars = vars.split(',');
+                        let setKey = '';
                         if (key == 'const') {
-                            if (!flagsInfo.tmplScopedConstVars)
-                                flagsInfo.tmplScopedConstVars = Object.create(null);
-                            for (let v of vars.split(',')) {
-                                flagsInfo.tmplScopedConstVars[v] = 1;
-                            }
+                            setKey = 'tmplScopedConstVars';
                         } else if (key == 'global') {
-                            if (!flagsInfo.tmplScopedGlobalVars)
-                                flagsInfo.tmplScopedGlobalVars = Object.create(null);
-                            for (let v of vars.split(',')) {
-                                flagsInfo.tmplScopedGlobalVars[v] = 1;
-                            }
+                            setKey = 'tmplScopedGlobalVars';
                         } else if (key == 'updateby') {
-                            if (!flagsInfo.tmplScopedUpdateBy)
-                                flagsInfo.tmplScopedUpdateBy = Object.create(null);
-                            for (let v of vars.split(',')) {
-                                flagsInfo.tmplScopedUpdateBy[v] = 1;
-                            }
+                            setKey = 'tmplScopedUpdateBy';
+                        }
+                        if (!flagsInfo[setKey])
+                            flagsInfo[setKey] = Object.create(null);
+                        for (let v of vars) {
+                            flagsInfo[setKey][v] = 1;
                         }
                     });
                 }
@@ -189,7 +227,7 @@ module.exports = e => {
                     if (configs.debug) temp.file = e.shortHTMLFile;
                     return (prefix || '') + JSON.stringify(temp);
                 }
-                if (prefix && configs.outputTmplWithEvents) {
+                if (prefix && configs.tmplOutputWithEvents) {
                     return prefix + JSON.stringify({
                         html: fcInfo.info.tmpl,
                         events: fcInfo.events

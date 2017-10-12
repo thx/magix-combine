@@ -13,6 +13,7 @@ let atpath = require('./util-atpath');
 let jsWrapper = require('./js-wrapper');
 let configs = require('./util-config');
 let checker = require('./checker');
+let md5 = require('./util-md5');
 
 let slog = require('./util-log');
 let acorn = require('acorn');
@@ -23,12 +24,16 @@ let jsSnippet = require('./js-snippet');
 let mxTailReg = /\.mx$/;
 let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
-let moduleIdReg = /(['"])(@moduleId)\1/;
+let moduleIdReg = /^(['"])(@moduleId)\1$/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|mx|style)/;
-let othersFileReg = /(['"])([a-z,]+)?@([^'"]+\.[a-z]{2,})\1;?/;
+let othersFileReg = /(['"])([a-z,]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
 let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
-let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude\(([\w,]+)\)\1\s*;?/g;
+let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude[\(\[]([\w,]+)[\)\]]\1\s*;?/gm;
 let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;?/g;
+let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
+let checkerReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\[([\w,]+)\]\1\s*;?/gm;
+let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])?\1\s*;?/g;
+let revisableReg = /@\{[\w\.\-]+\}/;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
@@ -54,7 +59,25 @@ let processContent = (from, to, content, inwatch) => {
         if (keys.indexOf('after') > -1 || keys.indexOf('afterProcessor') > -1) {
             execAfterProcessor = false;
         }
-        return '';
+        return '\r\n';
+    });
+    let checkerCfg = Object.assign({}, configs.checker);
+    content = content.replace(checkerReg, (m, q, key, value) => {
+        let values = value.split(',');
+        for (let v of values) {
+            v = v.trim();
+            if (key == 'check') {
+                checkerCfg[v] = true;
+            } else {
+                checkerCfg[v] = false;
+            }
+        }
+        return '\r\n';
+    });
+    let thisAlias = configs.thisAlias;
+    content = content.replace(jsThisAliasReg, (m, q, value) => {
+        thisAlias = value;
+        return '\r\n';
     });
     let isSnippet = snippetReg.test(content);
     snippetReg.lastIndex = 0;
@@ -62,7 +85,7 @@ let processContent = (from, to, content, inwatch) => {
     let loader;
     content = content.replace(loaderReg, (m, q, type) => {
         loader = type;
-        return '';
+        return '\r\n';
     });
     let key = [inwatch, exclude].join('\u0000');
     let fInfo = fileCache.get(from, key);
@@ -96,6 +119,8 @@ let processContent = (from, to, content, inwatch) => {
         return jsRequire.process({
             fileDeps: {},
             exclude: exclude,
+            checker: checkerCfg,
+            thisAlias,
             to: to,
             loader: loader || configs.loaderType,
             from: from,
@@ -124,7 +149,7 @@ let processContent = (from, to, content, inwatch) => {
             });
         } catch (ex) {
             slog.ever('parse js ast error:', chalk.red(ex.message));
-            let arr = tmpl.split(/\r\n|\r|\n/);
+            let arr = tmpl.split(lineBreakReg);
             let line = ex.loc.line - 1;
             if (arr[line]) {
                 slog.ever('near code:', chalk.green(arr[line]));
@@ -141,6 +166,12 @@ let processContent = (from, to, content, inwatch) => {
                 if (!stringReg.test(node.raw)) return;
             }
             let add = false;
+            if (!configs.debug) {
+                node.raw = node.raw.replace(revisableReg, m => {
+                    add = true;
+                    return md5(m, 'revisableStringLen', '_');
+                });
+            }
             if (tl && node.raw == '@moduleId') {
                 node.raw = e.moduleId;
                 add = true;
@@ -243,7 +274,7 @@ let processContent = (from, to, content, inwatch) => {
             let mxViews = e.tmplMxViewsArray || [];
             let reqs = [],
                 vars = [];
-            if (configs.addTmplViewsToDependencies) {
+            if (configs.tmplAddViewsToDependencies) {
                 for (let v of mxViews) {
                     let i = v.indexOf('/');
                     let mName = i === -1 ? null : v.slice(0, i);

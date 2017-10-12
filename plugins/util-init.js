@@ -3,7 +3,7 @@
  */
 let path = require('path');
 let configs = require('./util-config');
-let md5 = require('./util-md5');
+let crypto = require('crypto');
 module.exports = () => {
     if (!configs.$inited) {
         configs.$inited = 1;
@@ -17,8 +17,11 @@ module.exports = () => {
         if (!configs.tmplCommand) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
-        if (!configs.cssSelectorPrefix) {
-            configs.cssSelectorPrefix = 'x' + md5(configs.tmplFolder, 3, 'md5CssFileLen');
+        if (configs.cssSelectorPrefix === null) {
+            let str = crypto.createHash('sha512')
+                .update(configs.tmplFolder, 'ascii')
+                .digest('hex');
+            configs.cssSelectorPrefix = 'x' + str.substring(0, 2);
         }
 
         let tmplExtNames = configs.tmplFileExtNames;
@@ -29,9 +32,25 @@ module.exports = () => {
         }
         configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + names.join('|') + ')$');
 
-        configs.htmlFileReg = new RegExp('([\'"])(?:raw|magix|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\1');
+        configs.htmlFileReg = new RegExp('([\'"])(?:raw|magix|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\])+)?\\1');
 
         //模板处理，即处理view.html文件
-        configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|magix|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]+\\]|:global\\[[^\\[\\]]+\\]|:updateby\\[[^\\[\\]]+\\])+)?\\2', 'g');
+        configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|magix|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\])+)?\\2', 'g');
+
+        if (configs.addEventPrefix) {
+            configs.tmplAddEventPrefix = true;
+        }
+
+        if (configs.addTmplViewsToDependencies) {
+            configs.tmplAddViewsToDependencies = true;
+        }
+
+        if (configs.outputTmplWithEvents) {
+            configs.tmplOutputWithEvents = true;
+        }
+
+        if (configs.compressTmplVariable) {
+            configs.tmplCompressVariable = true;
+        }
     }
 };

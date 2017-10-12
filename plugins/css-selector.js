@@ -18,12 +18,19 @@ let cssCommentReg = /\/\*[\s\S]+?\*\//g;
 //}
 let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.style):([\w\-]+)\1\]/g;
 let genCssNamesKey = (file, ignorePrefix) => {
+    /*if (configs.scopedCssMap[file]) {
+        file = 'scoped.style';
+    }*/
     //获取模块的id
-    let cssId = utils.extractModuleId(file);
-    if (!configs.debug) {
-        cssId = md5(cssId, configs.md5CssFileLen, 'md5CssFileLen');
-    } else {
+    let cssId;
+    if (configs.debug) {
+        //mc-【abc∕def∕test‧less】open-dialog «»
+        cssId = utils.extractModuleId(file);
         cssId = '_' + cssId.replace(slashReg, '_') + '_';
+        //cssId = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+        //cssId = '«' + cssId.replace(/[\/\\]/g, '∕').replace(/\./g, '‧') + '»';
+    } else {
+        cssId = md5(file, 'md5CssFileResult');
     }
     //css前缀是配置项中的前缀加上模块的md5信息
     if (!ignorePrefix) {
@@ -33,15 +40,12 @@ let genCssNamesKey = (file, ignorePrefix) => {
 };
 let genCssSelector = (selector, cssNameKey) => {
     let mappedName = selector;
-    let split = '-';
-    if (!configs.debug) { //压缩，我们采用md5处理，同样的name要生成相同的key
-        split = '';
-        if (selector.length > configs.md5CssSelectorLen) {
-            mappedName = md5(selector, configs.md5CssSelectorLen);
+    if (configs.debug) { //压缩，我们采用md5处理，同样的name要生成相同的key
+        if (cssNameKey) {
+            mappedName = cssNameKey + '-' + mappedName;
         }
-    }
-    if (cssNameKey) {
-        mappedName = cssNameKey + split + mappedName;
+    } else {
+        mappedName = configs.cssSelectorPrefix + md5(selector + '\x00' + cssNameKey, 'md5CssSelectorResult');
     }
     return mappedName;
 };
@@ -132,8 +136,8 @@ let cssNameNewProcessor = (css, ctx) => {
         checker.CSS.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
     let tokens = pInfo.tokens;
-    for (let i = tokens.length - 1; i >= 0; i--) {
-        let token = tokens[i];
+    let modifiers = [];
+    for (let token of tokens) {
         let id = token.name;
         if (token.type == 'tag' || token.type == 'sattr') {
             if (token.type == 'sattr') {
@@ -155,8 +159,17 @@ let cssNameNewProcessor = (css, ctx) => {
                 }
                 ctx.cNamesToFiles[id + '!r'] = [ctx.file];
             }
-            css = css.slice(0, token.start) + result + css.slice(token.end);
+            modifiers.push({
+                start: token.start,
+                end: token.end,
+                content: result
+            });
+            //css = css.slice(0, token.start) + result + css.slice(token.end);
         }
+    }
+    for (let i = modifiers.length; i--;) {
+        let m = modifiers[i];
+        css = css.slice(0, m.start) + m.content + css.slice(m.end);
     }
     return css;
 };
@@ -166,7 +179,7 @@ let cssNameGlobalProcessor = (css, ctx) => {
         checker.CSS.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
     let tokens = pInfo.tokens;
-    for (let i = tokens.length - 1; i >= 0; i--) {
+    for (let i = tokens.length; i--;) {
         let token = tokens[i];
         let id = token.name;
         if (token.type == 'tag' || token.type == 'sattr') {

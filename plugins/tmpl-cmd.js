@@ -14,11 +14,11 @@ let anchor = '\u0007';
 let tmplCommandAnchorCompressReg = /(\u0007\d+\u0007)\s+(?=[<>])/g;
 let tmplCommandAnchorCompressReg2 = /([<>])\s+(\u0007\d+\u0007)/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-let tmplCmdReg = /<%([@=!:~])?([\s\S]+?)%>|$/g;
-let outputCmdReg = /<%([=!@:~])?([\s\S]*?)%>/g;
+let tmplCmdReg = /<%([@=!:~#])?([\s\S]+?)%>|$/g;
+let outputCmdReg = /<%([=!@:~#])?([\s\S]*?)%>/g;
 let phCmdReg = /\u0000\d+\u0000/g;
 let phAllCmdReg = /([\u0000\u0001])\d+\1/g;
-let continuedCmdReg = /(?:\u0000\d+\u0000){2,}/g;
+let continuedCmdReg = /(?:\s*\u0000\d+\u0000\s*){2,}/g;
 let bwCmdReg = /%><%/g;
 let bwSpaceCmdReg = /%>\s*<%/g;
 let blockCmdReg = /([\{\}]);/g;
@@ -31,6 +31,8 @@ let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
 let bindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
 let bindEventsReg2 = /^([^<>]+)<([^>]+)>/;
+
+let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
 
 
 module.exports = {
@@ -82,7 +84,7 @@ module.exports = {
                 if (o) {
                     c = c.slice(1, -1);
                 }
-                c = jm.min(c);
+                c = jm.min(c).replace(lineBreakReg, '');
                 return '<%' + (o || '') + c + '%>';
             });
             tmpl = tmpl.replace(emptyCmdReg, '');

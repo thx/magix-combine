@@ -25,7 +25,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
                 }).then(e => {
                     if (e.writeFile) {
                         to = to.replace(configs.jsFileExtNamesReg, '.js');
-                        configs.beforeWriteFile(e);
+                        configs.writeFileStart(e);
                         fd.write(to, e.content);
                     }
                     if (configs.log && inwatch) {

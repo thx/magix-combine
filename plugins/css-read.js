@@ -26,7 +26,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
             resolve({
                 exists: true,
                 file: file,
-                content: err || result.css.toString()
+                content: result.css.toString()
             });
         });
     } else if (ext == '.less') {
@@ -38,7 +38,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
             resolve({
                 exists: true,
                 file: file,
-                content: err || result.css
+                content: result.css
             });
         });
     } else if (ext == '.css') {
@@ -55,10 +55,24 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
 };
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
 module.exports = (file, name, e) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((done, reject) => {
         let info = e.contentInfo;
         let styleType = info && info.styleType || path.extname(file);
         let cssCompileConfigs = {};
+        let resolve = info => {
+            if (info.exists) {
+                let r = configs.compileCSSEnd(info.content, info);
+                if (!r || !r.then) {
+                    r = Promise.resolve(r);
+                }
+                r.then(css => {
+                    info.content = css;
+                    done(info);
+                }).catch(reject);
+            } else {
+                done(info);
+            }
+        };
         if (styleType == '.less') {
             utils.cloneAssign(cssCompileConfigs, configs.lessOptions);
             cssCompileConfigs.paths = [path.dirname(file)];

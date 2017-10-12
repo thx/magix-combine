@@ -99,7 +99,7 @@ let processScope = ctx => {
                 let cssTagsMap = Object.create(null);
                 if (i.exists && i.content) {
                     let currentFile = i.file;
-                    let cssNamesKey = genCssNamesKey(currentFile);
+                    let cssNamesKey = genCssNamesKey(configs.debug ? currentFile : 'scoped.style');
                     let c = i.content.replace(cssCommentReg, '');
                     c = c.replace(cssRefReg, (m, q, file, ext, selector) => {
                         return refProcessor(i.file, file, ext, selector);

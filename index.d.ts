@@ -155,14 +155,6 @@ declare module "magix-combine" {
     }
     interface IConfig {
         /**
-         * 生成样式文件md5结果截取的长度，默认为2
-         */
-        md5CssFileLen?: number
-        /**
-         * 生成样式选择器时md5结果截取的长度。默认为2
-         */
-        md5CssSelectorLen?: number
-        /**
          * 编译的模板目录。默认tmpl
          */
         tmplFolder?: string
@@ -218,19 +210,19 @@ declare module "magix-combine" {
         /**
          * 是否支持多绑定，默认false
          */
-        multiBind?: boolean
+        tmplMultiBindEvents?: boolean
         /**
          * 是否增加事件前缀，开启该选项有利于提高magix查找vframe的效率。默认为true
          */
-        addEventPrefix?: boolean
+        tmplAddEventPrefix?: boolean
         /**
          * 绑定表达式<%:expr%>绑定的事件。默认为["change"]
          */
-        bindEvents?: string[]
+        tmplBindEvents?: string[]
         /**
          * 绑定表达式<%:expr%>绑定的处理名称。默认为syncValue
          */
-        bindName?: string
+        tmplBindName?: string
         /**
          * 项目中使用的全局样式，不建议使用该选项
          */
@@ -270,7 +262,7 @@ declare module "magix-combine" {
         /**
          * 模板输出时是否输出识别到的事件列表，默认为false
          */
-        outputTmplWithEvents?: boolean
+        tmplOutputWithEvents?: boolean
         /**
          * 是否禁用magix view中的updater，该选项影响模板对象的输出，默认为false
          */
@@ -282,7 +274,7 @@ declare module "magix-combine" {
         /**
          * 编译文件被写入硬盘时调用
          */
-        beforeWriteFile?: (e: ICombineResult) => void
+        writeFileStart?: (e: ICombineResult) => void
         /**
          * 开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
          */
@@ -291,6 +283,14 @@ declare module "magix-combine" {
          * 结束编译时的处理器
          */
         compileJSEnd?: (e: ICombineResult) => ICombineResult | Promise<ICombineResult>
+        /**
+         * 开始编译css前处理器
+         */
+        compileCSSStart?: (css: string) => Promise
+        /**
+         * 结束编译css时的处理器
+         */
+        compileCSSEnd?: (css: string) => Promise
         /**
          * 对mx-tag这样的标签做加工处理
          */
@@ -308,9 +308,13 @@ declare module "magix-combine" {
          */
         compileTmplCommand?: (tmpl: string, config: IConfig) => string
         /**
-         * 转换模板
+         * 开始转换模板
          */
-        compileTmpl?: (tmpl: string) => string
+        compileTmplStart?: (tmpl: string) => string
+        /**
+         * 结束转换模板
+         */
+        compileTmplEnd?: (tmpl: string) => string
         /**
          * 对css中匹配到的url做处理
          */
@@ -333,7 +337,7 @@ declare module "magix-combine" {
      * 配置打包编译参数
      * @param cfg 配置对象
      */
-    function config(cfg: IConfig): void
+    function config(cfg: IConfig): IConfig
     /**
      * 遍历文件夹及子、孙文件夹下的文件
      * @param folder 文件夹
