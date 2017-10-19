@@ -200,7 +200,6 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
 };
 //添加属性信息
 let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView, kInfo) => {
-    debugger;
     let attrsKeys = kInfo.attrKeys,
         tmplKeys = Object.create(null);
     if (!kInfo.attrAKeys.length) {

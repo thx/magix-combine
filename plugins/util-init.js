@@ -39,18 +39,40 @@ module.exports = () => {
 
         if (configs.addEventPrefix) {
             configs.tmplAddEventPrefix = true;
+        } else if (configs.addEventPrefix === false) {
+            configs.tmplAddEventPrefix = false;
         }
 
         if (configs.addTmplViewsToDependencies) {
             configs.tmplAddViewsToDependencies = true;
+        } else if (configs.addTmplViewsToDependencies === false) {
+            configs.tmplAddViewsToDependencies = false;
         }
 
         if (configs.outputTmplWithEvents) {
             configs.tmplOutputWithEvents = true;
+        } else if (configs.outputTmplWithEvents === false) {
+            configs.tmplOutputWithEvents = false;
         }
 
         if (configs.compressTmplVariable) {
             configs.tmplCompressVariable = true;
+        } else if (configs.compressTmplVariable === false) {
+            configs.tmplCompressVariable = false;
+        }
+
+        if (configs.sassOptions) {
+            configs.sass = configs.sassOptions;
+        }
+        if (configs.lessOptions) {
+            configs.less = configs.lessOptions;
+        }
+        if (configs.cssnanoOptions) {
+            configs.cssnano = configs.cssnanoOptions;
+        }
+
+        if (configs.htmlminifierOptions) {
+            configs.htmlminifier = configs.htmlminifierOptions;
         }
     }
 };

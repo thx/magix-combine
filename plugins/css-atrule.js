@@ -27,7 +27,7 @@ let processor = (fileContent, cssNamesKey, addToGlobal) => {
         if (contents.indexOf(name) == -1) {
             contents.push(name);
         }
-        let tname = genCssSelector(name, cssNamesKey);
+        let tname = genCssSelector(name, cssNamesKey, 'md5CssSelectorResult@rule');
         q = q || '';
         //增加前缀
         return head + keyframe + ' ' + q + tname + q;
@@ -72,7 +72,7 @@ let processor = (fileContent, cssNamesKey, addToGlobal) => {
             reg, tn;
         if (util.isString(t)) {
             reg = genCssContentReg(t);
-            tn = genCssSelector(t, cssNamesKey);
+            tn = genCssSelector(t, cssNamesKey, 'md5CssSelectorResult@rule');
             if (addToGlobal) {
                 globalContents[t] = tn;
             }

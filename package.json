@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "3.6.0",
+  "version": "3.6.1",
   "description": "合并Magix View的html,js,css成一个js文件，并检测html,js,css中可能存在的问题",
   "main": "index.js",
   "types": "index.d.ts",
@@ -23,7 +23,9 @@
     "html-minifier": "3.5.x",
     "less": "2.7.x",
     "node-sass": "4.5.x",
-    "string-width": "2.1.x"
+    "string-width": "2.1.x",
+    "autoprefixer": "7.1.x",
+    "postcss": "6.0.x"
   },
   "author": "xinglie <xinglie.lkf@taobao.com>",
   "license": "MIT",

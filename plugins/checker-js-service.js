@@ -212,6 +212,10 @@ module.exports = (node, comments, tmpl, e) => {
                 c != '\r' &&
                 c != '\n' &&
                 c != '\t' &&
+                c != '\f' &&
+                c != '\v' &&
+                c != '\u00A0' &&
+                c != '\uFEFF' &&
                 c != '\u2028' &&
                 c != '\u2029') {
                 return false;

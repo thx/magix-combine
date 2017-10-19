@@ -14,10 +14,15 @@ let configs = require('./util-config');
 let fd = require('./util-fd');
 
 let jsMx = require('./js-mx');
+let sourceMap = require('./css-sourcemap');
+let cssAutoprefixer = require('./css-autoprefixer');
 
 let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, shortFile) => {
     if (ext == '.scss') {
-        configs.sassOptions.data = content;
+        cssCompileConfigs.data = content;
+        if (configs.debug && configs.cssSourceMap) {
+            cssCompileConfigs.sourceMap = file;
+        }
         sass.render(cssCompileConfigs, (err, result) => {
             if (err) {
                 slog.ever('scss error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
@@ -25,6 +30,9 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
             }
             resolve({
                 exists: true,
+                map: sourceMap(result.map ? result.map.toString() : '', file, {
+                    rebuildSources: true
+                }),
                 file: file,
                 content: result.css.toString()
             });
@@ -35,9 +43,11 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
                 slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
+            let map = configs.debug && configs.cssSourceMap ? sourceMap(result.map, file) : '';
             resolve({
                 exists: true,
-                file: file,
+                file,
+                map,
                 content: result.css
             });
         });
@@ -61,11 +71,14 @@ module.exports = (file, name, e) => {
         let cssCompileConfigs = {};
         let resolve = info => {
             if (info.exists) {
-                let r = configs.compileCSSEnd(info.content, info);
-                if (!r || !r.then) {
-                    r = Promise.resolve(r);
-                }
-                r.then(css => {
+                let inner = configs.autoprefixer ? cssAutoprefixer(info.content) : Promise.resolve(info.content);
+                inner.then(css => {
+                    let r = configs.compileCSSEnd(css, info);
+                    if (!r || !r.then) {
+                        r = Promise.resolve(r);
+                    }
+                    return r;
+                }).then(css => {
                     info.content = css;
                     done(info);
                 }).catch(reject);
@@ -74,11 +87,24 @@ module.exports = (file, name, e) => {
             }
         };
         if (styleType == '.less') {
-            utils.cloneAssign(cssCompileConfigs, configs.lessOptions);
+            utils.cloneAssign(cssCompileConfigs, configs.less);
             cssCompileConfigs.paths = [path.dirname(file)];
+            if (configs.debug) {
+                cssCompileConfigs.filename = file;
+                if (configs.cssSourceMap) {
+                    cssCompileConfigs.dumpLineNumbers = 'comments';
+                    cssCompileConfigs.sourceMap = {
+                        outputSourceFiles: true
+                    };
+                }
+            }
         } else if (styleType == '.scss') {
-            utils.cloneAssign(cssCompileConfigs, configs.sassOptions);
-            cssCompileConfigs.file = file;
+            utils.cloneAssign(cssCompileConfigs, configs.sass);
+            if (configs.debug) {
+                cssCompileConfigs.file = file;
+                cssCompileConfigs.sourceComments = true;
+                cssCompileConfigs.sourceMapContents = true;
+            }
         }
         if (info && name == 'style') {
             compileContent(file, info.style, styleType, cssCompileConfigs, resolve, reject, e, file);

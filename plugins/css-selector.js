@@ -12,7 +12,7 @@ let checker = require('./checker');
 let cssParser = require('./css-parser');
 let sep = path.sep;
 let slashReg = /[\/\.]/g;
-let cssCommentReg = /\/\*[\s\S]+?\*\//g;
+//let cssCommentReg = /\/\*[\s\S]+?\*\//g;
 //[ref="@../default.css:inmain"] .open{
 //    color:red
 //}
@@ -38,14 +38,14 @@ let genCssNamesKey = (file, ignorePrefix) => {
     }
     return cssId;
 };
-let genCssSelector = (selector, cssNameKey) => {
+let genCssSelector = (selector, cssNameKey, key) => {
     let mappedName = selector;
     if (configs.debug) { //压缩，我们采用md5处理，同样的name要生成相同的key
         if (cssNameKey) {
             mappedName = cssNameKey + '-' + mappedName;
         }
     } else {
-        mappedName = configs.cssSelectorPrefix + md5(selector + '\x00' + cssNameKey, 'md5CssSelectorResult');
+        mappedName = configs.cssSelectorPrefix + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult');
     }
     return mappedName;
 };
@@ -203,7 +203,6 @@ let cssNameGlobalProcessor = (css, ctx) => {
     }
 };
 module.exports = {
-    cssCommentReg,
     cssRefReg,
     refProcessor,
     genCssNamesKey,

@@ -31,6 +31,10 @@ module.exports = (node, comments, tmpl, e) => {
                 c != '\r' &&
                 c != '\n' &&
                 c != '\t' &&
+                c != '\f' &&
+                c != '\v' &&
+                c != '\u00A0' &&
+                c != '\uFEFF' &&
                 c != '\u2028' &&
                 c != '\u2029') {
                 return false;
@@ -113,6 +117,6 @@ module.exports = (node, comments, tmpl, e) => {
     walk(node.body.body, 0);
     outerExprs.forEach(expr => {
         let part = tmpl.slice(expr.start, expr.end);
-        slog.ever(chalk.red('avoid nested loops'), 'at', chalk.gray(e.shortFrom), 'near', chalk.magenta(part));
+        slog.ever(chalk.red('avoid nested loops'), 'at', chalk.gray(e.shortFrom), 'near\r\n', chalk.magenta(part));
     });
 };

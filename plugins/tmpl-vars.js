@@ -859,6 +859,9 @@ module.exports = {
                 result[i] = one;
             }
             let last = host.pop();
+            if (host.length) {
+                host[0] = '\x03.' + host[0];
+            }
             if (last.charAt(0) === '[' &&
                 last.charAt(last.length - 1) === ']') {
                 host = [host.join(''), last.slice(1, -1)];
@@ -871,11 +874,14 @@ module.exports = {
                 result
             };
         };
+        /*
+            ssid
+            <%#[datakey1,datakey2],"scrollTop"%>
+        */
         let ssCount = 0;
         let genSSId = (vars, props) => {
             vars = vars.trim();
             props = props.trim();
-
             let r = [];
             if (vars.length) {
                 let es = null;
@@ -887,6 +893,17 @@ module.exports = {
                 }
                 for (let e of es) {
                     if (e) {
+                        if (e.charAt(0) != '\x03') {
+                            let result = find(e);
+                            e = '\x03';
+                            for (let r of result) {
+                                if (r.charAt(0) == '[') {
+                                    e += r;
+                                } else {
+                                    e += '.' + r;
+                                }
+                            }
+                        }
                         r.push('<%@' + e + '%>');
                     }
                 }

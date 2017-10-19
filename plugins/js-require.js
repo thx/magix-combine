@@ -21,21 +21,13 @@ module.exports = {
         let moduleId = utils.extractModuleId(e.from);
         if (!e.exclude) {
             let depsInfo = jsRequireParser.process(e.content);
-            /*
-                reqPos=[21,40,35,68]
-             */
-            let reqPos = [];
-            for (let i = 0, start; i < depsInfo.length; i++) {
-                start = depsInfo[i].start + i;
-                reqPos.push(start);
-            }
-            reqPos = reqPos.reverse();
+            depsInfo = depsInfo.reverse();
             e.content = e.content.replace(depsReg, (match, prefix, key, q, depId, tail, offset) => {
-                let last = reqPos[reqPos.length - 1];
+                let last = depsInfo[depsInfo.length - 1].start;
                 // var require=require('cc'); => offset=0  offset+match.length==26
-                // reqPos[0] in range [0,26] ?
-                if (reqPos.length && offset < last && last < (offset + match.length)) {
-                    reqPos.pop();
+                // depsInfo[0] in range [0,26] ?
+                if (depsInfo.length && offset < last && last < (offset + match.length)) {
+                    depsInfo.pop();
                     let reqInfo = {
                         prefix: prefix,
                         tail: tail || '',
@@ -77,11 +69,12 @@ module.exports = {
                             reqInfo.replacement = match;
                         }
                     }
-                    if (configs.loaderType == 'kissy') {
+                    if (e.loader == 'kissy') {
                         reqInfo.replacement = '';
                     }
                     return reqInfo.replacement;
                 }
+                //console.log(match,offset,reqPos,last,(offset + match.length));
                 return match;
             });
             deps = deps.concat(noKeyDeps);

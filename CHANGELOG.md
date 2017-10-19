@@ -1,3 +1,11 @@
+## 3.6.1
+1. 修正模板中事件`revisable string`的转换`bug`
+2. 默认`cssnano`压缩时，禁用`autoprefixer`
+3. 增加`css`的`sourcemap`功能，虽然提供该功能，但是一些文件映射的信息不太正确，有时间再处理吧
+4. 内置`autoprefixer`
+5. 修复`ssid`的生成，需要添加`\x03`前缀
+6. 修复`js-require`的位置信息的生成
+
 
 ## 3.6.0
 1. 修改`checker`配置

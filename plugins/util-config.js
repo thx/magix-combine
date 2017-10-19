@@ -2,13 +2,16 @@ module.exports = {
     loaderType: 'cmd', //加载器类型
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     srcFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
-    cssnanoOptions: { //css压缩选项
-        safe: true
+    cssnano: { //css压缩选项
+        safe: true,
+        autoprefixer: false
     },
-    lessOptions: {}, //less编译选项
-    sassOptions: {}, //sass编译选项
+    less: {}, //less编译选项
+    sass: {}, //sass编译选项
+    autoprefixer: {},
+    cssSourceMap: false,
     cssSelectorPrefix: null, //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
-    htmlminifierOptions: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
+    htmlminifier: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
         collapseWhitespace: true, //空白
         quoteCharacter: '"', //属性引号

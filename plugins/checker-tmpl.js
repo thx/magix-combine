@@ -19,6 +19,7 @@ let camelize = fcache(str => {
  */
 let upperCaseReg = /[A-Z]/g;
 let hyphenateRE = /(?=[^-])([A-Z])/g;
+let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let hyphenate = fcache(str => {
     return str
         .replace(hyphenateRE, '-$1')
@@ -138,6 +139,11 @@ module.exports = {
     checkMxViewParamsEscape(operate, content, match, view, e) {
         if (e.checker.tmplAttrMxView && operate === '!') {
             slog.ever(chalk.red('avoid use ' + match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red('<%=' + content + '%>'), 'or', chalk.red('<%@' + content + '%>'), 'instead');
+        }
+    },
+    checkMxEventStringRevisable(content, match, e) {
+        if (tmplCommandAnchorReg.test(content)) {
+            slog.ever(chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile));
         }
     }
 };

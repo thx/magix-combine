@@ -12,6 +12,7 @@ let cssUrl = require('./css-url');
 let deps = require('./util-deps');
 let checker = require('./checker');
 let cssGlobal = require('./css-global');
+let cssComment = require('./css-comment');
 let utils = require('./util');
 let urlReg = /url\(([^\)]+)\)/g;
 let cloneAssign = utils.cloneAssign;
@@ -20,8 +21,7 @@ let {
     cssNameGlobalProcessor,
     genCssNamesKey,
     cssRefReg,
-    refProcessor,
-    cssCommentReg
+    refProcessor
 } = require('./css-selector');
 //处理css文件
 //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
@@ -70,6 +70,7 @@ module.exports = (e, inwatch) => {
                 let count = 0;
                 let tempMatchToFile = Object.create(null);
                 let folder = path.dirname(e.from);
+                let cmtStores = Object.create(null);
                 let resume = () => {
                     e.content = e.content.replace(cssTmplReg, (m, q, prefix, name, ext, keys, key, tail) => {
                         let info = tempMatchToFile[m];
@@ -89,6 +90,10 @@ module.exports = (e, inwatch) => {
                             return q + 'unfound:' + name + ext + q;
                         }
                         let fileContent = r.css;
+                        let store = cmtStores[file];
+                        if (store) {
+                            fileContent = cssComment.recover(fileContent, store);
+                        }
                         cssNamesKey = genCssNamesKey(file);
                         if (scopedStyle) {
                             cssNamesMap = gCSSNamesMap;
@@ -201,12 +206,25 @@ module.exports = (e, inwatch) => {
                             }
                             replacement = q + c + q;
                         } else { //输出整个css文件内容
-                            //console.log(fileContent);
                             fileContent = fileContent.replace(urlReg, (m, u) => {
                                 return cssUrlCache[u] || '';
                             });
-                            let css = JSON.stringify(fileContent);
-                            replacement = '"' + cssNamesKey + '",' + css;
+                            if (configs.debug) {
+                                if (r.map) {
+                                    fileContent += r.map;
+                                    replacement = JSON.stringify([cssNamesKey, fileContent]).slice(1, -1);
+                                } else if (r.styles) {
+                                    let a = [];
+                                    for (let s of r.styles) {
+                                        a.push(s.key, s.css + (s.map || ''));
+                                    }
+                                    replacement = JSON.stringify(a);
+                                } else {
+                                    replacement = JSON.stringify([cssNamesKey, fileContent]).slice(1, -1);
+                                }
+                            } else {
+                                replacement = JSON.stringify([cssNamesKey, fileContent]).slice(1, -1);
+                            }
                         }
                         tail = tail ? tail : '';
                         return replacement + tail;
@@ -272,7 +290,8 @@ module.exports = (e, inwatch) => {
                         if (scopedStyle) {
                             promise = Promise.resolve({
                                 exists: true,
-                                content: gInfo.scopedStyle
+                                content: gInfo.scopedStyle,
+                                styles: gInfo.scopedStyles
                             });
                         } else {
                             promise = cssFileRead(file, name, e);
@@ -284,8 +303,10 @@ module.exports = (e, inwatch) => {
                                 css: ''
                             };
                             if (info.exists && info.content) {
+                                cssContentCache[file].map = info.map;
+                                cssContentCache[file].styles = info.styles;
                                 if (!configs.debug) {
-                                    cssnano.process(info.content, configs.cssnanoOptions).then(r => {
+                                    cssnano.process(info.content, configs.cssnano).then(r => {
                                         cssContentCache[file].css = processUrl(r.css, shortCssFile);
                                         check();
                                     }, error => {
@@ -296,7 +317,11 @@ module.exports = (e, inwatch) => {
                                         check();
                                     });
                                 } else {
-                                    cssContentCache[file].css = processUrl(info.content.replace(cssCommentReg, ''), shortCssFile);
+                                    let cssStr = info.content;
+                                    let store = cmtStores[file] = Object.create(null);
+                                    cssStr = cssComment.store(cssStr, store);
+                                    cssStr = processUrl(cssStr, shortCssFile);
+                                    cssContentCache[file].css = cssStr;
                                     check();
                                 }
                             } else {
@@ -319,6 +344,7 @@ module.exports = (e, inwatch) => {
                     }
                 };
                 e.content.replace(cssTmplReg, (m, q, prefix, name, ext) => {
+                    name = atpath.resolveName(name, e.moduleId);
                     let file = path.resolve(folder + sep + name + ext);
                     if (configs.scopedCssMap[file]) {
                         name = 'scoped';

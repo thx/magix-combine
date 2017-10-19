@@ -169,19 +169,28 @@ declare module "magix-combine" {
         /**
          * cssnano压缩选项
          */
-        cssnanoOptions?: object
+        cssnano: object
         /**
          * less编译选项
          */
-        lessOptions?: object
+        less: object
         /**
          * sass编译选项
          */
-        sassOptions?: object
+        sass: object
         /**
          * 生成样式选择器时的前缀，通常是项目名。默认为mx-
          */
         cssSelectorPrefix?: string
+        /**
+         * 是否输出css sourcemap
+         */
+        cssSourceMap?: boolean
+
+        /**
+         * autprefixer配置
+         */
+        autoprefixer?: object
         /**
          * 加载器类型，该选项决定如何添加包装，如添加define函数。默认为cmd加载器
          */
@@ -189,7 +198,7 @@ declare module "magix-combine" {
         /**
          * html压缩选项
          */
-        htmlminifierOptions?: object
+        htmlminifier: object
         /**
          * 是否输出日志信息。默认为true
          */

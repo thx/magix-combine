@@ -33,7 +33,7 @@ let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
 let checkerReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\[([\w,]+)\]\1\s*;?/gm;
 let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])?\1\s*;?/g;
-let revisableReg = /@\{[\w\.\-]+\}/;
+let revisableReg = /@\{[\w\.\-]+\}/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';

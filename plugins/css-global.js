@@ -9,8 +9,8 @@ let checker = require('./checker');
 let cssFileRead = require('./css-read');
 let cssAtRule = require('./css-atrule');
 let cssParser = require('./css-parser');
+let cssComment = require('./css-comment');
 let {
-    cssCommentReg,
     cssRefReg,
     refProcessor,
     genCssNamesKey,
@@ -22,6 +22,7 @@ let globalCssNamesMap = Object.create(null);
 let globalCssNamesInFiles = Object.create(null);
 let globalCssTagsInFiles = Object.create(null);
 let scopedStyle = '';
+let scopedStyles = [];
 let globalPromise;
 let lazyGlobalInfo = Object.create(null);
 let processGlobal = ctx => { //处理全局样式，因全局样式过于自由，不建议使用
@@ -44,8 +45,9 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
                 let cssNamesMap = Object.create(null);
                 let fileTags = Object.create(null);
                 if (info.exists && info.content) {
+                    let cmtStore = Object.create(null);
                     let currentFile = info.file;
-                    let css = info.content.replace(cssCommentReg, '');
+                    let css = cssComment.store(info.content, cmtStore);//.replace(cssCommentReg, '');
                     try {
                         cssNameGlobalProcessor(css, {
                             shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1), //短文件名
@@ -88,6 +90,7 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
 };
 let processScope = ctx => {
     scopedStyle = '';
+    scopedStyles = [];
     //console.log('process scoped'.red);
     return new Promise((resolve, reject) => { //处理scoped样式
         let list = configs.scopedCss;
@@ -97,10 +100,11 @@ let processScope = ctx => {
             let add = i => {
                 let cssNamesMap = Object.create(null);
                 let cssTagsMap = Object.create(null);
+                let currentFile = i.file;
+                let cssNamesKey = genCssNamesKey(configs.debug ? currentFile : 'scoped.style');
                 if (i.exists && i.content) {
-                    let currentFile = i.file;
-                    let cssNamesKey = genCssNamesKey(configs.debug ? currentFile : 'scoped.style');
-                    let c = i.content.replace(cssCommentReg, '');
+                    let cmtStore = Object.create(null);
+                    let c = cssComment.store(i.content, cmtStore);//.replace(cssCommentReg, '');
                     c = c.replace(cssRefReg, (m, q, file, ext, selector) => {
                         return refProcessor(i.file, file, ext, selector);
                     });
@@ -121,12 +125,23 @@ let processScope = ctx => {
                         reject(e);
                     }
                     c = cssAtRule(c, cssNamesKey, true);
+                    c = cssComment.recover(c, cmtStore);
                     checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                     checker.CSS.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
+                    scopedStyles.push({
+                        css: c,
+                        map: i.map,
+                        key: cssNamesKey
+                    });
                     scopedStyle += c;
                 } else if (!i.exists) { //未找到
-                    checker.CSS.markUnexists(i.file, '/scoped.style');
-                    scopedStyle += ' unfound-' + i.file;
+                    checker.CSS.markUnexists(currentFile, '/scoped.style');
+                    scopedStyle += ' unfound-' + currentFile;
+                    scopedStyles.push({
+                        css: ' unfound-' + currentFile,
+                        map: i.map,
+                        key: cssNamesKey
+                    });
                 }
             };
             let ps = [];
@@ -196,7 +211,8 @@ module.exports = {
                     globalCssNamesMap,
                     globalCssNamesInFiles,
                     globalCssTagsInFiles,
-                    scopedStyle
+                    scopedStyle,
+                    scopedStyles
                 };
             });
         }

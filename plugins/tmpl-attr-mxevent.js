@@ -24,6 +24,8 @@ let stringReg = /^['"]/;
 let mxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
+let revisableReg = /@\{[\w\.\-\u0007]+\}/g;
+let eventPrefixReg = /^[^\(\)]+/;
 let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
     str.replace(cmdReg, cm => {
         let cmd = refTmplCommands[cm];
@@ -140,12 +142,15 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
             if (double || single) {
                 let originalMatch = toSrc(m);
                 tmplChecker.checkMxEvengSingQuote(single, originalMatch, e);
-                let revisableReg = regexp.get('mx-' + name + '\\s*=\\s*([\'"])\\s*(@\\{[\\w\\.\\-]+\\})');
-                if (!configs.debug) {
-                    m = m.replace(revisableReg, (m, q, key) => {
-                        return 'mx-' + name + '=' + q + md5(key, 'revisableStringLen','_');
+                m = m.replace(eventPrefixReg, match => {
+                    return match.replace(revisableReg, c => {
+                        tmplChecker.checkMxEventStringRevisable(c, originalMatch, e);
+                        if (configs.debug) {
+                            return c;
+                        }
+                        return md5(c, 'revisableStringLen', '_');
                     });
-                }
+                });
                 if (configs.disableMagixUpdater) {
                     let left = m.indexOf('=');
                     let idx = left;

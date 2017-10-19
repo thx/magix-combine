@@ -173,10 +173,13 @@ let parse = (css, file) => {
         overSelectors = 0;
         selectorStart = current;
         while (current < max) {
-            //debugger;
             stripWhitespaceAndGo(0);
             let tc = css.charAt(current);
-            if (tc == '@') {
+            if (tc == '/') {
+                current = css.indexOf('*/', current) + 2;
+                debugger;
+                break;
+            } else if (tc == '@') {
                 break;
             } else if (tc == ',') {
                 prev = '';
