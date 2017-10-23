@@ -53,11 +53,11 @@ module.exports = {
             script = 'unfound script';
         }
         return {
-            fileName: fileName,
-            template: template,
-            style: style,
+            fileName,
+            template,
+            style,
             styleType: type,
-            script: script
+            script
         };
     }
 };

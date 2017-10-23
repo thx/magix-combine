@@ -95,7 +95,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
 
-        if (e.checker.tmplCmdSyntax) {
+        //非禁用updater的情况下才进行语法检测
+        if (e.checker.tmplCmdSyntax && (!configs.disableMagixUpdater || magixTmpl)) {
             try {
                 tmplSyntaxChecker(fileContent);
             } catch (ex) {
@@ -156,15 +157,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         fileContent = configs.compileTmplEnd(fileContent);
         //console.log(JSON.stringify(fileContent),refTmplCommands);
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
-        for (let p in refTmplCommands) {
-            let cmd = refTmplCommands[p];
-            if (util.isString(cmd)) {
-                refTmplCommands[p] = cmd.replace(removeVdReg, '')
-                    .replace(removeIdReg, '')
-                    .replace(stringReg, '$1');
-            }
-        }
         if (magixTmpl) {
+            for (let p in refTmplCommands) {
+                let cmd = refTmplCommands[p];
+                if (util.isString(cmd)) {
+                    refTmplCommands[p] = cmd.replace(removeVdReg, '')
+                        .replace(removeIdReg, '')
+                        .replace(stringReg, '$1');
+                }
+            }
             let info = tmplPartial.process(fileContent, refTmplCommands, e, flagsInfo);
             temp.info = info;
         } else {
@@ -225,6 +226,7 @@ module.exports = e => {
                         subs: fcInfo.info.list
                     };
                     if (configs.debug) temp.file = e.shortHTMLFile;
+                    if (configs.tmplOutputWithEvents) temp.events = fcInfo.events;
                     return (prefix || '') + JSON.stringify(temp);
                 }
                 if (prefix && configs.tmplOutputWithEvents) {

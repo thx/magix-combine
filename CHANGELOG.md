@@ -1,3 +1,9 @@
+## 3.6.2
+1. 修正模板语法检测只在指定`magix updater`的情况下才检测
+2. 调整`tmpl.js`中模板指令的处理
+3. 修正非`debug`或不生成`css sourcemap`时，「全局」样式输出非数组的形式
+
+
 ## 3.6.1
 1. 修正模板中事件`revisable string`的转换`bug`
 2. 默认`cssnano`压缩时，禁用`autoprefixer`

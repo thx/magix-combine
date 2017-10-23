@@ -23,58 +23,56 @@ module.exports = {
             let depsInfo = jsRequireParser.process(e.content);
             depsInfo = depsInfo.reverse();
             e.content = e.content.replace(depsReg, (match, prefix, key, q, depId, tail, offset) => {
-                let last = depsInfo[depsInfo.length - 1].start;
-                // var require=require('cc'); => offset=0  offset+match.length==26
-                // depsInfo[0] in range [0,26] ?
-                if (depsInfo.length && offset < last && last < (offset + match.length)) {
-                    depsInfo.pop();
-                    let reqInfo = {
-                        prefix: prefix,
-                        tail: tail || '',
-                        dependedId: depId,
-                        variable: key
-                    };
-                    if (cssShareReg.test(reqInfo.dependedId)) {
-                        let extname = path.extname(reqInfo.dependedId);
-                        reqInfo.dependedId = reqInfo.dependedId.replace(cssShareReg, '').replace(extname, '');
-                        reqInfo.replacement = 'require("' + reqInfo.dependedId + '");\r\n"ref@' + reqInfo.dependedId + extname + '";';
-                    }
-                    configs.resolveRequire(reqInfo, e);
-                    let dId;
-                    if (reqInfo.dependedId) {
-                        dId = JSON.stringify(reqInfo.dependedId);
-                        if (reqInfo.variable) {
-                            deps.push(dId);
-                            vars.push(reqInfo.variable);
-                        } else {
-                            noKeyDeps.push(dId);
+                if (depsInfo.length) {
+                    let last = depsInfo[depsInfo.length - 1].start;
+                    // var require=require('cc'); => offset=0  offset+match.length==26
+                    // depsInfo[0] in range [0,26] ?
+                    if (offset < last && last < (offset + match.length)) {
+                        depsInfo.pop();
+                        let reqInfo = {
+                            prefix: prefix,
+                            tail: tail || '',
+                            dependedId: depId,
+                            variable: key
+                        };
+                        if (cssShareReg.test(reqInfo.dependedId)) {
+                            let extname = path.extname(reqInfo.dependedId);
+                            reqInfo.dependedId = reqInfo.dependedId.replace(cssShareReg, '').replace(extname, '');
+                            reqInfo.replacement = (e.loader == 'kissy' ? '' : 'require("' + reqInfo.dependedId + '");\r\n') + '"ref@' + reqInfo.dependedId + extname + '";';
                         }
-                    }
-                    if (key != reqInfo.variable || depId != reqInfo.dependedId) {
-                        if (!reqInfo.hasOwnProperty('replacement')) {
+                        configs.resolveRequire(reqInfo, e);
+                        let dId;
+                        if (reqInfo.dependedId) {
+                            dId = JSON.stringify(reqInfo.dependedId);
                             if (reqInfo.variable) {
-                                prefix = prefix + reqInfo.variable + '=';
+                                deps.push(dId);
+                                vars.push(reqInfo.variable);
                             } else {
-                                prefix = prefix || '';
+                                noKeyDeps.push(dId);
                             }
-                            if (reqInfo.replaceRequire) {
-                                prefix += reqInfo.replaceRequire;
-                            } else {
-                                prefix += 'require(' + dId + ')';
+                        }
+                        if (key != reqInfo.variable || depId != reqInfo.dependedId) {
+                            if (!reqInfo.hasOwnProperty('replacement')) {
+                                if (reqInfo.variable) {
+                                    prefix = prefix + reqInfo.variable + '=';
+                                } else {
+                                    prefix = prefix || '';
+                                }
+                                if (reqInfo.replaceRequire) {
+                                    prefix += reqInfo.replaceRequire;
+                                } else {
+                                    prefix += 'require(' + dId + ')';
+                                }
+                                reqInfo.replacement = e.loader == 'kissy' ? '' : (prefix + reqInfo.tail);
                             }
-                            reqInfo.replacement = prefix + reqInfo.tail;
+                        } else {
+                            if (!reqInfo.hasOwnProperty('replacement')) {
+                                reqInfo.replacement = e.loader == 'kissy' ? '' : match;
+                            }
                         }
-                    } else {
-                        if (!reqInfo.hasOwnProperty('replacement')) {
-                            reqInfo.replacement = match;
-                        }
+                        return reqInfo.replacement;
                     }
-                    if (e.loader == 'kissy') {
-                        reqInfo.replacement = '';
-                    }
-                    return reqInfo.replacement;
                 }
-                //console.log(match,offset,reqPos,last,(offset + match.length));
                 return match;
             });
             deps = deps.concat(noKeyDeps);

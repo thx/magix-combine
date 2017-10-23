@@ -212,7 +212,7 @@ module.exports = {
                     globalCssNamesInFiles,
                     globalCssTagsInFiles,
                     scopedStyle,
-                    scopedStyles
+                    scopedStyles: configs.debug && configs.cssSourceMap ? scopedStyle : null
                 };
             });
         }

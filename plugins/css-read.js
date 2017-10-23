@@ -28,12 +28,13 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
                 slog.ever('scss error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
+            let map = sourceMap(result.map ? result.map.toString() : '', file, {
+                rebuildSources: true
+            });
             resolve({
                 exists: true,
-                map: sourceMap(result.map ? result.map.toString() : '', file, {
-                    rebuildSources: true
-                }),
-                file: file,
+                map,
+                file,
                 content: result.css.toString()
             });
         });
@@ -43,7 +44,7 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
                 slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
-            let map = configs.debug && configs.cssSourceMap ? sourceMap(result.map, file) : '';
+            let map = sourceMap(configs.debug && configs.cssSourceMap ? result.map : '', file);
             resolve({
                 exists: true,
                 file,
