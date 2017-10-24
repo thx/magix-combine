@@ -17,15 +17,25 @@ let jsMx = require('./js-mx');
 let sourceMap = require('./css-sourcemap');
 let cssAutoprefixer = require('./css-autoprefixer');
 
-let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, shortFile) => {
-    if (ext == '.scss') {
+let compileContent = (file, content, ext, resolve, reject, shortFile) => {
+    if (ext == '.scss' || ext == '.sass') {
+        let cssCompileConfigs = {};
+        utils.cloneAssign(cssCompileConfigs, configs.sass);
+        if (configs.debug) {
+            cssCompileConfigs.file = file;
+            cssCompileConfigs.sourceComments = true;
+            cssCompileConfigs.sourceMapContents = true;
+        }
         cssCompileConfigs.data = content;
+        if (ext == '.sass') {
+            cssCompileConfigs.indentedSyntax = true;
+        }
         if (configs.debug && configs.cssSourceMap) {
             cssCompileConfigs.sourceMap = file;
         }
         sass.render(cssCompileConfigs, (err, result) => {
             if (err) {
-                slog.ever('scss error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
+                slog.ever(ext.slice(1) + ' error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
             let map = sourceMap(result.map ? result.map.toString() : '', file, {
@@ -39,6 +49,18 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
             });
         });
     } else if (ext == '.less') {
+        let cssCompileConfigs = {};
+        utils.cloneAssign(cssCompileConfigs, configs.less);
+        cssCompileConfigs.paths = [path.dirname(file)];
+        if (configs.debug) {
+            cssCompileConfigs.filename = file;
+            if (configs.cssSourceMap) {
+                cssCompileConfigs.dumpLineNumbers = 'comments';
+                cssCompileConfigs.sourceMap = {
+                    outputSourceFiles: true
+                };
+            }
+        }
         less.render(content, cssCompileConfigs, (err, result) => {
             if (err) {
                 slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
@@ -59,17 +81,16 @@ let compileContent = (file, content, ext, cssCompileConfigs, resolve, reject, sh
             content: content
         });
     } else if (ext == '.mx') {
-        content = fd.read(file);
+        let content = fd.read(file);
         let info = jsMx.process(content, file);
         compileContent(file, info.style, info.styleType, resolve, reject, shortFile);
     }
 };
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
-module.exports = (file, name, e) => {
+module.exports = (file, name, e, source, ext, refInnerStyle) => {
     return new Promise((done, reject) => {
         let info = e.contentInfo;
-        let styleType = info && info.styleType || path.extname(file);
-        let cssCompileConfigs = {};
+        let shortFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
         let resolve = info => {
             if (info.exists) {
                 let inner = configs.autoprefixer ? cssAutoprefixer(info.content) : Promise.resolve(info.content);
@@ -87,30 +108,15 @@ module.exports = (file, name, e) => {
                 done(info);
             }
         };
-        if (styleType == '.less') {
-            utils.cloneAssign(cssCompileConfigs, configs.less);
-            cssCompileConfigs.paths = [path.dirname(file)];
-            if (configs.debug) {
-                cssCompileConfigs.filename = file;
-                if (configs.cssSourceMap) {
-                    cssCompileConfigs.dumpLineNumbers = 'comments';
-                    cssCompileConfigs.sourceMap = {
-                        outputSourceFiles: true
-                    };
+        if (refInnerStyle) {
+            let type = info.styleType;
+            if (ext != '.mx') {
+                if (type != ext) {
+                    slog.ever(chalk.red('conflicting style language'), 'at', chalk.magenta(shortFile), 'near', chalk.magenta(source + ' and ' + info.styleTag));
                 }
             }
-        } else if (styleType == '.scss') {
-            utils.cloneAssign(cssCompileConfigs, configs.sass);
-            if (configs.debug) {
-                cssCompileConfigs.file = file;
-                cssCompileConfigs.sourceComments = true;
-                cssCompileConfigs.sourceMapContents = true;
-            }
-        }
-        if (info && name == 'style') {
-            compileContent(file, info.style, styleType, cssCompileConfigs, resolve, reject, e, file);
+            compileContent(file, info.style, ext, resolve, reject, shortFile);
         } else {
-            let shortFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
             fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
                 if (err) {
                     resolve({
@@ -120,7 +126,7 @@ module.exports = (file, name, e) => {
                     });
                 } else {
                     let fileContent = fd.read(file);
-                    compileContent(file, fileContent, styleType, cssCompileConfigs, resolve, reject, shortFile);
+                    compileContent(file, fileContent, ext, resolve, reject, shortFile);
                 }
             });
         }

@@ -1,22 +1,28 @@
 /*
     模板处理并回写，常用于打点等功能
  */
+let path = require('path');
 let configs = require('./util-config');
 let fd = require('./util-fd');
 let tmplCmd = require('./tmpl-cmd');
+let attrType = require('./tmpl-attr-type');
 let mxTailReg = /\.mx$/;
-let templateReg = /<template>([\s\S]+?)<\/template>/i;
+let templateReg = /<template([^>]*)>([\s\S]+?)<\/template>/i;
 let pureTagReg = /<[\w-]+[^>]*>/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
-let commentPHReg = /\u0000\d+\u0000/g;
-let processTmpl = (tmpl, shortFrom) => {
+let commentPHReg = /\x00\d+\x00/g;
+let processTmpl = (tmpl, shortFrom, tLang) => {
     let store = Object.create(null);
     let comment = Object.create(null);
     let cIdx = 0;
+    tmpl = configs.compileTmplStart(tmpl, {
+        shortFrom,
+        templateLang: tLang
+    });
     tmpl = tmplCmd.store(tmpl, store);
 
     tmpl = tmpl.replace(htmlCommentCelanReg, m => {
-        let key = '\u0000' + cIdx++ + '\u0000';
+        let key = '\x00' + cIdx++ + '\x00';
         comment[key] = m;
         return key;
     });
@@ -26,11 +32,19 @@ let processTmpl = (tmpl, shortFrom) => {
     });
     tmpl = tmplCmd.recover(tmpl, store);
     tmpl = tmpl.replace(commentPHReg, m => comment[m]);
+    tmpl = configs.compileTmplEnd(tmpl);
     return tmpl;
 };
 let processMx = (content, shortFrom) => {
-    content = content.replace(templateReg, (match, body) => {
-        return '<template>' + processTmpl(body, shortFrom) + '</template>';
+    content = content.replace(templateReg, (match, lang, body) => {
+        let tLang = 'html';
+        if (lang) {
+            lang = attrType.extractLang(lang);
+            if (lang) {
+                tLang = lang;
+            }
+        }
+        return '<template>' + processTmpl(body, shortFrom, tLang) + '</template>';
     });
     return content;
 };
@@ -47,7 +61,8 @@ module.exports = {
                     }
                     resolve();
                 } else {
-                    let tmplContent = processTmpl(content, shortFrom);
+                    let ext = path.extname(from);
+                    let tmplContent = processTmpl(content, shortFrom, ext.slice(1));
                     if (tmplContent != content) {
                         fd.write(from, tmplContent);
                     }

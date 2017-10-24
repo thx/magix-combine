@@ -177,7 +177,6 @@ let parse = (css, file) => {
             let tc = css.charAt(current);
             if (tc == '/') {
                 current = css.indexOf('*/', current) + 2;
-                debugger;
                 break;
             } else if (tc == '@') {
                 break;

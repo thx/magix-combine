@@ -30,18 +30,17 @@ let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 
-let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo) => {
+let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo, lang) => {
     let key = prefix + holder + magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
-        e.srcHTMLFile = file;
-        e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
         if (unsupportCharsReg.test(fileContent)) {
             slog.log(chalk.red(`unsupport character : ${unsupportCharsReg.source}`), 'at', chalk.magenta(e.shortHTMLFile));
             reject(new Error('unsupport character'));
             return;
         }
         try {
+            e.templateLang = lang;
             fileContent = configs.compileTmplStart(fileContent, e);
         } catch (ex) {
             slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
@@ -199,6 +198,13 @@ module.exports = e => {
             if (singleFile || fs.existsSync(file)) {
                 let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'magix' || ctrl == 'updater' || flags;
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
+                let lang = singleFile ? e.contentInfo.templateLang : ext;
+
+                e.srcHTMLFile = file;
+                e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+                if (ext != lang) {
+                    slog.ever(chalk.red('conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
+                }
                 let flagsInfo = {};
                 if (flags) {
                     flags.replace(tmplVarsReg, (m, key, vars) => {
@@ -219,7 +225,7 @@ module.exports = e => {
                         }
                     });
                 }
-                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo);
+                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo, lang);
                 if (magixTmpl) {
                     let temp = {
                         html: fcInfo.info.tmpl,

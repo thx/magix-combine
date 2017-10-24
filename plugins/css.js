@@ -31,7 +31,7 @@ let {
 //[ref="@../default.css:inmain"] .open{
 //    color:red
 //}
-let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.style)(?:\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
+let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.sass|\.mx|\.style)(?:\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
 let sep = path.sep;
 
 
@@ -257,6 +257,7 @@ module.exports = (e, inwatch) => {
                     count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
 
                     let scopedStyle = false;
+                    let refInnerStyle = e.contentInfo && name == 'style';
                     let shortCssFile;
                     let markUsedFiles;
                     if (name == 'scoped' && ext == '.style') {
@@ -269,7 +270,7 @@ module.exports = (e, inwatch) => {
                         markUsedFiles = configs.scopedCss;
                     } else {
                         name = atpath.resolveName(name, e.moduleId); //先处理名称
-                        if (e.contentInfo && name == 'style') {
+                        if (refInnerStyle) {
                             file = e.from;
                         } else {
                             deps.addFileDepend(file, e.from, e.to);
@@ -294,7 +295,7 @@ module.exports = (e, inwatch) => {
                                 styles: gInfo.scopedStyles
                             });
                         } else {
-                            promise = cssFileRead(file, name, e);
+                            promise = cssFileRead(file, name, e, match, ext, refInnerStyle);
                         }
                         promise.then(info => {
                             //写入缓存，因为同一个view.js中可能对同一个css文件多次引用
