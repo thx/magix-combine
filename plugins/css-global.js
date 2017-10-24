@@ -4,6 +4,7 @@
     2.　全局scoped样式
     https://github.com/thx/magix-combine/issues/24
  */
+let path = require('path');
 let configs = require('./util-config');
 let checker = require('./checker');
 let cssFileRead = require('./css-read');
@@ -68,8 +69,9 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
                 }
             };
             let ps = [];
-            for (let i = 0; i < list.length; i++) {
-                ps.push(cssFileRead(list[i], '', ctx.context)); //读取
+            for (let i = 0, ext; i < list.length; i++) {
+                ext = path.extname(list[i]);
+                ps.push(cssFileRead(list[i], ctx.context, '', ext)); //读取
             }
             Promise.all(ps).then(rs => {
                 for (let i = 0; i < rs.length; i++) {
@@ -145,8 +147,9 @@ let processScope = ctx => {
                 }
             };
             let ps = [];
-            for (let i = 0; i < list.length; i++) {
-                ps.push(cssFileRead(list[i], '', ctx.context));
+            for (let i = 0, ext; i < list.length; i++) {
+                ext = path.extname(list[i]);
+                ps.push(cssFileRead(list[i], ctx.context, '', ext));
             }
             Promise.all(ps).then(rs => {
                 for (let i = 0; i < rs.length; i++) {

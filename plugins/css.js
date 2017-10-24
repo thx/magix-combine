@@ -295,7 +295,7 @@ module.exports = (e, inwatch) => {
                                 styles: gInfo.scopedStyles
                             });
                         } else {
-                            promise = cssFileRead(file, name, e, match, ext, refInnerStyle);
+                            promise = cssFileRead(file, e, match, ext, refInnerStyle);
                         }
                         promise.then(info => {
                             //写入缓存，因为同一个view.js中可能对同一个css文件多次引用

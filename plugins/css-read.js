@@ -87,7 +87,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
     }
 };
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
-module.exports = (file, name, e, source, ext, refInnerStyle) => {
+module.exports = (file, e, source, ext, refInnerStyle) => {
     return new Promise((done, reject) => {
         let info = e.contentInfo;
         let shortFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
