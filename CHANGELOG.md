@@ -1,3 +1,12 @@
+## 3.7.0
+1. 重命名`mxTagViewsRoot` => `mxGalleriesRoot`
+2. 精简配置项
+3. 增强`mx-tag`的处理
+4. 增加`<app.views.default>`标签的处理
+5. 部分支持不检测的注释，注释文本去除前后空格
+6. 检测`js`代码中的循环嵌套时，支持配置指定嵌套的层数`jsLoopDepth`
+7. 更宽泛的`revisable string`
+
 ## 3.6.4
 1. 修正全局样式文件的读取
 

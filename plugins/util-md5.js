@@ -1,6 +1,8 @@
 /*
     md5转换，最初使用的md5，后期修改成sha512，但md5这个名称未换
  */
+
+let configs = require('./util-config');
 let vkeys = '_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 let variable = count => { //压缩变量
     let result = '',
@@ -30,7 +32,7 @@ module.exports = (text, configKey, prefix) => {
     rstr = variable(c);
     counter[configKey] = ++c;
     if (prefix) {
-        rstr = prefix + '_' + rstr;
+        rstr = prefix + configs.revisableStringSplitter + rstr;
     }
     cache[configKey][text] = rstr;
     return rstr;

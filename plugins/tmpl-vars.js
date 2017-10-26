@@ -32,7 +32,7 @@ let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
-let revisableReg = /@\{[\w\.\-]+\}/;
+let revisableReg = /@\{[^\{\}]+\}/;
 let cmap = {
     [vphUse]: '\u0001',
     [vphDcd]: '\u0002',

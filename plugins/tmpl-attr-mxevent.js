@@ -10,8 +10,8 @@ let checker = require('./checker');
 let slog = require('./util-log');
 let utils = require('./util');
 let attrObject = require('./tmpl-attr-object');
-let md5 = require('./util-md5');
-let regexp = require('./util-rcache');
+//let md5 = require('./util-md5');
+//let regexp = require('./util-rcache');
 let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
 let tmplChecker = checker.Tmpl;
@@ -24,8 +24,8 @@ let stringReg = /^['"]/;
 let mxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
-let revisableReg = /@\{[\w\.\-\u0007]+\}/g;
-let eventPrefixReg = /^[^\(\)]+/;
+//let revisableReg = /@\{[^\{\}]+\}/g;
+//let eventPrefixReg = /^[^\(\)]+/;
 let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
     str.replace(cmdReg, cm => {
         let cmd = refTmplCommands[cm];
@@ -136,21 +136,21 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     return params.slice(1, -1);
 };
 module.exports = (e, match, refTmplCommands, toSrc) => {
-    if (configs.tmplAddEventPrefix) { //增加事件前缀
+    if (!configs.disableMagixUpdater) { //增加事件前缀
         match = match.replace(mxEventReg, (m, name, double, single) => { //查找事件
             tmplChecker.checkMxEventName(name, e);
             if (double || single) {
                 let originalMatch = toSrc(m);
                 tmplChecker.checkMxEvengSingQuote(single, originalMatch, e);
-                m = m.replace(eventPrefixReg, match => {
-                    return match.replace(revisableReg, c => {
-                        tmplChecker.checkMxEventStringRevisable(c, originalMatch, e);
-                        if (configs.debug) {
-                            return c;
-                        }
-                        return md5(c, 'revisableStringLen', '_');
-                    });
-                });
+                // m = m.replace(eventPrefixReg, match => {
+                //     return match.replace(revisableReg, c => {
+                //         tmplChecker.checkMxEventStringRevisable(c, originalMatch, e);
+                //         if (configs.debug) {
+                //             return c;
+                //         }
+                //         return md5(c, 'revisableStringLen', '_');
+                //     });
+                // });
                 if (configs.disableMagixUpdater) {
                     let left = m.indexOf('=');
                     let idx = left;

@@ -23,7 +23,7 @@ let selfCloseTags = {
 };
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script|svg)[^>]*>[\s\S]*?<\/\1>/g;
-let tagReg = /<(\/)?([a-z0-9\-]+)[^>]*>?/ig;
+let tagReg = /<(\/)?([a-z0-9\-.:_]+)[^>]*>?/ig;
 let brReg = /(?:\r\n|\r|\n)/;
 let brPlaceholder = m => {
     let count = m.split(brReg).length;
@@ -48,7 +48,9 @@ module.exports = tmpl => {
             if (selfCloseTags.hasOwnProperty(name)) return;
             //自定义的mx-tag检测
             let checkTag = true;
-            if (name.indexOf('mx-') === 0 && !close) {//非闭合mx标签
+            if ((name.indexOf('mx-') === 0 ||
+                name.indexOf('.') >= 0) &&
+                !close) {//非闭合mx标签
                 let start = lineCount - 1;
                 let results = [];
                 let i = line.indexOf('>', offset);//当前行有没有'>'结束
@@ -81,7 +83,7 @@ module.exports = tmpl => {
                 }
             }
             //用户指定的不检测的标签
-            if (configs.tmplUncheckTags.hasOwnProperty(name)) return;
+            //if (configs.tmplUncheckTags.hasOwnProperty(name)) return;
             if (checkTag) {
                 tags.push({
                     line: lineCount,

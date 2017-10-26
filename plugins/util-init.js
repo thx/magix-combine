@@ -37,11 +37,11 @@ module.exports = () => {
         //模板处理，即处理view.html文件
         configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|magix|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\])+)?\\2', 'g');
 
-        if (configs.addEventPrefix) {
+        /*if (configs.addEventPrefix) {
             configs.tmplAddEventPrefix = true;
         } else if (configs.addEventPrefix === false) {
             configs.tmplAddEventPrefix = false;
-        }
+        }*/
 
         if (configs.addTmplViewsToDependencies) {
             configs.tmplAddViewsToDependencies = true;

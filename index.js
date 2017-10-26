@@ -78,7 +78,7 @@ module.exports = {
                 p != 'tmplConstVars' &&
                 p != 'tmplUnchangableVars' &&
                 p != 'tmplGlobalVars' &&
-                p != 'mxTagViewsMap') {
+                p != 'mxGalleriesMap') {
                 configs[p] = cfg[p];
             }
         }
@@ -117,7 +117,7 @@ module.exports = {
         }, {
             src: 'tmplGlobalVars'
         }, {
-            src: 'mxTagViewsMap'
+            src: 'mxGalleriesMap'
         }];
         if (cfg) {
             for (let s of specials) {

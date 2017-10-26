@@ -2,6 +2,7 @@
     检测js代码中的循环嵌套，在以往的代码review中，通常3层以上的循环都可以通过合理的数据结构避免
  */
 let slog = require('./util-log');
+let configs = require('./util-config');
 let chalk = require('chalk');
 let loopNames = {
     forEach: 1,
@@ -42,7 +43,7 @@ module.exports = (node, comments, tmpl, e) => {
         }
     };
     let take = (lc, expr) => {
-        if (lc > 2) {
+        if (lc >= configs.jsLoopDepth) {
             let key = expr.start + '@' + expr.end;
             if (!addedOuterExprs[key]) {
                 addedOuterExprs[key] = 1;

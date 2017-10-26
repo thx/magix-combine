@@ -18,8 +18,11 @@ let tmplClass = require('./tmpl-attr-class');
 let tmplPartial = require('./tmpl-partial');
 let unmatchChecker = require('./checker-tmpl-unmatch');
 let tmplSyntaxChecker = require('./checker-js-tmplsyntax');
+let checker = require('./checker');
 let tmplVars = require('./tmpl-vars');
+let md5 = require('./util-md5');
 let slog = require('./util-log');
+let revisableReg = /@\{[^\{\}]+\}/g;
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]*)\]/g;
@@ -64,6 +67,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
 
         try {
             fileContent = tmplMxTag.process(fileContent, {
+                moduleId: e.moduleId,
+                pkgName: e.pkgName,
                 file,
                 shortHTMLFile: e.shortHTMLFile
             });
@@ -128,6 +133,13 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
+        if (!configs.debug) {
+            fileContent = fileContent.replace(revisableReg, m => {
+                let src = tmplCmd.recover(m, refTmplCommands);
+                checker.Tmpl.checkStringRevisable(m, src, e);
+                return md5(m, 'revisableStringLen', '_');
+            });
+        }
         if (configs.tmplOutputWithEvents) {
             let tmplEvents = tmplEvent.extract(fileContent);
             temp.events = tmplEvents;

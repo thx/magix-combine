@@ -23,6 +23,8 @@ module.exports = {
     log: true, //日志及进度条
     debug: false, //
     thisAlias: '', //this别名
+    jsLoopDepth: 3,
+    revisableStringSplitter: '_',
     checker: {
         css: true, //样式
         cssUrl: true, //样式中的url
@@ -43,10 +45,9 @@ module.exports = {
     },
     tmplFileExtNames: ['html', 'haml', 'pug', 'jade', 'tpl'], //模板后缀
     tmplConstVars: {}, //模板中不会变的变量，减少子模板的分析
-    tmplUnchangableVars: {}, //同上
     tmplGlobalVars: {}, //模板中全局变量
-    tmplUncheckTags: {}, //不检测的标签
-    tmplAddEventPrefix: true, //mx事件增加前缀
+    //tmplUncheckTags: {}, //不检测的标签
+    //tmplAddEventPrefix: true, //mx事件增加前缀
     tmplAddViewsToDependencies: false, //是否把模板中的view做为依赖提前加载
     tmplOutputWithEvents: false, //输出事件
     tmplCompressVariable: true, //是否压缩模板中的变量
@@ -60,8 +61,8 @@ module.exports = {
     useAtPathConverter: true, //是否使用@转换路径的功能
     jsFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
     mxIncludesRoot: 'app/include/',
-    mxTagViewsRoot: 'app/gallery/',//组件根目录
-    mxTagViewsMap: {
+    mxGalleriesRoot: 'app/gallery/',//组件根目录
+    mxGalleriesMap: {
         'calendar-datepicker': {
             path: 'mx-calendar/datepicker',
             tag: 'input'
@@ -83,6 +84,26 @@ module.exports = {
             tag: 'input'
         },
         'time-picker': {
+            path: 'mx-time/picker',
+            tag: 'input'
+        },
+        'calendar.datepicker': {
+            path: 'mx-calendar/datepicker',
+            tag: 'input'
+        },
+        'calendar.rangepicker': {
+            path: 'mx-calendar/rangepicker',
+            tag: 'input'
+        },
+        'color.picker': {
+            path: 'mx-color/picker',
+            tag: 'input'
+        },
+        'suggest.index': {
+            path: 'mx-suggest/index',
+            tag: 'input'
+        },
+        'time.picker': {
             path: 'mx-time/picker',
             tag: 'input'
         },

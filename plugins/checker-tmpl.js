@@ -141,7 +141,7 @@ module.exports = {
             slog.ever(chalk.red('avoid use ' + match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red('<%=' + content + '%>'), 'or', chalk.red('<%@' + content + '%>'), 'instead');
         }
     },
-    checkMxEventStringRevisable(content, match, e) {
+    checkStringRevisable(content, match, e) {
         if (tmplCommandAnchorReg.test(content)) {
             slog.ever(chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile));
         }

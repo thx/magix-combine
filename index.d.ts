@@ -112,6 +112,11 @@ declare module "magix-combine" {
          * js this别名
          */
         jsThis: boolean
+
+        /**
+         * 模板命令语法检查
+         */
+        tmplCmdSyntax: boolean
         /**
          * 模板img属性
          */
@@ -152,6 +157,19 @@ declare module "magix-combine" {
          * 标签配对
          */
         tmplTagsMatch: boolean
+    }
+    /**
+     * 组件信息对象
+     */
+    interface IGMap {
+        /**
+         * 组件的路径
+         */
+        path: string
+        /**
+         * 生成组件时，使用的原生的html标签
+         */
+        tag: string
     }
     interface IConfig {
         /**
@@ -198,7 +216,7 @@ declare module "magix-combine" {
         /**
          * html压缩选项
          */
-        htmlminifier: object
+        htmlminifier?: object
         /**
          * 是否输出日志信息。默认为true
          */
@@ -304,6 +322,25 @@ declare module "magix-combine" {
          * 对mx-tag这样的标签做加工处理
          */
         mxTagProcessor?: (tmpl: string, e?: ICombineResult) => string
+        /**
+         * js代码中循环嵌套的层数，默认3层
+         */
+        jsLoopDepth?: number
+
+        /**
+         * 标签如<mx-include.file-name />读取file-name时的根目录，默认 app/include/
+         */
+        mxIncludesRoot?: string
+
+        /**
+         * 组件标签如<mx-dropdown.index />读取mx-dropdown时的根目录，默认 app/gallery/
+         */
+        mxGalleriesRoot?: string
+
+        /**
+         * 组件映射map
+         */
+        mxGalleriesMap?: IGMap
         /**
          * 对模板中的标签做处理
          */
