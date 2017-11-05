@@ -32,7 +32,7 @@ module.exports = (text, configKey, prefix) => {
     rstr = variable(c);
     counter[configKey] = ++c;
     if (prefix) {
-        rstr = prefix + configs.revisableStringSplitter + rstr;
+        rstr = prefix + rstr;
     }
     cache[configKey][text] = rstr;
     return rstr;

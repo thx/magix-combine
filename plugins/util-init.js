@@ -74,5 +74,12 @@ module.exports = () => {
         if (configs.htmlminifierOptions) {
             configs.htmlminifier = configs.htmlminifierOptions;
         }
+        let rsPrefix = configs.revisableStringPrefix;
+        if (!rsPrefix) {
+            rsPrefix = '__';
+        } else if (rsPrefix.charAt(0) === '$') {
+            rsPrefix = '_' + rsPrefix;
+        }
+        configs.revisableStringPrefix = rsPrefix;
     }
 };

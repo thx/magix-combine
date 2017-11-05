@@ -276,13 +276,12 @@ module.exports = {
             }
         });
         let processString = node => { //存储字符串，减少分析干扰
-            stringReg.lastIndex = 0; //把代码中的字符串存储起来，换成占位符
             if (stringReg.test(node.raw)) {
                 let q = node.raw.match(stringReg)[0];
                 let key = '\u0004' + (stringIndex++) + '\u0004';
                 if (revisableReg.test(node.raw) && !configs.debug) {
                     node.raw = node.raw.replace(revisableReg, m => {
-                        return md5(m, 'revisableStringLen', '_');
+                        return md5(m, 'revisableString', '_');
                     });
                 }
                 stringStore[key] = node.raw;
@@ -296,7 +295,6 @@ module.exports = {
         };
         walker.simple(ast, {
             Property(node) {
-                stringReg.lastIndex = 0;
                 if (node.key.type == 'Literal') {
                     processString(node.key);
                 }
@@ -941,7 +939,7 @@ module.exports = {
 
             let replacement = (m, name, params) => {
                 name = name.replace(revisableReg, m => {
-                    return md5(m, 'revisableStringLen', '_');
+                    return md5(m, 'revisableString', configs.revisableStringPrefix);
                 });
                 let now = ',m:\'' + name + '\',a:' + (params || '{}');
                 let old = m; //tmplCmd.recover(m, cmdStore);

@@ -29,7 +29,6 @@ module.exports = {
         let ast = acorn.parse(str);
         let modifiers = [];
         let processString = node => {
-            stringReg.lastIndex = 0;
             if (stringReg.test(node.raw)) {
                 let q = node.raw.charAt(0);
                 let value = node.raw.slice(1, -1);

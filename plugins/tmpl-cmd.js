@@ -182,7 +182,6 @@ module.exports = {
             }
             tmpl = tmpl.replace(phAllCmdReg, n => stores[n]); //其它命令还原
             tmpl = tmpl.replace(tmplCmdReg, m => {
-                borderChars.lastIndex = 0;
                 if (borderChars.test(m)) { //删除不必要的分号
                     m = m.replace(continuedSemicolonReg, '');
                 }

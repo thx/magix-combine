@@ -1,3 +1,7 @@
+## 3.7.1
+1. `revisable string`前缀可配置
+2. 完善`view`参数的处理，增加样式引用的处理
+
 ## 3.7.0
 1. 重命名`mxTagViewsRoot` => `mxGalleriesRoot`
 2. 精简配置项

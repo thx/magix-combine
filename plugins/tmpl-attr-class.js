@@ -4,10 +4,10 @@
 let configs = require('./util-config');
 let checker = require('./checker');
 let deps = require('./util-deps');
+let classRef = require('./tmpl-attr-classref');
 let classReg = /\bclass\s*=\s*"([^"]+)"/g;
 let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
-let selfCssReg = /@\$([\w\-]+)/g;
 let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCmdReg = /<%([=!])?([\s\S]+?)%>/;
@@ -41,6 +41,7 @@ module.exports = {
             return key;
         };
         let classProcessor = (m, c) => {
+            tmplCommandAnchorReg.lastIndex = 0;
             if (tmplCommandAnchorReg.test(m)) {
                 tmplCommandAnchorReg.lastIndex = 0;
                 m.replace(tmplCommandAnchorReg, tm => {
@@ -51,20 +52,6 @@ module.exports = {
                 });
             }
             return 'class="' + c.replace(classNameReg, classResult) + '"';
-        };
-        let selfCssClass = (m, key) => {
-            if (numReg.test(key)) return m;
-            let r = cssNamesMap[key];
-            if (!tempCache[key]) {
-                tempCache[key] = 1;
-                if (r) {
-                    let files = e.cssNamesInFiles[key + '!r'];
-                    checker.CSS.markUsed(files, key, e.from);
-                } else {
-                    checker.CSS.markUndeclared(e.srcHTMLFile, key);
-                }
-            }
-            return r || key;
         };
         let pureProcessor = (match, tag, content) => {
             content.replace(attrReg, (m, name) => {
@@ -86,7 +73,7 @@ module.exports = {
             }
             match = configs.cssNamesProcessor(match, cssNamesMap);
             match = match.replace(classReg, classProcessor); //保证是class属性
-            return match.replace(selfCssReg, selfCssClass);
+            return classRef(match, e, tempCache);
         };
         if (cssNamesMap) {
             //为了保证安全，我们一层层进入

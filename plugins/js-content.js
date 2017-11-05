@@ -20,19 +20,15 @@ let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
 let fileCache = require('./js-fcache');
 let jsSnippet = require('./js-snippet');
+let jsHeader = require('./js-header');
 
+let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
 let mxTailReg = /\.mx$/;
 let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /^(['"])(@moduleId)\1$/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
 let othersFileReg = /(['"])([a-z,]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
-let snippetReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#snippet(?:[\w+\-])?\1\s*;?/g;
-let excludeReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#exclude[\(\[]([\w,]+)[\)\]]\1\s*;?/gm;
-let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;?/g;
-let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
-let checkerReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\[([\w,]+)\]\1\s*;?/gm;
-let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])?\1\s*;?/g;
 let revisableReg = /@\{[^\{\}]+\}/g;
 /*
     '#snippet';
@@ -45,49 +41,11 @@ let processContent = (from, to, content, inwatch) => {
         contentInfo = jsMx.process(content, from);
         content = contentInfo.script;
     }
-    let execBeforeProcessor = true,
-        execAfterProcessor = true;
-    let exclude = false;
-    content = content.replace(excludeReg, (m, q, keys) => {
-        keys = keys.split(',');
-        if (keys.indexOf('define') > -1 || keys.indexOf('loader') > -1) {
-            exclude = true;
-        }
-        if (keys.indexOf('before') > -1 || keys.indexOf('beforeProcessor') > -1) {
-            execBeforeProcessor = false;
-        }
-        if (keys.indexOf('after') > -1 || keys.indexOf('afterProcessor') > -1) {
-            execAfterProcessor = false;
-        }
-        return '\r\n';
-    });
-    let checkerCfg = Object.assign({}, configs.checker);
-    content = content.replace(checkerReg, (m, q, key, value) => {
-        let values = value.split(',');
-        for (let v of values) {
-            v = v.trim();
-            if (key == 'check') {
-                checkerCfg[v] = true;
-            } else {
-                checkerCfg[v] = false;
-            }
-        }
-        return '\r\n';
-    });
-    let thisAlias = configs.thisAlias;
-    content = content.replace(jsThisAliasReg, (m, q, value) => {
-        thisAlias = value;
-        return '\r\n';
-    });
-    let isSnippet = snippetReg.test(content);
-    snippetReg.lastIndex = 0;
-    content = content.replace(snippetReg, '');
-    let loader;
-    content = content.replace(loaderReg, (m, q, type) => {
-        loader = type;
-        return '\r\n';
-    });
-    let key = [inwatch, exclude].join('\u0000');
+
+    let headers = jsHeader(content);
+    content = headers.content;
+
+    let key = [inwatch, headers.addWrapper].join('\u0000');
     let fInfo = fileCache.get(from, key);
     if (fInfo) {
         /*
@@ -105,7 +63,7 @@ let processContent = (from, to, content, inwatch) => {
     }
     let before = Promise.resolve(content);
     let originalContent = content;
-    if (execBeforeProcessor) {
+    if (headers.execBeforeProcessor) {
         let processor = configs.compileBeforeProcessor || configs.compileJSStart;
         before = processor(content, from);
         if (util.isString(before)) {
@@ -118,20 +76,20 @@ let processContent = (from, to, content, inwatch) => {
     return before.then(content => {
         return jsRequire.process({
             fileDeps: {},
-            exclude: exclude,
-            checker: checkerCfg,
-            thisAlias,
+            addWrapper: headers.addWrapper,
+            checker: headers.checkerCfg,
+            thisAlias: headers.thisAlias,
             to: to,
-            loader: loader || configs.loaderType,
+            loader: headers.loader || configs.loaderType,
             from: from,
             vendorCompile: originalContent != content,
             shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
             content: content,
-            writeFile: !isSnippet,
+            isSnippet: headers.isSnippet,
             processContent: processContent
         });
     }).then(e => {
-        let tmpl = e.exclude ? e.content : jsWrapper(e);
+        let tmpl = e.addWrapper ? jsWrapper(e) : e.content;
         let ast;
         let comments = {};
         try {
@@ -162,14 +120,13 @@ let processContent = (from, to, content, inwatch) => {
         let toBottoms = [];
         let processString = (node, tl) => { //存储字符串，减少分析干扰
             if (!tl) {
-                stringReg.lastIndex = 0;
                 if (!stringReg.test(node.raw)) return;
             }
             let add = false;
             if (!configs.debug) {
                 node.raw = node.raw.replace(revisableReg, m => {
                     add = true;
-                    return md5(m, 'revisableStringLen', '_');
+                    return md5(m, 'revisableString', configs.revisableStringPrefix);
                 });
             }
             if (tl && node.raw == '@moduleId') {
@@ -299,7 +256,7 @@ let processContent = (from, to, content, inwatch) => {
         }
         return e;
     }).then(e => {
-        if (execAfterProcessor) {
+        if (headers.execAfterProcessor) {
             let processor = configs.compileAfterProcessor || configs.compileJSEnd;
             return processor(e);
         }

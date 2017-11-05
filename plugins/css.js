@@ -65,6 +65,7 @@ module.exports = (e, inwatch) => {
             e.cssNamesMap = gCSSNamesMap;
             e.cssNamesInFiles = gCSSNamesToFiles;
             e.cssTagsInFiles = gCSSTagToFiles;
+            cssTmplReg.lastIndex = 0;
             if (cssTmplReg.test(e.content)) { //有需要处理的@规则
                 cssTmplReg.lastIndex = 0;
                 let count = 0;

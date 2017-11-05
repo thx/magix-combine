@@ -137,7 +137,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             fileContent = fileContent.replace(revisableReg, m => {
                 let src = tmplCmd.recover(m, refTmplCommands);
                 checker.Tmpl.checkStringRevisable(m, src, e);
-                return md5(m, 'revisableStringLen', '_');
+                return md5(m, 'revisableString', configs.revisableStringPrefix);
             });
         }
         if (configs.tmplOutputWithEvents) {

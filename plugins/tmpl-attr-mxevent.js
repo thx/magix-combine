@@ -57,7 +57,6 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     let ast = acorn.parse(params);
     let modifiers = [];
     let processString = node => { //存储字符串，减少分析干扰
-        stringReg.lastIndex = 0;
         if (stringReg.test(node.raw)) {
             let q = node.raw.charAt(0);
             let raw = node.raw.slice(1, -1);
@@ -96,7 +95,6 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
             let value = node.value;
             if (value.type == 'Identifier') {
                 let cmd = value.name.replace(cmdPHReg, m => store[m]);
-                onlyCmdReg.lastIndex = 0;
                 if (onlyCmdReg.test(cmd)) {
                     cmd = refTmplCommands[cmd];
                     let modify = false;
@@ -148,7 +146,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 //         if (configs.debug) {
                 //             return c;
                 //         }
-                //         return md5(c, 'revisableStringLen', '_');
+                //         return md5(c, 'revisableString', configs.revisableStringPrefix);
                 //     });
                 // });
                 if (configs.disableMagixUpdater) {

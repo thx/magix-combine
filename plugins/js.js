@@ -23,7 +23,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
                 promise.then(() => {
                     return jsContent.process(from, to, 0, inwatch);
                 }).then(e => {
-                    if (e.writeFile) {
+                    if (!e.isSnippet) {
                         to = to.replace(configs.jsFileExtNamesReg, '.js');
                         configs.writeFileStart(e);
                         fd.write(to, e.content);

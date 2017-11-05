@@ -73,22 +73,18 @@ module.exports = {
                     slog.ever(chalk.red('avoid use ' + m[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch, 'more info:', chalk.magenta('http://www.360doc.com/content/16/0427/18/32095775_554304106.shtml'));
                 }
             }
-            newWindowReg.lastIndex = 0;
-            safedReg.lastIndex = 0;
             if (newWindowReg.test(match) && !safedReg.test(match)) {
                 slog.ever(chalk.red('add rel="noopener noreferrer" to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/asciidoctor/asciidoctor/issues/2071'));
             }
         } else if (e.checker.tmplDisallowedTag && disallowedTags.hasOwnProperty(tn)) {
             slog.ever(chalk.red('remove tag ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), (tn == 'style') ? ('use' + chalk.red(' Magix.applyStyle') + ' instead') : '');
         } else if (e.checker.tmplAttrIframe && tn == 'iframe') {
-            sandboxReg.lastIndex = 0;
             if (!sandboxReg.test(match)) {
                 slog.ever(chalk.red('add sandbox to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('http://www.w3school.com.cn/tags/att_iframe_sandbox.asp'));
             }
         }
         if (e.checker.tmplAttrDangerous) {
             match.replace(dangerousAttrReg, (m, attr) => {
-                allowClickReg.lastIndex = 0;
                 if (allowClickReg.test(m)) return;
                 slog.ever(chalk.red('remove dnagerous attr ' + attr), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta(m));
             });
@@ -97,9 +93,9 @@ module.exports = {
         return match;
     },
     checkMxEventName(eventName, e) {
+        upperCaseReg.lastIndex = 0;
         if (e.checker.tmplAttrMxEvent && upperCaseReg.test(eventName)) {
             eventName = 'mx-' + eventName;
-            upperCaseReg.lastIndex = 0;
             slog.ever(chalk.red('avoid use ' + eventName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red(eventName.toLowerCase()), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
         }
     },

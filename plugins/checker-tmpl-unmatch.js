@@ -73,11 +73,11 @@ module.exports = tmpl => {
                 i = near.length;
                 while (i) {//从后向前查'/'自闭合
                     found = near.charAt(--i);
-                    if (found !== ' ' && found != '/') {
-                        break;
-                    }
                     if (found == '/') {//如果自定义的mx标签已经闭合，则不需要再检查
                         checkTag = false;
+                        break;
+                    }
+                    if (found.trim()) {
                         break;
                     }
                 }

@@ -19,7 +19,7 @@ module.exports = {
         let vars = [];
         let noKeyDeps = [];
         let moduleId = utils.extractModuleId(e.from);
-        if (!e.exclude) {
+        if (e.addWrapper) {
             let depsInfo = jsRequireParser.process(e.content);
             depsInfo = depsInfo.reverse();
             e.content = e.content.replace(depsReg, (match, prefix, key, q, depId, tail, offset) => {

@@ -18,13 +18,14 @@ module.exports = {
         removeEmptyAttributes: true, //移除空的属性
         collapseInlineTagWhitespace: true, //移除标签间的空白
         caseSensitive: true, //保持大小写
+        //collapseBooleanAttributes: true,//boolean属性
         removeRedundantAttributes: true //移除默认的属性，如input当type="text"时 type可被移除
     },
     log: true, //日志及进度条
     debug: false, //
     thisAlias: '', //this别名
     jsLoopDepth: 3,
-    revisableStringSplitter: '_',
+    revisableStringPrefix: '',//set default value at util-init.js
     checker: {
         css: true, //样式
         cssUrl: true, //样式中的url

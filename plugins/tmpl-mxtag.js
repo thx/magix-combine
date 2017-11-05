@@ -75,9 +75,9 @@ let toNative = (result, cmdStore, e) => {
                 }
             } else {
                 if (content === 'false' ||
-                    content == '0' ||
-                    content == '' ||
-                    content == 'null') {
+                    content === '0' ||
+                    content === '' ||
+                    content === 'null') {
                     return '';
                 } else {
                     return ' ' + key + ' ';
