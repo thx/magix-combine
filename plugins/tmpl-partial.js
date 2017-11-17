@@ -5,8 +5,6 @@
 let chalk = require('chalk');
 let tmplCmd = require('./tmpl-cmd');
 let slog = require('./util-log');
-//let regexp = require('./util-rcache');
-let configs = require('./util-config');
 let tmplParser = require('./tmpl-parser');
 let {
     getProps,
@@ -262,9 +260,9 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView, kInfo) => {
         for (let i = 0, prop; i < props.length; i++) {
             prop = props[i];
             if (attrsMap[prop] == 1) {
-                if (e.checker.tmplDuplicateAttr) {
-                    slog.ever('duplicate attr:', chalk.blue(prop), ' near:', e.toTmplSrc(attr, refTmplCommands), ' relate file:', chalk.grey(e.shortFrom));
-                }
+                // if (e.checker.tmplDuplicateAttr) {
+                //     slog.ever('duplicate attr:', chalk.blue(prop), ' near:', e.toTmplSrc(attr, refTmplCommands), ' relate file:', chalk.grey(e.shortFrom));
+                // }
                 continue;
             }
             let t = Object.create(null);

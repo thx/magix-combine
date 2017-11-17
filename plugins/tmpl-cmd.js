@@ -206,8 +206,10 @@ module.exports = {
     },
     tidy(tmpl) { //简单压缩
         tmpl = htmlminifier.minify(tmpl, configs.htmlminifier);
-        tmpl = tmpl.replace(tmplCommandAnchorCompressReg, '$1');
-        tmpl = tmpl.replace(tmplCommandAnchorCompressReg2, '$1$2');
+        if (configs.htmlminifier.collapseWhitespace) {
+            tmpl = tmpl.replace(tmplCommandAnchorCompressReg, '$1');
+            tmpl = tmpl.replace(tmplCommandAnchorCompressReg2, '$1$2');
+        }
         return tmpl;
     },
     recover(tmpl, refTmplCommands, processor) { //恢复替换的命令

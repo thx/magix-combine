@@ -328,11 +328,6 @@ declare module "magix-combine" {
         jsLoopDepth?: number
 
         /**
-         * 标签如<mx-include.file-name />读取file-name时的根目录，默认 app/include/
-         */
-        mxIncludesRoot?: string
-
-        /**
          * 组件标签如<mx-dropdown.index />读取mx-dropdown时的根目录，默认 app/gallery/
          */
         mxGalleriesRoot?: string

@@ -143,6 +143,80 @@ let variable = count => { //压缩变量
     while (count);
     return result;
 };
+let splitSafeguardExpr = expr => {
+    let stack = [];
+    let temp = '';
+    let max = expr.length;
+    let i = 0,
+        c, opened = 0;
+    while (i < max) {
+        c = expr.charAt(i);
+        if (c == '&' && expr.charAt(i + 1) == '&' && !opened && temp) {
+            stack.push(temp);
+            temp = '';
+            i++;
+        } else {
+            if (c == '[') {
+                opened++;
+            } else if (c == ']') {
+                opened--;
+            }
+            temp += c;
+        }
+        i++;
+    }
+    if (temp) {
+        stack.push(temp);
+    }
+    return stack;
+};
+let getMemberExpr = node => {
+    let prop = getPropExpr(node.property);
+    let host = getHostExpr(node.object);
+    if (host === vphGlb || host === vphCst) {
+        return host + '.' + prop;
+    }
+    let direct = node.property.type == 'Identifier';
+    let exprs = splitSafeguardExpr(host);
+    let last = '&&' + exprs.pop();//获取最右的保护表达式
+    return host + last + (direct ? '.' : '[') + prop + (direct ? '' : ']');
+};
+let getHostExpr = node => {
+    if (node.type == 'MemberExpression') {
+        return getMemberExpr(node);
+    } else if (node.type == 'Identifier') {
+        return node.name;
+    } else {
+        throw new Error('unsupport host expr,host type:' + node.type);
+    }
+};
+let getPropExpr = node => {
+    if (node.type === 'MemberExpression') {
+        return getMemberExpr(node);
+    } else if (node.type == 'Identifier') {
+        return node.name;
+    } else if (node.type == 'Literal') {
+        return node.raw;
+    } else {
+        throw new Error('unsupport prop expr,prop type:' + node.type);
+    }
+};
+let getSafeguardExpression = i => {
+    let node = i.node;
+    if (i.ae) {//赋值表达式比较特殊
+        let host = getHostExpr(node.object);
+        let prop = node.property;
+        if (prop.type == 'Identifier') {
+            return '(' + host + '||{}).' + prop.name;
+        } else if (prop.type == 'MemberExpression') {
+            prop = getPropExpr(prop);
+            return '(' + host + '||{})[' + prop + ']';
+        } else {
+            throw new Error('unsupport safeguard expression,prop type:' + prop.type);
+        }
+    }
+    return getMemberExpr(node);
+};
 /*
     \u0000  `反撇
     \u0001  模板中局部变量  用
@@ -647,6 +721,7 @@ module.exports = {
                 name: ''
             });
         };
+        let meMap = Object.create(null);
         walker.simple(ast, {
             VariableDeclarator(node) {
                 let key = stripChar(node.id.name); //把汉字前缀换成代码前缀
@@ -671,6 +746,10 @@ module.exports = {
                 }
             },
             AssignmentExpression(node) {
+                let i = meMap[node.start];
+                if (i) {
+                    i.ae = true;
+                }
                 let key = '\u0001' + node.left.name;
                 let value = stripChar(fn.slice(node.right.start, node.right.end));
                 if (!globalTracker[key]) {
@@ -691,6 +770,36 @@ module.exports = {
                             pos: node.left.end,
                             value: value
                         });
+                    }
+                }
+            },
+            MemberExpression(node) {
+                //处理模板中的对象表达式
+                if (configs.tmplMESafeguard) {
+                    let temp = meMap[node.start];
+                    if (temp) {//同一个位置的对象表达式可能会被遍历多次，如user.name.first,我们只需要记录最长的即可。遍历根据计算规则来，所以同样的位置我们更新即可
+                        temp.node = node;
+                        temp.raw = fn.slice(node.start, node.end);
+                        temp.end = node.end;
+                    } else {//新的表达式
+                        temp = {
+                            start: node.start,
+                            end: node.end,
+                            node,
+                            key: '',
+                            raw: fn.slice(node.start, node.end)
+                        };
+                        meMap[node.start] = temp;
+                    }
+                    //对于 user.name[name.first] 我们要把name.first从整体表达式中删除
+                    for (let p in meMap) {
+                        if (p != node.start) {
+                            let i = meMap[p];
+                            if (i.start >= node.start && i.end <= node.end) {
+                                i.name = '';
+                                delete meMap[p];
+                            }
+                        }
                     }
                 }
             },
@@ -724,8 +833,13 @@ module.exports = {
                 }
             }
         });
+        for (let me in meMap) {
+            let i = meMap[me];
+            i.name = getSafeguardExpression(i);
+            modifiers.push(i);
+        }
         modifiers.sort((a, b) => a.start - b.start);
-        for (let i = modifiers.length - 1, m; i >= 0; i--) {
+        for (let i = modifiers.length, m; i--;) {
             m = modifiers[i];
             fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
         }
@@ -824,7 +938,7 @@ module.exports = {
                 3. <%var a=user%> ...<%var b=a.name%> ....<%:b%>
              */
             let head = ps[0]; //获取第一个
-            if (head == '\u0003') { //如果是根变量，则直接返回  第1种情况
+            if (head == '\x03' || head == '\x06') { //如果是根变量，则直接返回  第1种情况
                 return ps.slice(1);
             }
             let info = best(head); //根据第一个变量查找最优的对应的根变量，第2种情况
@@ -840,7 +954,9 @@ module.exports = {
             return ps; //.join('.');
         };
         let analyseExpr = (expr, source) => {
-            //console.log(expr);
+            if (configs.tmplMESafeguard) {
+                expr = splitSafeguardExpr(expr).pop();
+            }
             let result = find(expr, source); //获取表达式信息
             let host = [];
             //slog.ever('result', result);

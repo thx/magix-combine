@@ -6,12 +6,14 @@ module.exports = input => {
     let tokens = [];
     let id = 0;
     let tokensMap = Object.create(null);
+    tokens.__map = tokensMap;
     new HTMLParser(input, {
         html5: true,
         start(tag, attrs, unary) {
             let token = {
                 id: 't' + id++,
                 tag,
+                attrs,
                 hasContent: true,
                 start: pos
             };

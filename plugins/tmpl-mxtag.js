@@ -16,6 +16,7 @@ let util = require('util');
 let chalk = require('chalk');
 let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
+let duAttrChecker = require('./checker-tmpl-duattr');
 let sep = path.sep;
 let uncheckTags = { view: 1, include: 1, native: 1 };
 let cmdOutReg = /^<%([!=@])([\s\S]*)%>$/;
@@ -135,7 +136,7 @@ let innerView = (result, info) => {
     }
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
-let namespaceView = (result, path) => {
+let namespaceView = (result, viewPath) => {
     let tag = 'div';
     let hasTag = false;
     let attrs = result.attrs.replace(tagReg, (m, t) => {
@@ -159,31 +160,22 @@ let namespaceView = (result, path) => {
         }
         return ' ' + name + '=' + q + value + q;
     });
-    attrs += ' mx-view="' + path + '"';
+    attrs += ' mx-view="' + viewPath + '"';
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
 let innerInclude = (result, info) => {
     let file = '';
-    if (result.subTag) {
-        let p = path.join(configs.moduleIdRemovedPath, configs.mxIncludesRoot, result.subTags.join(sep));
-        for (let ext of configs.tmplFileExtNames) {
-            let t = p + '.' + ext;
-            if (fs.existsSync(t)) {
-                file = t;
-                break;
-            }
-        }
-    }
     let attrs = {};
     result.attrs.replace(attrNameValueReg, (m, name, q, value) => {
         if (name == 'path') {
-            file = path.resolve(path.join(path.dirname(info.file) + path.sep + value));
+            file = path.resolve(path.join(path.dirname(info.file) + sep + value));
         } else {
             attrs[name] = value;
         }
     });
-    if (!path || !fs.existsSync(file)) {
+    if (!fs.existsSync(file)) {
         slog.ever(chalk.red('can not find file:' + file), 'for tag', chalk.magenta('<mx-' + result.tag + '>'), 'at', chalk.magenta(info.shortHTMLFile));
+        return '';
     } else {
         let content = '';
         if (fileCache[file]) {
@@ -198,20 +190,18 @@ let innerInclude = (result, info) => {
             return result.content;
         });
         try {
-            content = configs.compileTmpl(content, info);
+            info.templateLang = path.extname(file).slice(1);
+            content = configs.compileTmplStart(content, info);
+            content = configs.compileTmplEnd(content, info);
         } catch (ex) {
-            slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(info.shortHTMLFile), 'original content', content);
+            slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(info.shortHTMLFile));
         }
         return content;
     }
-    return '';
 };
 module.exports = {
     process(tmpl, extInfo) {
         let cmdCache = Object.create(null);
-        tmpl = tmplCmd.store(tmpl, cmdCache);
-        let restore = tmpl => tmplCmd.recover(tmpl, cmdCache);
-        let tokens = tmplParser(tmpl);
         let mxGalleriesMap = configs.mxGalleriesMap;
         let updateOffset = (pos, offset) => {
             let l = nodes => {
@@ -300,7 +290,7 @@ module.exports = {
             if (result.mainTag == 'view') {
                 content = innerView(result);
                 update = true;
-            } else if (result.mainTag == 'include') {
+            } else if (result.tag == 'include') {
                 content = innerInclude(result, extInfo);
                 update = true;
             } else if (result.mainTag == 'native') {
@@ -350,6 +340,9 @@ module.exports = {
         let walk = nodes => {
             if (nodes) {
                 for (let n of nodes) {
+                    if (extInfo.checkTmplDuplicateAttr && n.attrs && n.attrs.length) {
+                        duAttrChecker(n, extInfo, cmdCache, tmpl.slice(n.attrsStart, n.attrsEnd));
+                    }
                     walk(n.children);
                     if (n.tag.indexOf('mx-') === 0) {
                         processMxTag(n);
@@ -359,8 +352,24 @@ module.exports = {
                 }
             }
         };
-        walk(tokens);
-        tmpl = restore(tmpl);
+        let hasMxTag = nodes => {
+            let map = nodes.__map;
+            for (let n in map) {
+                n = map[n];
+                if (n.tag.indexOf('mx-') === 0 || n.tag.indexOf('.') >= 0) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        tmpl = tmplCmd.store(tmpl, cmdCache);
+        let tokens = tmplParser(tmpl);
+        while (hasMxTag(tokens)) {
+            walk(tokens);
+            tmpl = tmplCmd.store(tmpl, cmdCache);
+            tokens = tmplParser(tmpl);
+        }
+        tmpl = tmplCmd.recover(tmpl, cmdCache);
         return tmpl;
     }
 };

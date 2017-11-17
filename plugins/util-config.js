@@ -53,6 +53,7 @@ module.exports = {
     tmplOutputWithEvents: false, //输出事件
     tmplCompressVariable: true, //是否压缩模板中的变量
     tmplMultiBindEvents: false, //是否支持多个绑定
+    tmplMESafeguard: false,//对象表达式保护
     tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
     disableMagixUpdater: false,
@@ -61,7 +62,6 @@ module.exports = {
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
     jsFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
-    mxIncludesRoot: 'app/include/',
     mxGalleriesRoot: 'app/gallery/',//组件根目录
     mxGalleriesMap: {
         'calendar-datepicker': {

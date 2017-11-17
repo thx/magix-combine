@@ -69,6 +69,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             fileContent = tmplMxTag.process(fileContent, {
                 moduleId: e.moduleId,
                 pkgName: e.pkgName,
+                checkTmplDuplicateAttr: e.checker.tmplDuplicateAttr,
                 file,
                 shortHTMLFile: e.shortHTMLFile
             });
@@ -78,6 +79,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reject(ex);
             return;
         }
+
 
 
         if (e.checker.tmplTagsMatch) {
@@ -145,6 +147,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             temp.events = tmplEvents;
         }
         fileContent = tmplAttr.process(fileContent, e, refTmplCommands);
+        
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
