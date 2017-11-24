@@ -9,7 +9,7 @@ let configs = require('./util-config');
 let checker = require('./checker');
 let slog = require('./util-log');
 let utils = require('./util');
-let attrObject = require('./tmpl-attr-object');
+let jsGeneric = require('./js-generic');
 //let md5 = require('./util-md5');
 //let regexp = require('./util-rcache');
 let acorn = require('acorn');
@@ -76,7 +76,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
 
                 slog.ever(chalk.red('beware!'), 'You should use', chalk.magenta(tip), 'instead of', chalk.magenta(tipRaw), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
             }
-            let eq = attrObject.escapeQ(replacement, q);
+            let eq = jsGeneric.escapeQ(replacement, q);
             replacement = replacement.replace(cmdPHReg, m => store[m]);
             processQuot(replacement, refTmplCommands, mxEvent, e, toSrc);
             modifiers.push({

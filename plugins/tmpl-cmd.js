@@ -6,7 +6,7 @@ let chalk = require('chalk');
 let configs = require('./util-config');
 let htmlminifier = require('html-minifier');
 let jm = require('./js-min');
-let attrObject = require('./tmpl-attr-object');
+let jsGeneric = require('./js-generic');
 let slog = require('./util-log');
 let tmplParser = require('./tmpl-parser');
 //模板文件，模板引擎命令处理，因为我们用的是字符串模板，常见的模板命令如<%=output%> {{output}}，这种通常会影响我们的分析，我们先把它们做替换处理
@@ -49,7 +49,7 @@ module.exports = {
                     let fns = expr.slice(leftBrace);
                     //console.log(fns);
                     try {
-                        fns = ',' + attrObject.parseObject(fns, '\u0017', '\u0018');
+                        fns = ',' + jsGeneric.parseObject(fns, '\u0017', '\u0018');
                         //console.log(fns);
                     } catch (ex) {
                         slog.ever(chalk.red('check:' + fns));

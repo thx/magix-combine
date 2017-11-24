@@ -161,7 +161,7 @@ let getLongestExpr = (node, varTracker, sge, oexpr) => {
     }
     return -1;
 };
-module.exports = (node, comments, tmpl, e) => {
+module.exports = (node, comments, tmpl, e, sourcemap) => {
 
     let params = node.params;
     if (params.length <= 1 || isWrapper(params)) { //参数要大于1个，因为回调形式为(err,bag)=>{}
@@ -603,15 +603,13 @@ module.exports = (node, comments, tmpl, e) => {
                 } else { //找不到，提示
                     maybeError.push({
                         pos: it.start,
-                        near: it.near,
+                        near: sourcemap[it.start] || it.near,
                         part: it.part
                     });
                 }
             }
         });
-        maybeError.sort((a, b) => {
-            return a.pos - b.pos;
-        }).forEach(it => {
+        maybeError.sort((a, b) => a.pos - b.pos).forEach(it => {
             if (it.type == 'bc') {
                 slog.ever(chalk.red('avoid use: ' + it.part), 'at', chalk.grey(e.shortFrom), 'use', chalk.red(it.replacement), 'instead');
             } else if (it.type == 'ao') {

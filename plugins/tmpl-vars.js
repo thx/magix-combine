@@ -11,6 +11,7 @@ let utils = require('./util');
 let slog = require('./util-log');
 let regexp = require('./util-rcache');
 let md5 = require('./util-md5');
+let jsGeneric = require('./js-generic');
 let tmplCmdReg = /<%([@=!:~#])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
 let bindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
@@ -32,7 +33,7 @@ let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
-let revisableReg = /@\{[^\{\}]+\}/;
+let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/;
 let cmap = {
     [vphUse]: '\u0001',
     [vphDcd]: '\u0002',
@@ -55,48 +56,6 @@ let loopNames = {
 let genEventReg = type => { //获取事件正则，做绑定时，当原来已经存在如change,input等事件时，原来的事件仍需调用
     return regexp.get('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)\\)"');
 };
-let splitExpr = expr => { //拆分表达式，如"list[i].name[object[key[value]]]" => ["list", "[i]", "name", "[object[key[value]]]"]
-    let stack = [];
-    let temp = '';
-    let max = expr.length;
-    let i = 0,
-        c, opened = 0;
-    while (i < max) {
-        c = expr.charAt(i);
-        if (c == '.') {
-            if (!opened) {
-                if (temp) {
-                    stack.push(temp);
-                }
-                temp = '';
-            } else {
-                temp += c;
-            }
-        } else if (c == '[') {
-            if (!opened && temp) {
-                stack.push(temp);
-                temp = '';
-            }
-            opened++;
-            temp += c;
-        } else if (c == ']') {
-            opened--;
-            temp += c;
-            if (!opened && temp) {
-                stack.push(temp);
-                temp = '';
-            }
-        } else {
-            temp += c;
-        }
-        i++;
-    }
-    if (temp) {
-        stack.push(temp);
-    }
-    return stack;
-};
-
 let leftOuputReg = /\u0018",/g;
 let rightOutputReg = /,"/g;
 let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[change,input] user.name {refresh}%>  =>  evts:change,input  expr user.name  fns  refresh
@@ -131,68 +90,31 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[c
         fns
     };
 };
-let vkeys = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$';
-let variable = count => { //压缩变量
-    let result = '',
-        temp;
-    do {
-        temp = count % vkeys.length;
-        result = vkeys.charAt(temp) + result;
-        count = (count - temp) / vkeys.length;
-    }
-    while (count);
-    return result;
-};
-let splitSafeguardExpr = expr => {
-    let stack = [];
-    let temp = '';
-    let max = expr.length;
-    let i = 0,
-        c, opened = 0;
-    while (i < max) {
-        c = expr.charAt(i);
-        if (c == '&' && expr.charAt(i + 1) == '&' && !opened && temp) {
-            stack.push(temp);
-            temp = '';
-            i++;
-        } else {
-            if (c == '[') {
-                opened++;
-            } else if (c == ']') {
-                opened--;
-            }
-            temp += c;
-        }
-        i++;
-    }
-    if (temp) {
-        stack.push(temp);
-    }
-    return stack;
-};
-let getMemberExpr = node => {
-    let prop = getPropExpr(node.property);
-    let host = getHostExpr(node.object);
+let getMemberExpr = (node, fn) => {
+    let prop = getPropExpr(node.property, fn);
+    let host = getHostExpr(node.object, fn);
     if (host === vphGlb || host === vphCst) {
         return host + '.' + prop;
     }
     let direct = node.property.type == 'Identifier';
-    let exprs = splitSafeguardExpr(host);
+    let exprs = jsGeneric.splitSafeguardExpr(host);
     let last = '&&' + exprs.pop();//获取最右的保护表达式
     return host + last + (direct ? '.' : '[') + prop + (direct ? '' : ']');
 };
-let getHostExpr = node => {
+let getHostExpr = (node, fn) => {
     if (node.type == 'MemberExpression') {
-        return getMemberExpr(node);
+        return getMemberExpr(node, fn);
     } else if (node.type == 'Identifier') {
         return node.name;
+    } else if (node.type == 'ArrayExpression') {
+        return fn.slice(node.start, node.end);
     } else {
         throw new Error('unsupport host expr,host type:' + node.type);
     }
 };
-let getPropExpr = node => {
+let getPropExpr = (node, fn) => {
     if (node.type === 'MemberExpression') {
-        return getMemberExpr(node);
+        return getMemberExpr(node, fn);
     } else if (node.type == 'Identifier') {
         return node.name;
     } else if (node.type == 'Literal') {
@@ -201,21 +123,21 @@ let getPropExpr = node => {
         throw new Error('unsupport prop expr,prop type:' + node.type);
     }
 };
-let getSafeguardExpression = i => {
+let getSafeguardExpression = (i, fn) => {
     let node = i.node;
     if (i.ae) {//赋值表达式比较特殊
-        let host = getHostExpr(node.object);
+        let host = getHostExpr(node.object, fn);
         let prop = node.property;
         if (prop.type == 'Identifier') {
             return '(' + host + '||{}).' + prop.name;
         } else if (prop.type == 'MemberExpression') {
-            prop = getPropExpr(prop);
+            prop = getPropExpr(prop, fn);
             return '(' + host + '||{})[' + prop + ']';
         } else {
             throw new Error('unsupport safeguard expression,prop type:' + prop.type);
         }
     }
-    return getMemberExpr(node);
+    return getMemberExpr(node, fn);
 };
 /*
     \u0000  `反撇
@@ -303,6 +225,11 @@ module.exports = {
         if (extInfo.tmplScopedConstVars) {
             constVars = Object.assign(constVars, extInfo.tmplScopedConstVars);
         }
+        let trans = jsGeneric.pattern(fn, ast);
+        if (trans.update) {
+            fn = trans.fn;
+            ast = acorn.parse(fn);
+        }
         walker.simple(ast, {
             CallExpression(node) { //方法调用
                 let vname = '';
@@ -341,7 +268,6 @@ module.exports = {
                         args[i] = vphGlb + '.' + args[i];
                     }
                     modifiers.push({
-                        key: '',
                         start: node.end - 1,
                         end: node.end - 1,
                         name: (node.arguments.length ? ',' : '') + args.join(',')
@@ -433,7 +359,7 @@ module.exports = {
             VariableDeclarator(node) { //变量声明
                 let tname = node.id.name;
                 if (!configs.debug && configs.tmplCompressVariable) {
-                    let cname = variable(varCount++);
+                    let cname = md5.byNum(varCount++);
                     if (!compressVarsMap[tname]) { //可能使用同一个key进行多次声明，我们要处理这种情况
                         compressVarsMap[tname] = [];
                     }
@@ -498,7 +424,7 @@ module.exports = {
                             key: vphDcd + p.start,
                             start: p.start,
                             end: p.end,
-                            name: pVarsMap[p.name] = variable(varCount++)　 //压缩参数
+                            name: pVarsMap[p.name] = md5.byNum(varCount++)　 //压缩参数
                         });
                     } else {
                         modifiers.push({
@@ -651,11 +577,11 @@ module.exports = {
                 } else { //如果位置不在函数体内，则需要把函数体内的声明清除，避免影响分析
                     /*
                         <%var aaa=20%>
-
+    
                         <%_.each(function(a){%>
                             <%var aaa=30%>
                         <%})%>
-
+    
                         <%=aaa%>  //函数体内有aaa声明，但该处需要外部声明的aaa
                      */
                     let tlist = list.slice();
@@ -676,7 +602,7 @@ module.exports = {
                 <%var a=20%>
                 ...
                 <%=a%>
-
+    
                 <%var a=30%>
                 ...
                 <%=a%>
@@ -835,7 +761,7 @@ module.exports = {
         });
         for (let me in meMap) {
             let i = meMap[me];
-            i.name = getSafeguardExpression(i);
+            i.name = getSafeguardExpression(i, fn);
             modifiers.push(i);
         }
         modifiers.sort((a, b) => a.start - b.start);
@@ -873,7 +799,7 @@ module.exports = {
                         <%})%>
                     <%})%>
                     <input <%:a%> />
-
+    
                     思路：接函数划分区间，找出当前变量落在哪个函数范围内，在该范围内再搜索对应的变量
                  */
                 let range = getFnRangeByPos(pos);
@@ -931,7 +857,7 @@ module.exports = {
                 srcExpr = expr;
             }
             //slog.ever('expr', expr);
-            let ps = splitExpr(expr); //表达式拆分，如user[name][key[value]]=>["user","[name]","[key[value]"]
+            let ps = jsGeneric.splitExpr(expr); //表达式拆分，如user[name][key[value]]=>["user","[name]","[key[value]"]
             /*
                 1. <%:user.name%>
                 2. <%var a=user.name%>...<%:a%>
@@ -955,7 +881,7 @@ module.exports = {
         };
         let analyseExpr = (expr, source) => {
             if (configs.tmplMESafeguard) {
-                expr = splitSafeguardExpr(expr).pop();
+                expr = jsGeneric.splitSafeguardExpr(expr).pop();
             }
             let result = find(expr, source); //获取表达式信息
             let host = [];

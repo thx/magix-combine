@@ -13,6 +13,10 @@ let depsReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*
 //let exportsReg = /module\.exports\s*=\s*/;
 let configs = require('./util-config');
 let cssShareReg = /^css@/;
+let removeRequiresLoader = {
+    kissy: 1,
+    kissy_es: 1
+};
 module.exports = {
     process(e) {
         let deps = [];
@@ -63,11 +67,11 @@ module.exports = {
                                 } else {
                                     prefix += 'require(' + dId + ')';
                                 }
-                                reqInfo.replacement = e.loader == 'kissy' ? '' : (prefix + reqInfo.tail);
+                                reqInfo.replacement = removeRequiresLoader[e.loader] ? '' : (prefix + reqInfo.tail);
                             }
                         } else {
                             if (!reqInfo.hasOwnProperty('replacement')) {
-                                reqInfo.replacement = e.loader == 'kissy' ? '' : match;
+                                reqInfo.replacement = removeRequiresLoader[e.loader] ? '' : match;
                             }
                         }
                         return reqInfo.replacement;

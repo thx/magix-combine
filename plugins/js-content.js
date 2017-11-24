@@ -29,7 +29,8 @@ let stringReg = /^['"]/;
 let moduleIdReg = /^(['"])(@moduleId)\1$/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
 let othersFileReg = /(['"])([a-z,]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
-let revisableReg = /@\{[^\{\}]+\}/g;
+let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/g;
+let atProcessor = str => str.replace(/@/, '\u0012@');
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
@@ -106,7 +107,7 @@ let processContent = (from, to, content, inwatch) => {
                 }
             });
         } catch (ex) {
-            slog.ever('parse js ast error:', chalk.red(ex.message));
+            slog.ever('parse js ast error:', chalk.red(ex.message), tmpl);
             let arr = tmpl.split(lineBreakReg);
             let line = ex.loc.line - 1;
             if (arr[line]) {
@@ -136,7 +137,8 @@ let processContent = (from, to, content, inwatch) => {
                 node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
                 add = true;
             } else if (cssFileReg.test(node.raw) || configs.htmlFileReg.test(node.raw)) {
-                node.raw = node.raw.replace(/@/g, '\u0012@');
+                node.raw = node.raw.replace(new RegExp(cssFileReg, 'g'), atProcessor);
+                node.raw = node.raw.replace(new RegExp(configs.htmlFileReg, 'g'), atProcessor);
                 add = true;
             } else if (othersFileReg.test(node.raw)) {
                 let replacement = '';
@@ -206,8 +208,7 @@ let processContent = (from, to, content, inwatch) => {
                 }
             }
         });
-        let walkerProcessor = checker.JS.getWalker(comments, tmpl, e);
-        walker.simple(ast, walkerProcessor);
+        checker.JS.check(comments, tmpl, e, ast);
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });

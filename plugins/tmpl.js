@@ -22,7 +22,7 @@ let checker = require('./checker');
 let tmplVars = require('./tmpl-vars');
 let md5 = require('./util-md5');
 let slog = require('./util-log');
-let revisableReg = /@\{[^\{\}]+\}/g;
+let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/g;
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]*)\]/g;

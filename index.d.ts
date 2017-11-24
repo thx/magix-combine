@@ -212,7 +212,7 @@ declare module "magix-combine" {
         /**
          * 加载器类型，该选项决定如何添加包装，如添加define函数。默认为cmd加载器
          */
-        loaderType?: "amd" | "cmd" | "iife" | "none" | "webpack" | "kissy"
+        loaderType?: "amd" | "amd_es" | "cmd" | "cmd_es" | "iife" | "iife_es" | "none" | "webpack" | "kissy" | "kissy_es"
         /**
          * html压缩选项
          */

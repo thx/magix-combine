@@ -10,11 +10,15 @@ let exportsReg = /\bmodule\.exports\b\s*=\s*/g;
 let header = '/*\r\n    generate by magix-combine@' + package.version + ': https://github.com/thx/magix-combine\r\n    author: kooboy_li@163.com\r\n    loader: ${loader}\r\n */\r\n';
 let tmpls = {
     cmd: 'define(\'${moduleId}\',[${requires}<!--' + anchorKey + '_requires-->\r\n],function(require,exports,module){\r\n/*${vars}*/\r\n<!--' + anchorKey + '_vars-->\r\n${content}\r\n});',
+    cmd_es: 'define(\'${moduleId}\',[${requires}<!--' + anchorKey + '_requires-->\r\n],(require,exports,module)=>{\r\n/*${vars}*/\r\n<!--' + anchorKey + '_vars-->\r\n${content}\r\n});',
     amd: 'define(\'${moduleId}\',[\'require\',\'exports\',\'module\',${requires}<!--' + anchorKey + '_requires-->\r\n],function(require,exports,module){\r\n<!--' + anchorKey + '_vars-->\r\n${content}\r\n});',
+    amd_es: 'define(\'${moduleId}\',[\'require\',\'exports\',\'module\',${requires}<!--' + anchorKey + '_requires-->\r\n],(require,exports,module)=>{\r\n<!--' + anchorKey + '_vars-->\r\n${content}\r\n});',
     kissy: 'KISSY.add(\'${moduleId}\',function(S,${vars}){\r\n${content}\r\n},\r\n{requires:[${requires}<!--' + anchorKey + '_requires-->\r\n]});',
+    kissy_es: 'KISSY.add(\'${moduleId}\',(S,${vars})=>{\r\n${content}\r\n},\r\n{requires:[${requires}<!--' + anchorKey + '_requires-->\r\n]});',
     webpack: '<!--' + anchorKey + '_vars-->\r\n${content}',
     none: '${content}',
-    iife: '(function(){\r\n${content}\r\n})();'
+    iife: '(function(){\r\n${content}\r\n})();',
+    iife_es: '(()=>{\r\n${content}\r\n})();'
 };
 module.exports = e => {
     e.requiresAnchorKey = '<!--' + anchorKey + '_requires-->\r\n';

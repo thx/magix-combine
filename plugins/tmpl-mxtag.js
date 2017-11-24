@@ -18,7 +18,7 @@ let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
 let sep = path.sep;
-let uncheckTags = { view: 1, include: 1, native: 1 };
+let uncheckTags = { view: 1, include: 1, native: 1, vframe: 1 };
 let cmdOutReg = /^<%([!=@])([\s\S]*)%>$/;
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
 let attrNameValueReg = /\s*([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2\s*/g;
@@ -106,6 +106,9 @@ let innerView = (result, info) => {
         hasTag = true;
         return '';
     });
+    if (!hasTag && util.isObject(info)) {
+        tag = info.tag;
+    }
     let type = '';
     let mxTagRoot = configs.mxGalleriesRoot;
     if (tag == 'input') {
@@ -117,7 +120,7 @@ let innerView = (result, info) => {
     let allAttrs = attrMap.getAll(tag, type);
     let hasPath = false;
     attrs = attrs.replace(attrNameValueReg, (m, name, q, value) => {
-        if (name == 'path' || name == 'view') {
+        if (name == 'path' || name == 'view' || name == 'src') {
             hasPath = true;
             return ' mx-view=' + q + value + q;
         }
@@ -130,9 +133,6 @@ let innerView = (result, info) => {
     });
     if (!hasPath && info) {
         attrs += ' mx-view="' + mxTagRoot + (util.isObject(info) ? info.path : info) + '"';
-    }
-    if (!hasTag && util.isObject(info)) {
-        tag = info.tag;
     }
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
@@ -199,8 +199,13 @@ let innerInclude = (result, info) => {
         return content;
     }
 };
+let badTag = (result, info) => {
+    slog.ever(chalk.red('can not process mx-tag <mx-' + result.tag + '>'), 'at', chalk.magenta(info.shortHTMLFile));
+    return `<can-not-process-mx-${result.tag}></can-not-process-mx-${result.tag}>`;
+};
 module.exports = {
     process(tmpl, extInfo) {
+        let badTags = Object.create(null);
         let cmdCache = Object.create(null);
         let mxGalleriesMap = configs.mxGalleriesMap;
         let updateOffset = (pos, offset) => {
@@ -256,7 +261,7 @@ module.exports = {
             let splitter = tag.indexOf('.') >= 0 ? '.' : '-';
             let tags = tag.split(splitter);
             if (splitter == '-' && tags.length > 1) {
-                slog.ever(chalk.red('deprecated tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-' + tags.join('.')), 'instead');
+                slog.ever(chalk.red('deprecated tag: ' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-' + tags.join('.')), 'instead');
             }
             let result = {
                 unary: !n.hasContent,
@@ -287,7 +292,10 @@ module.exports = {
                 }
             }
             let update = false;
-            if (result.mainTag == 'view') {
+            if (result.mainTag == 'view' || result.mainTag == 'vframe') {
+                if (result.mainTag == 'view') {
+                    slog.ever(chalk.red('deprecated tag: mx-view'), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
+                }
                 content = innerView(result);
                 update = true;
             } else if (result.tag == 'include') {
@@ -306,13 +314,17 @@ module.exports = {
             } else {
                 attachMap(result);
                 let tagContent = configs.mxTagProcessor(result, extInfo);
+                if (!tagContent) {
+                    tagContent = badTag(result, extInfo);
+                    badTags['can-not-process-mx-' + result.tag] = 1;
+                }
                 if (tagContent != content) {
                     content = tagContent;
                     update = true;
                 }
             }
             if (update) {
-                content = content || '';
+                content = content;
                 tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
@@ -356,8 +368,10 @@ module.exports = {
             let map = nodes.__map;
             for (let n in map) {
                 n = map[n];
-                if (n.tag.indexOf('mx-') === 0 || n.tag.indexOf('.') >= 0) {
-                    return true;
+                if (!badTags[n.tag]) {
+                    if (n.tag.indexOf('mx-') === 0 || n.tag.indexOf('.') >= 0) {
+                        return true;
+                    }
                 }
             }
             return false;
