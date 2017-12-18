@@ -53,6 +53,8 @@ let utils = require('./util');
 let configs = require('./util-config');
 let slog = require('./util-log');
 let chalk = require('chalk');
+let brReg = /(?:\r\n|\r|\n)/;
+let lineNoReg = /^(\d+)([\s\S]+)/;
 let openTag = '{{';
 let closeTag = /\}{2}(?!\})/;
 let asReg = /([\{\[]?[^\{\[]+?[\}\]]?)(\s+[\w_$]+)?$/;
@@ -60,61 +62,100 @@ let loopReg = /([^=]+?)=([^=]+?)\s+to\s+([\s\S]*?)(?:\s+step\s+([\w_$\.]*))?$/;
 let numberReg = /^[+-]?(?:0x[\da-f]|\d+\.?\d*(?:E[+-]?\d*)?)$/i;
 let stringKeyReg = /^['"][\s\S]+?['"]$/;
 let ctrls = {
-    'if'(stack) {
-        stack.push('if');
+    'if'(stack, ln) {
+        stack.push({
+            ctrl: 'if', ln
+        });
     },
     'else'(stack) {
         let last = stack[stack.length - 1];
-        if (last !== 'if') {
-            return last;
+        if (last) {
+            if (last.ctrl !== 'if') {
+                return last;
+            }
+        } else {
+            return {
+                ctrl: ''
+            };
         }
     },
     '/if'(stack) {
         let last = stack.pop();
-        if (last != 'if') {
-            return last;
+        if (last) {
+            if (last.ctrl != 'if') {
+                return last;
+            }
+        } else {
+            return {
+                ctrl: ''
+            };
         }
     },
-    'each'(stack) {
-        stack.push('each');
+    'each'(stack, ln) {
+        stack.push({ ctrl: 'each', ln });
     },
     '/each'(stack) {
         let last = stack.pop();
-        if (last != 'each') {
-            return last;
+        if (last) {
+            if (last.ctrl != 'each') {
+                return last;
+            }
+        } else {
+            return {
+                ctrl: ''
+            };
         }
     },
-    'forin'(stack) {
-        stack.push('forin');
+    'forin'(stack, ln) {
+        stack.push({ ctrl: 'forin', ln });
     },
     '/forin'(stack) {
         let last = stack.pop();
-        if (last != 'forin') {
-            return last;
+        if (last) {
+            if (last.ctrl != 'forin') {
+                return last;
+            }
+        } else {
+            return {
+                ctrl: ''
+            };
         }
     },
-    'loop'(stack) {
-        stack.push('loop');
+    'loop'(stack, ln) {
+        stack.push({ ctrl: 'loop', ln });
     },
     '/loop'(stack) {
         let last = stack.pop();
-        if (last != 'loop') {
-            return last;
+        if (last) {
+            if (last.ctrl != 'loop') {
+                return last;
+            }
+        } else {
+            return {
+                ctrl: ''
+            };
         }
     }
 };
-let checkStack = (stack, key, code, e) => {
+let checkStack = (stack, key, code, e, lineNo) => {
     let ctrl = ctrls[key];
     if (ctrl) {
-        let l = ctrl(stack);
+        let l = ctrl(stack, lineNo);
         if (l) {
-            slog.ever(chalk.red(`unexpected {{${code}}}`), 'close', chalk.magenta(l), 'before it,at', chalk.grey(e.shortHTMLFile));
-            throw new Error(`unexpected ${code} close ${l} before it`);
+            let args = [chalk.red(`unexpected {{${code}}} at line:${lineNo}`)];
+            if (l.ctrl) {
+                args.push('close', chalk.magenta(l.ctrl), `at line:${l.ln}, at file`);
+            } else {
+                args.push('at file');
+            }
+            args.push(chalk.grey(e.shortHTMLFile));
+            slog.ever.apply(slog, args);
+            throw new Error(`unexpected ${code} close ${l.ctrl} before it`);
         }
     } else {
         for (let s of stack) {
-            slog.ever(chalk.red(`unclosed ${s}`), 'at', chalk.grey(e.shortHTMLFile));
-            throw new Error(`unclosed ${s} at ${e.shortHTMLFile}`);
+            slog.ever(chalk.red(`unclosed ${s.ctrl} at line:${s.ln}`), 'at file', chalk.grey(e.shortHTMLFile));
+            throw new Error(`unclosed ${s.ctrl} at ${e.shortHTMLFile}`);
         }
     }
 };
@@ -164,54 +205,54 @@ let getAssignment = (code, object, key, value) => {
     }
     return { declares, assignment };
 };
-let syntax = (code, stack, e) => {
+let syntax = (code, stack, e, lineNo) => {
     code = code.trim();
     let ctrls = code.split(/\s+/);
     let key = ctrls.shift();
     if (key == 'if') {
-        checkStack(stack, key, code, e);
+        checkStack(stack, key, code, e, lineNo);
         return `<%if(${ctrls.join(' ')}){%>`;
     } else if (key == 'else') {
-        checkStack(stack, key, code, e);
+        checkStack(stack, key, code, e, lineNo);
         let iv = '';
         if (ctrls.shift() == 'if') {
             iv = ` if(${ctrls.join(' ')})`;
         }
         return `<%}else${iv}{%>`;
     } else if (key == 'each') {
-        checkStack(stack, key, code, e);
+        checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
         let m = asValue.match(asReg);
         //console.log(m);
         if (!m) {
-            slog.ever(chalk.red(`unsupport each ${asValue}`), 'at', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport each ' + asValue);
+            slog.ever(chalk.red(`unsupport each {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('unsupport each {{' + code + '}}');
         }
         let value = m[1];
         let index = m[2] || utils.uId('$i', code);
         let ai = getAssignment(code, object, index, value);
         return `<%for(let ${ai.declares},${index}=0;${index}<${object}.length;${index}++){${ai.assignment}%>`;
     } else if (key == 'forin') {
-        checkStack(stack, key, code, e);
+        checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
         let m = asValue.match(asReg);
         if (!m) {
-            slog.ever(chalk.red(`unsupport forin ${asValue}`), 'at', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport forin ' + asValue);
+            slog.ever(chalk.red(`unsupport forin {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('unsupport forin {{' + code + '}}');
         }
         let value = m[1];
         let key1 = m[2] || utils.uId('$k', code);
         let ai = getAssignment(code, object, key1, value);
         return `<%for(let ${key1} in ${object}){let ${ai.declares};${ai.assignment}%>`;
     } else if (key == 'loop') {
-        checkStack(stack, key, code, e);
+        checkStack(stack, key, code, e, lineNo);
         let loopValue = ctrls.join(' ');
         let m = loopValue.match(loopReg);
         if (!m) {
-            slog.ever(chalk.red(`unsupport loop ${loopValue}`), 'at', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport loop ' + loopValue);
+            slog.ever(chalk.red(`unsupport loop {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('unsupport loop {{' + code + '}}');
         }
         let variable = m[1];
         let start = m[2];
@@ -237,7 +278,7 @@ let syntax = (code, stack, e) => {
         let step = `let ${vStep}=${start}>${end}?-${stepBase}:${stepBase};`;
         return `<%${check}${step}for(let ${variable}=${start};${vStep}>0?${variable}<=${end}:${variable}>=${end};${variable}+=${vStep}){%>`;
     } else if (key == '/if' || key == '/each' || key == '/forin' || key == '/loop') {
-        checkStack(stack, key, code, e);
+        checkStack(stack, key, code, e, lineNo);
         return '<%}%>';
     } else {
         return `<%${code}%>`;
@@ -245,14 +286,22 @@ let syntax = (code, stack, e) => {
 };
 module.exports = (tmpl, e) => {
     let result = [];
+    let lines = tmpl.split(brReg);
+    let ls = [], lc = 0;
+    for (let line of lines) {
+        ls.push(line.split(openTag).join(openTag + (++lc)));
+    }
+    tmpl = ls.join('\r\n');
     let parts = tmpl.split(openTag);
     let stack = [];
     for (let part of parts) {
-        let codes = part.split(closeTag);
-        if (codes.length === 1) {//html
-            result.push(codes[0]);
+        let lni = part.match(lineNoReg);
+        if (lni) {
+            part = lni[2];
+
+            let codes = part.split(closeTag); result.push(syntax(codes[0], stack, e, lni[1]), codes[1]);
         } else {
-            result.push(syntax(codes[0], stack, e), codes[1]);
+            result.push(part);
         }
     }
     checkStack(stack, 'unclosed', '', e);

@@ -445,4 +445,10 @@ declare module "magix-combine" {
      * @param file 文件路径
      */
     function removeCache(file: string): void
+
+    /**
+     * 获取依赖当前文件的其它文件
+     * @param file 文件路径
+     */
+    function getFileDependents(file: string): object
 }

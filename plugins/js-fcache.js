@@ -5,10 +5,10 @@ let deps = require('./util-deps');
 let fileCache = Object.create(null);
 let clearDeps = (f, locker) => {
     delete fileCache[f];
-    let dep = deps.inDependencies(f);
+    let dep = deps.inDependents(f);
     if (dep && !locker[f]) {
         locker[f] = 1;
-        let files = deps.getDependencies(f);
+        let files = deps.getDependents(f);
         Object.keys(files).forEach(it => {
             clearDeps(it, locker);
         });

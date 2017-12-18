@@ -35,10 +35,10 @@ module.exports = {
         context = ctx;
         return ctx;
     },
-    inDependencies(file) {
+    inDependents(file) {
         return fileDependencies.hasOwnProperty(file);
     },
-    getDependencies(file) {
+    getDependents(file) {
         return fileDependencies[file];
     },
     removeFileDepend: removeFileDepend,

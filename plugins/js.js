@@ -15,7 +15,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
         from = path.resolve(from);
         to = path.resolve(to);
         let promise = Promise.resolve();
-        if (inwatch && deps.inDependencies(from)) {
+        if (inwatch && deps.inDependents(from)) {
             promise = deps.runFileDepend(from);
         }
         if (fs.existsSync(from)) {

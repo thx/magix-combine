@@ -208,7 +208,6 @@ module.exports = {
     },
     processTmpl() {
         slog.hook();
-
         return new Promise((resolve, reject) => {
             initEnv();
             let ps = [];
@@ -254,6 +253,9 @@ module.exports = {
             };
             run();
         });
+    },
+    getFileDependents(file) {
+        return deps.getDependents(file);
     },
     stripCmd(tmpl) {
         initEnv();
