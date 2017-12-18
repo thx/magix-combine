@@ -1,5 +1,5 @@
 let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
-
+let tmplTags = require('./tmpl-tags');
 module.exports = input => {
     let ctrls = [];
     let pos = 0;
@@ -10,6 +10,7 @@ module.exports = input => {
     new HTMLParser(input, {
         html5: true,
         start(tag, attrs, unary) {
+            tag = tag.toLowerCase();
             let token = {
                 id: 't' + id++,
                 tag,
@@ -67,6 +68,9 @@ module.exports = input => {
         },
         chars(text) {
             pos = input.indexOf(text, pos) + text.length;
+        },
+        comment(text) {
+            pos = input.indexOf(text, pos) + text.length;
         }
     });
     for (let i = tokens.length, token; i--;) {
@@ -87,5 +91,19 @@ module.exports = input => {
             }
         }
     }
+    let walk = (nodes, inSVG) => {
+        if (nodes) {
+            for (let n of nodes) {
+                if (n.tag == 'svg') inSVG = true;
+                walk(n.children, inSVG);
+                if (!tmplTags.nativeTags.hasOwnProperty(n.tag) &&
+                    (!inSVG || !tmplTags.svgTags.hasOwnProperty(n.tag))) {
+                    n.customTag = true;
+                }
+                if (n.tag == 'svg') inSVG = false;
+            }
+        }
+    };
+    walk(tokens);
     return tokens;
 };

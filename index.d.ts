@@ -319,9 +319,9 @@ declare module "magix-combine" {
          */
         compileCSSEnd?: (css: string) => Promise
         /**
-         * 对mx-tag这样的标签做加工处理
+         * 对自定义标签做加工处理
          */
-        mxTagProcessor?: (tmpl: string, e?: ICombineResult) => string
+        customTagProcessor?: (tmpl: string, e?: ICombineResult) => string
         /**
          * js代码中循环嵌套的层数，默认3层
          */

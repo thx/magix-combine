@@ -17,6 +17,7 @@ let chalk = require('chalk');
 let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
+let tmplTags = require('./tmpl-tags');
 let sep = path.sep;
 let uncheckTags = { view: 1, include: 1, native: 1, vframe: 1 };
 let cmdOutReg = /^<%([!=@])([\s\S]*)%>$/;
@@ -27,14 +28,7 @@ let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let fileCache = Object.create(null);
-let nativeTags = (() => {
-    let tags = 'a,abbr,address,area,article,aside,audio,b,base,bdi,bdo,blockquote,body,br,button,canvas,caption,cite,code,col,colgroup,data,datalist,dd,del,details,dfn,dialog,div,dl,dt,em,embed,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,head,header,hgroup,hr,html,i,iframe,img,input,ins,kbd,keygen,label,legend,li,link,main,map,mark,menu,menuitem,meta,meter,nav,noscript,object,ol,optgroup,option,output,p,param,pre,progress,q,rb,rp,rt,rtc,ruby,s,samp,script,section,select,small,source,span,strong,style,sub,summary,sup,table,tbody,td,template,textarea,tfoot,th,thead,time,title,tr,track,u,ul,var,video,wbr'.split(',');
-    let o = {};
-    for (let tag of tags) {
-        o[tag] = 1;
-    }
-    return o;
-})();
+
 let attachMap = result => {
     let aMap = {};
     result.attrs.replace(attrNameValueReg, (m, key, q, content) => {
@@ -136,33 +130,7 @@ let innerView = (result, info) => {
     }
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
-let namespaceView = (result, viewPath) => {
-    let tag = 'div';
-    let hasTag = false;
-    let attrs = result.attrs.replace(tagReg, (m, t) => {
-        tag = t;
-        hasTag = true;
-        return '';
-    });
-    let type = '';
-    if (tag == 'input') {
-        let m = attrs.match(inputTypeReg);
-        if (m) {
-            type = m[2];
-        }
-    }
-    let allAttrs = attrMap.getAll(tag, type);
-    attrs = attrs.replace(attrNameValueReg, (m, name, q, value) => {
-        if (!allAttrs.hasOwnProperty(name) &&
-            name.indexOf('view-') !== 0 &&
-            name.indexOf('mx-') !== 0) {
-            name = 'view-' + name;
-        }
-        return ' ' + name + '=' + q + value + q;
-    });
-    attrs += ' mx-view="' + viewPath + '"';
-    return `<${tag} ${attrs}>${result.content}</${tag}>`;
-};
+
 let innerInclude = (result, info) => {
     let file = '';
     let attrs = {};
@@ -198,10 +166,6 @@ let innerInclude = (result, info) => {
         }
         return content;
     }
-};
-let badTag = (result, info) => {
-    slog.ever(chalk.red('can not process mx-tag <mx-' + result.tag + '>'), 'at', chalk.magenta(info.shortHTMLFile));
-    return `<can-not-process-mx-${result.tag}></can-not-process-mx-${result.tag}>`;
 };
 module.exports = {
     process(tmpl, extInfo) {
@@ -250,22 +214,17 @@ module.exports = {
                 content = tmpl.slice(n.contentStart, n.contentEnd);
             }
             let tag = n.tag;
-            let namespace = '';
             if (isMxTag) {
                 tag = tag.slice(3);
-            } else {
-                let temp = tag.indexOf('.');
-                namespace = tag.slice(0, temp);
-                tag = tag.slice(temp + 1);
             }
             let splitter = tag.indexOf('.') >= 0 ? '.' : '-';
             let tags = tag.split(splitter);
-            if (splitter == '-' && tags.length > 1) {
+            if (splitter == '-' && tags.length > 1 && isMxTag) {
                 slog.ever(chalk.red('deprecated tag: ' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-' + tags.join('.')), 'instead');
             }
             let result = {
+                isMxTag,
                 unary: !n.hasContent,
-                namespace,
                 name: tag,
                 tag,
                 mainTag: tags.shift(),
@@ -276,6 +235,23 @@ module.exports = {
                 content
             };
             return result;
+        };
+
+        let processCustomTag = (n, isMxTag) => {
+            let result = getTagInfo(n, isMxTag);
+            attachMap(result);
+            let content = result.content;
+            let customContent = configs.customTagProcessor(result, extInfo);
+            if (!customContent) {
+                let tagName = (isMxTag ? 'mx-' : '') + result.tag;
+                customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
+                badTags[tagName] = 1;
+            }
+            if (content != customContent) {
+                content = customContent;
+                tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+                updateOffset(n.start, content.length - (n.end - n.start));
+            }
         };
         let processMxTag = n => {
             let result = getTagInfo(n, true);
@@ -307,47 +283,18 @@ module.exports = {
             } else if (mxGalleriesMap.hasOwnProperty(result.tag)) {
                 content = innerView(result, mxGalleriesMap[result.tag]);
                 update = true;
-            } else if (nativeTags.hasOwnProperty(result.tag)) {
+            } else if (tmplTags.nativeTags.hasOwnProperty(result.tag)) {
                 result.subTag = result.tag;
                 content = toNative(result, cmdCache, extInfo);
                 update = true;
             } else {
-                attachMap(result);
-                let tagContent = configs.mxTagProcessor(result, extInfo);
-                if (!tagContent) {
-                    tagContent = badTag(result, extInfo);
-                    badTags['can-not-process-mx-' + result.tag] = 1;
-                }
-                if (tagContent != content) {
-                    content = tagContent;
-                    update = true;
-                }
+                processCustomTag(n, true);
             }
             if (update) {
                 content = content;
                 tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
-        };
-        let processNamespaceTag = n => {
-            let result = getTagInfo(n);
-            let content = result.content;
-            let dir = path.dirname(extInfo.file).replace(configs.moduleIdRemovedPath, '') + sep;
-            let ns = result.namespace;
-            let i = dir.indexOf(sep + ns + sep);
-            if (i >= 0) {
-                dir = dir.slice(1, i) + '/' + ns;
-            } else {
-                dir = extInfo.pkgName + '/' + ns;
-            }
-            dir = dir + '/' + result.mainTag;
-            if (result.subTags.length) {
-                dir = dir + '/' + result.subTags.join('/');
-            }
-            content = namespaceView(result, dir);
-            content = content || '';
-            tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
-            updateOffset(n.start, content.length - (n.end - n.start));
         };
         let walk = nodes => {
             if (nodes) {
@@ -356,10 +303,12 @@ module.exports = {
                         duAttrChecker(n, extInfo, cmdCache, tmpl.slice(n.attrsStart, n.attrsEnd));
                     }
                     walk(n.children);
-                    if (n.tag.indexOf('mx-') === 0) {
-                        processMxTag(n);
-                    } else if (n.tag.indexOf('.') >= 0) {
-                        processNamespaceTag(n);
+                    if (n.customTag) {
+                        if (n.tag.indexOf('mx-') === 0) {
+                            processMxTag(n);
+                        } else {
+                            processCustomTag(n, false);
+                        }
                     }
                 }
             }
@@ -368,17 +317,16 @@ module.exports = {
             let map = nodes.__map;
             for (let n in map) {
                 n = map[n];
-                if (!badTags[n.tag]) {
-                    if (n.tag.indexOf('mx-') === 0 || n.tag.indexOf('.') >= 0) {
-                        return true;
-                    }
+                if (!badTags[n.tag] && n.customTag) {
+                    return true;
                 }
             }
             return false;
         };
         tmpl = tmplCmd.store(tmpl, cmdCache);
         let tokens = tmplParser(tmpl);
-        while (hasMxTag(tokens)) {
+        let checkTimes = 2 << 3;
+        while (hasMxTag(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
             tokens = tmplParser(tmpl);

@@ -5,6 +5,7 @@ let fileDependencies = {};
 let context;
 //添加文件依赖关系
 let addFileDepend = (file, dependFrom, dependTo) => {
+    debugger;
     if (file != dependFrom) {
         let list = fileDependencies[file];
         if (!list) {

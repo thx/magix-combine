@@ -29,7 +29,9 @@ let outPhKey = '\u0001';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
 let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
+//support {{:[input,change]lang{refresh:true}}}
 let bindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
+//support {{:lang<change,input>{refresh:true}}}
 let bindEventsReg2 = /^([^<>]+)<([^>]+)>/;
 
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
@@ -46,15 +48,20 @@ module.exports = {
             tmpl = tmpl.replace(bindReg2, (m, left, expr, right) => {
                 let leftBrace = expr.indexOf('{');
                 if (leftBrace > 0) {
-                    let fns = expr.slice(leftBrace);
-                    //console.log(fns);
+                    let fns = expr.slice(leftBrace).trim();
+                    if (fns[fns.length - 1] == ')') {
+                        fns = fns.slice(0, -1);
+                    }
                     try {
                         fns = ',' + jsGeneric.parseObject(fns, '\u0017', '\u0018');
-                        //console.log(fns);
                     } catch (ex) {
                         slog.ever(chalk.red('check:' + fns));
                     }
-                    expr = expr.slice(0, leftBrace) + fns;
+                    expr = expr.slice(0, leftBrace).trim();
+                    if (expr[expr.length - 1] == '(') {
+                        expr = expr.slice(0, -1);
+                    }
+                    expr += fns;
                 }
                 if (bindEventsReg.test(expr)) {
                     expr = expr.replace(bindEventsReg, '"\u0017$1",');
@@ -190,10 +197,11 @@ module.exports = {
         }
         return tmpl;
     },
-    store(tmpl, dataset) { //保存模板引擎命令
+    store(tmpl, dataset, reg) { //保存模板引擎命令
         let idx = dataset.___idx || 0;
-        if (configs.tmplCommand) {
-            tmpl = tmpl.replace(configs.tmplCommand, (match, key) => {
+        reg = reg || configs.tmplCommand;
+        if (reg) {
+            tmpl = tmpl.replace(reg, (match, key) => {
                 idx++;
                 key = anchor + idx + anchor;
                 dataset[match] = key;

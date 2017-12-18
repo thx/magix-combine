@@ -17,6 +17,7 @@ module.exports = () => {
         if (!configs.tmplCommand) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
+        configs.artTmplCommand = /\{\{[\s\S]*?\}\}/g;
         if (configs.cssSelectorPrefix === null) {
             let str = crypto.createHash('sha512')
                 .update(configs.tmplFolder, 'ascii')
@@ -32,10 +33,10 @@ module.exports = () => {
         }
         configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + names.join('|') + ')$');
 
-        configs.htmlFileReg = new RegExp('([\'"])(?:raw|magix|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\])+)?\\1');
+        configs.htmlFileReg = new RegExp('([\'"])(?:raw|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
 
         //模板处理，即处理view.html文件
-        configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|magix|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\])+)?\\2', 'g');
+        configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\2', 'g');
 
         /*if (configs.addEventPrefix) {
             configs.tmplAddEventPrefix = true;
@@ -73,6 +74,9 @@ module.exports = () => {
 
         if (configs.htmlminifierOptions) {
             configs.htmlminifier = configs.htmlminifierOptions;
+        }
+        if (configs.mxTagProcessor) {
+            configs.customTagProcessor = configs.mxTagProcessor;
         }
         let rsPrefix = configs.revisableStringPrefix;
         if (!rsPrefix) {

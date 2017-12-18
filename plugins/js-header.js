@@ -7,7 +7,7 @@ let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;
 let checkerReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\[([\w,]+)\]\1\s*;?/g;
 
 let checkerReg1 = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\s*=\s*([\w,]+)\1\s*;?/g;
-let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])?\1\s*;?/g;
+let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])\1\s*;?/g;
 module.exports = (content) => {
     let execBeforeProcessor = true,
         execAfterProcessor = true;

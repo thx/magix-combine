@@ -54,6 +54,7 @@ module.exports = {
     tmplCompressVariable: true, //是否压缩模板中的变量
     tmplMultiBindEvents: false, //是否支持多个绑定
     tmplMESafeguard: false,//对象表达式保护
+    tmplArtEngine: false,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
     disableMagixUpdater: false,
@@ -134,7 +135,7 @@ module.exports = {
     compileCSSEnd(css) {
         return css;
     },
-    mxTagProcessor(tmpl, e) { //mx-tag的处理器
+    customTagProcessor(tmpl, e) { //mx-tag的处理器
         return '';
     },
     tmplTagProcessor(tag) { //为了tmpl-naked准备的，遇到模板标签如何处理

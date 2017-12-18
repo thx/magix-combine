@@ -11,16 +11,17 @@ let templateReg = /<template([^>]*)>([\s\S]+?)<\/template>/i;
 let pureTagReg = /<[\w-]+[^>]*>/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let commentPHReg = /\x00\d+\x00/g;
-let processTmpl = (tmpl, shortFrom, tLang) => {
+let processTmpl = (tmpl, shortFrom) => {
     let store = Object.create(null);
     let comment = Object.create(null);
     let cIdx = 0;
-    tmpl = configs.compileTmplStart(tmpl, {
+    /*tmpl = configs.compileTmplStart(tmpl, {
         shortFrom,
         templateLang: tLang
-    });
+    });*/
     tmpl = tmplCmd.store(tmpl, store);
-
+    tmpl = tmplCmd.store(tmpl, store, configs.artTmplCommand);
+    
     tmpl = tmpl.replace(htmlCommentCelanReg, m => {
         let key = '\x00' + cIdx++ + '\x00';
         comment[key] = m;
@@ -32,7 +33,7 @@ let processTmpl = (tmpl, shortFrom, tLang) => {
     });
     tmpl = tmplCmd.recover(tmpl, store);
     tmpl = tmpl.replace(commentPHReg, m => comment[m]);
-    tmpl = configs.compileTmplEnd(tmpl);
+    //tmpl = configs.compileTmplEnd(tmpl);
     return tmpl;
 };
 let processMx = (content, shortFrom) => {

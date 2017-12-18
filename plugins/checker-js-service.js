@@ -101,9 +101,9 @@ let isMissingDefaultValueBagCall = node => {
     return args.length == 1 && a0IsString;
 };
 //获取是否是bag.get调用，同时检测是否可能出错
-let maybeErrorBagCall = (node, paramsObject) => {
+let maybeErrorBagCall = (node, paramsObject, dname) => {
     let start = node;
-    let count = 0;
+    let count = dname ? 1 : 0;
     let key, power, isBC, missingDefault, dType;
     while (start) { //bag('xx').list.xx  这种情况不安全，需要提示
         if (start.type == 'CallExpression') {
@@ -161,7 +161,7 @@ let getLongestExpr = (node, varTracker, sge, oexpr) => {
     }
     return -1;
 };
-module.exports = (node, comments, tmpl, e, sourcemap) => {
+module.exports = (node, comments, tmpl, e) => {
 
     let params = node.params;
     if (params.length <= 1 || isWrapper(params)) { //参数要大于1个，因为回调形式为(err,bag)=>{}
@@ -227,10 +227,10 @@ module.exports = (node, comments, tmpl, e, sourcemap) => {
         paramsObject[p.name] = 1; //记录有哪些参数
     }
     //处理赋值
-    let assign = (expr, oexpr, vname, sge) => {
+    let assign = (expr, oexpr, vname, sge, dname) => {
         if (expr.type == 'MemberExpression' ||
             expr.type == 'CallExpression') { //var a=bag.get('xx')或var a=bag.get('xx').list的情况
-            let info = maybeErrorBagCall(expr, paramsObject);
+            let info = maybeErrorBagCall(expr, paramsObject, dname);
             if (info.isBC) { //检测是否包含bag.get
                 varTracker[vname] = {
                     type: 'bc',
@@ -523,12 +523,23 @@ module.exports = (node, comments, tmpl, e, sourcemap) => {
                 }
             } else if (expr.type == 'VariableDeclarator' ||
                 expr.type == 'AssignmentExpression') {
-                let init, vname;
                 if (expr.type == 'VariableDeclarator') {
-                    init = expr.init;
-                    vname = expr.id.name;
+                    let init = expr.init;
                     if (init) {
-                        assign(init, expr, vname, safeguardExpression);
+                        let vname = expr.id.name;
+                        if (expr.id.type == 'ObjectPattern') {
+                            for (let dp of expr.id.properties) {
+                                let dname = dp.value.name;
+                                assign(init, expr, dname, safeguardExpression, dname);
+                            }
+                        } else if (expr.id.type == 'ArrayPattern') {
+                            for (let em of expr.id.elements) {
+                                let dname = em.name;
+                                assign(init, expr, dname, safeguardExpression, dname);
+                            }
+                        } else if (vname) {
+                            assign(init, expr, vname, safeguardExpression);
+                        }
                     }
                 } else if (expr.left.type == 'MemberExpression') {
                     let start = expr.left;
@@ -547,10 +558,22 @@ module.exports = (node, comments, tmpl, e, sourcemap) => {
                         });
                     }
                 } else if (expr.left.type == 'Identifier') {
-                    init = expr.right;
-                    vname = expr.left.name;
+                    let init = expr.right;
+                    let vname = expr.left.name;
                     if (init) {
                         assign(init, expr, vname, safeguardExpression);
+                    }
+                } else if (expr.left.type == 'ObjectPattern') {
+                    let init = expr.right;
+                    for (let dp of expr.left.properties) {
+                        let dname = dp.value.name;
+                        assign(init, expr, dname, safeguardExpression, dname);
+                    }
+                } else if (expr.left.type == 'ArrayPattern') {
+                    let init = expr.right;
+                    for (let em of expr.left.elements) {
+                        let dname = em.name;
+                        assign(init, expr, dname, safeguardExpression, dname);
                     }
                 }
             } else if (expr.type == 'IfStatement') {
@@ -603,7 +626,7 @@ module.exports = (node, comments, tmpl, e, sourcemap) => {
                 } else { //找不到，提示
                     maybeError.push({
                         pos: it.start,
-                        near: sourcemap[it.start] || it.near,
+                        near: it.near,
                         part: it.part
                     });
                 }

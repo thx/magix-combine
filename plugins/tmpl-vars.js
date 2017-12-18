@@ -58,7 +58,7 @@ let genEventReg = type => { //获取事件正则，做绑定时，当原来已�
 };
 let leftOuputReg = /\u0018",/g;
 let rightOutputReg = /,"/g;
-let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[change,input] user.name {refresh}%>  =>  evts:change,input  expr user.name  fns  refresh
+let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:user.name<change,input>({refresh:true,required:true})%>  =>  evts:change,input  expr user.name  fns  {refresh:true,required:true}
     let fns = '';
     let evts = '';
 
@@ -71,9 +71,7 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:[c
     if (firstComma > -1) {
         fns = expr.slice(firstComma + 2, -1);
         expr = expr.slice(0, firstComma);
-        //console.log(fns);
         fns = fns.replace(leftOuputReg, '\'<%=').replace(rightOutputReg, '%>\'');
-        //console.log(fns);
     }
     if (!evts) {
         evts = configs.tmplBindEvents.slice();
@@ -225,12 +223,15 @@ module.exports = {
         if (extInfo.tmplScopedConstVars) {
             constVars = Object.assign(constVars, extInfo.tmplScopedConstVars);
         }
-        let trans = jsGeneric.pattern(fn, ast);
-        if (trans.update) {
-            fn = trans.fn;
-            ast = acorn.parse(fn);
-        }
+        let patternChecker = node => {
+            let msg = 'unpupport ' + fn.slice(node.start, node.end);
+            let near = fn.slice(node.start - 10, node.end + 10);
+            slog.ever(chalk.red(msg), 'near', chalk.magenta(near), 'at', chalk.grey(sourceFile));
+            throw new Error(msg + ' near ' + near);
+        };
         walker.simple(ast, {
+            ArrayPattern: patternChecker,
+            ObjectPattern: patternChecker,
             CallExpression(node) { //方法调用
                 let vname = '';
                 let callee = node.callee;
@@ -961,9 +962,10 @@ module.exports = {
             if (bindReg2.test(content)) {
                 bindReg2.lastIndex = 0;
                 let bind = '';
-                content = content.replace(bindReg2, m => {
+                content = content.replace(bindReg2, (m, expr) => {
                     bind = m;
-                    return m.replace('<%:', '<%=');
+                    let i = extractFunctions(expr.trim());
+                    return `<%=${i.expr}%>`;
                 });
                 attr = attr + ' ' + bind;
             }
@@ -1020,11 +1022,11 @@ module.exports = {
                                 old: info ? info.now : ''
                             };
                         }
-                        let viewParams = attrName && attrName.indexOf('view-') === 0;
+                        //let viewParams = attrName && attrName.indexOf('view-') === 0;
                         let c = {
-                            p: expr.result,
-                            f: exprInfo.fns,
-                            n: viewParams ? attrName.slice(5) : ''
+                            p: expr.result,//sync path
+                            f: exprInfo.fns//,//flags
+                            //n: viewParams ? attrName.slice(5) : ''//view name
                         };
                         if (!bindStructs[be].c) {
                             bindStructs[be].c = [];
@@ -1107,7 +1109,7 @@ module.exports = {
                     let ssKey = '';
                     let rexpr = analyseExpr(expr, source); //分析表达式
                     if (fns.length) { //传递的参数
-                        f = ',f:' + fns;
+                        f = ',f:' + fns;//flags
                         ssKey = '<%#[' + rexpr.host.join(',') + ']%>';
                     }
 
@@ -1121,7 +1123,7 @@ module.exports = {
                         if (e == 'focusin' || e == 'focusout') {
                             old = old.slice(1);
                         } else {
-                            c = 'p:\'' + rexpr.result + '\'';
+                            c = 'p:\'' + rexpr.result + '\'';//sync path
                         }
                         if (old) {
                             c += old;

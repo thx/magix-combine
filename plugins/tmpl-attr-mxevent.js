@@ -21,7 +21,7 @@ let onlyCmdReg = /^\u0007\d+\u0007$/;
 let dOutCmdReg = /<%([=!@])([\s\S]+?)%>/g;
 let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 let stringReg = /^['"]/;
-let mxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+let mxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
 //let revisableReg = /@\{[^\{\}]+\}/g;

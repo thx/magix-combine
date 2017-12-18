@@ -11,7 +11,8 @@ let atpath = require('./util-atpath');
 let configs = require('./util-config');
 let tmplEvent = require('./tmpl-event');
 let tmplCmd = require('./tmpl-cmd');
-let tmplMxTag = require('./tmpl-mxtag');
+let tmplArt = require('./tmpl-art');
+let tmplCutsomTag = require('./tmpl-customtag');
 let tmplGuid = require('./tmpl-guid');
 let tmplAttr = require('./tmpl-attr');
 let tmplClass = require('./tmpl-attr-class');
@@ -26,6 +27,7 @@ let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/g;
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]*)\]/g;
+let artEngineReg = /:art(?:\s*=\s*(true|false))?(?:$|:)/;
 let sep = path.sep;
 let holder = '\u001f';
 let removeVdReg = /\u0002/g;
@@ -42,14 +44,17 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reject(new Error('unsupport character'));
             return;
         }
+        e.templateLang = lang;
         try {
-            e.templateLang = lang;
             fileContent = configs.compileTmplStart(fileContent, e);
         } catch (ex) {
             slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
             return;
+        }
+        if (flagsInfo.artEngine) {
+            fileContent = tmplArt(fileContent);
         }
 
         //convert tmpl syntax
@@ -64,9 +69,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
                 return;
             }
         }
-
         try {
-            fileContent = tmplMxTag.process(fileContent, {
+            fileContent = tmplCutsomTag.process(fileContent, {
                 moduleId: e.moduleId,
                 pkgName: e.pkgName,
                 checkTmplDuplicateAttr: e.checker.tmplDuplicateAttr,
@@ -74,7 +78,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
                 shortHTMLFile: e.shortHTMLFile
             });
         } catch (ex) {
-            slog.ever(chalk.red('parser tmpl-mxtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever(chalk.red('parser tmpl-customtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
             return;
@@ -101,6 +105,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
 
+        //console.log(fileContent);
         //非禁用updater的情况下才进行语法检测
         if (e.checker.tmplCmdSyntax && (!configs.disableMagixUpdater || magixTmpl)) {
             try {
@@ -147,7 +152,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             temp.events = tmplEvents;
         }
         fileContent = tmplAttr.process(fileContent, e, refTmplCommands);
-        
+
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
@@ -211,7 +216,7 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
-                let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'magix' || ctrl == 'updater' || flags;
+                let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'updater' || flags;
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 let lang = singleFile ? e.contentInfo.templateLang : ext;
 
@@ -220,7 +225,9 @@ module.exports = e => {
                 if (ext != lang) {
                     slog.ever(chalk.red('conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
                 }
-                let flagsInfo = {};
+                let flagsInfo = {
+                    artEngine: configs.artEngine
+                };
                 if (flags) {
                     flags.replace(tmplVarsReg, (m, key, vars) => {
                         vars = vars.trim();
@@ -239,6 +246,13 @@ module.exports = e => {
                             flagsInfo[setKey][v] = 1;
                         }
                     });
+                    let m = flags.match(artEngineReg);
+                    if (m) {
+                        flagsInfo.artEngine = true;
+                        if (m[1]) {
+                            flagsInfo.artEngine = m[1] === 'true';
+                        }
+                    }
                 }
                 let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo, lang);
                 if (magixTmpl) {
