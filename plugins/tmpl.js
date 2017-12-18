@@ -18,7 +18,6 @@ let tmplAttr = require('./tmpl-attr');
 let tmplClass = require('./tmpl-attr-class');
 let tmplPartial = require('./tmpl-partial');
 let unmatchChecker = require('./checker-tmpl-unmatch');
-let tmplSyntaxChecker = require('./checker-js-tmplsyntax');
 let checker = require('./checker');
 let tmplVars = require('./tmpl-vars');
 let md5 = require('./util-md5');
@@ -53,11 +52,10 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reject(ex);
             return;
         }
-        if (flagsInfo.artEngine) {
-            fileContent = tmplArt(fileContent);
-        }
 
-        //convert tmpl syntax
+        if (flagsInfo.artEngine) {
+            fileContent = tmplArt(fileContent, e);
+        }
 
         if (e.checker.tmplTagsMatch) {
             try {
@@ -84,6 +82,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             return;
         }
 
+        if (flagsInfo.artEngine) {
+            fileContent = tmplArt(fileContent, e);
+        }
 
 
         if (e.checker.tmplTagsMatch) {
@@ -104,32 +105,6 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
 
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
-
-        //console.log(fileContent);
-        //非禁用updater的情况下才进行语法检测
-        if (e.checker.tmplCmdSyntax && (!configs.disableMagixUpdater || magixTmpl)) {
-            try {
-                tmplSyntaxChecker(fileContent);
-            } catch (ex) {
-                slog.ever(chalk.red('tmpl js syntax error: ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile), 'near');
-                for (let i = 0; i < ex.lines.length; i++) {
-                    let c = ex.lines[i];
-                    if (i == ex.index) {
-                        let left = c.slice(0, ex.column);
-                        let right = c.slice(ex.column);
-                        slog.ever(chalk.red(left) + chalk.bold.red(right));
-                    } else {
-                        slog.ever(chalk.magenta(c));
-                    }
-                }
-                for (let cause of ex.reasons) {
-                    slog.ever(chalk.red('check ' + cause.value + ' of line: ' + cause.line));
-                }
-                reject(ex);
-                return;
-            }
-        }
-        //console.log(fileContent);
 
         let refTmplCommands = Object.create(null);
         e.refLeakGlobal = {
@@ -226,7 +201,7 @@ module.exports = e => {
                     slog.ever(chalk.red('conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
                 }
                 let flagsInfo = {
-                    artEngine: configs.artEngine
+                    artEngine: configs.tmplArtEngine
                 };
                 if (flags) {
                     flags.replace(tmplVarsReg, (m, key, vars) => {

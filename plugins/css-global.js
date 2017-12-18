@@ -230,7 +230,9 @@ module.exports = {
         Object.assign(globalCssNamesInFiles, cssNamesInFiles);
     },
     reset(file) {
-        if (file && (configs.globalCssMap[file] || configs.scopedCssMap[file])) {
+        let { globalCssMap, scopedCssMap } = configs;
+        if (file && (globalCssMap && globalCssMap[file] ||
+            scopedCssMap && scopedCssMap[file])) {
             globalPromise = null;
             cssAtRule.reset();
         }

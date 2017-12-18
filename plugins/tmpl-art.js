@@ -51,12 +51,73 @@ https://thx.github.io/crox/
 */
 let utils = require('./util');
 let configs = require('./util-config');
+let slog = require('./util-log');
+let chalk = require('chalk');
 let openTag = '{{';
 let closeTag = /\}{2}(?!\})/;
 let asReg = /([\{\[]?[^\{\[]+?[\}\]]?)(\s+[\w_$]+)?$/;
 let loopReg = /([^=]+?)=([^=]+?)\s+to\s+([\s\S]*?)(?:\s+step\s+([\w_$\.]*))?$/;
 let numberReg = /^[+-]?(?:0x[\da-f]|\d+\.?\d*(?:E[+-]?\d*)?)$/i;
 let stringKeyReg = /^['"][\s\S]+?['"]$/;
+let ctrls = {
+    'if'(stack) {
+        stack.push('if');
+    },
+    'else'(stack) {
+        let last = stack[stack.length - 1];
+        if (last !== 'if') {
+            return last;
+        }
+    },
+    '/if'(stack) {
+        let last = stack.pop();
+        if (last != 'if') {
+            return last;
+        }
+    },
+    'each'(stack) {
+        stack.push('each');
+    },
+    '/each'(stack) {
+        let last = stack.pop();
+        if (last != 'each') {
+            return last;
+        }
+    },
+    'forin'(stack) {
+        stack.push('forin');
+    },
+    '/forin'(stack) {
+        let last = stack.pop();
+        if (last != 'forin') {
+            return last;
+        }
+    },
+    'loop'(stack) {
+        stack.push('loop');
+    },
+    '/loop'(stack) {
+        let last = stack.pop();
+        if (last != 'loop') {
+            return last;
+        }
+    }
+};
+let checkStack = (stack, key, code, e) => {
+    let ctrl = ctrls[key];
+    if (ctrl) {
+        let l = ctrl(stack);
+        if (l) {
+            slog.ever(chalk.red(`unexpected {{${code}}}`), 'close', chalk.magenta(l), 'before it,at', chalk.grey(e.shortHTMLFile));
+            throw new Error(`unexpected ${code} close ${l} before it`);
+        }
+    } else {
+        for (let s of stack) {
+            slog.ever(chalk.red(`unclosed ${s}`), 'at', chalk.grey(e.shortHTMLFile));
+            throw new Error(`unclosed ${s} at ${e.shortHTMLFile}`);
+        }
+    }
+};
 let getAssignment = (code, object, key, value) => {
     let assignment = '';
     let declares = '';
@@ -103,24 +164,28 @@ let getAssignment = (code, object, key, value) => {
     }
     return { declares, assignment };
 };
-let syntax = code => {
+let syntax = (code, stack, e) => {
     code = code.trim();
     let ctrls = code.split(/\s+/);
     let key = ctrls.shift();
     if (key == 'if') {
+        checkStack(stack, key, code, e);
         return `<%if(${ctrls.join(' ')}){%>`;
     } else if (key == 'else') {
+        checkStack(stack, key, code, e);
         let iv = '';
         if (ctrls.shift() == 'if') {
             iv = ` if(${ctrls.join(' ')})`;
         }
         return `<%}else${iv}{%>`;
     } else if (key == 'each') {
+        checkStack(stack, key, code, e);
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
         let m = asValue.match(asReg);
         //console.log(m);
         if (!m) {
+            slog.ever(chalk.red(`unsupport each ${asValue}`), 'at', chalk.grey(e.shortHTMLFile));
             throw new Error('unsupport each ' + asValue);
         }
         let value = m[1];
@@ -128,20 +193,24 @@ let syntax = code => {
         let ai = getAssignment(code, object, index, value);
         return `<%for(let ${ai.declares},${index}=0;${index}<${object}.length;${index}++){${ai.assignment}%>`;
     } else if (key == 'forin') {
+        checkStack(stack, key, code, e);
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
         let m = asValue.match(asReg);
         if (!m) {
+            slog.ever(chalk.red(`unsupport forin ${asValue}`), 'at', chalk.grey(e.shortHTMLFile));
             throw new Error('unsupport forin ' + asValue);
         }
         let value = m[1];
-        let key = m[2] || utils.uId('$k', code);
-        let ai = getAssignment(code, object, key, value);
-        return `<%for(let ${key} in ${object}){let ${ai.declares};${ai.assignment}%>`;
+        let key1 = m[2] || utils.uId('$k', code);
+        let ai = getAssignment(code, object, key1, value);
+        return `<%for(let ${key1} in ${object}){let ${ai.declares};${ai.assignment}%>`;
     } else if (key == 'loop') {
+        checkStack(stack, key, code, e);
         let loopValue = ctrls.join(' ');
         let m = loopValue.match(loopReg);
         if (!m) {
+            slog.ever(chalk.red(`unsupport loop ${loopValue}`), 'at', chalk.grey(e.shortHTMLFile));
             throw new Error('unsupport loop ' + loopValue);
         }
         let variable = m[1];
@@ -168,22 +237,25 @@ let syntax = code => {
         let step = `let ${vStep}=${start}>${end}?-${stepBase}:${stepBase};`;
         return `<%${check}${step}for(let ${variable}=${start};${vStep}>0?${variable}<=${end}:${variable}>=${end};${variable}+=${vStep}){%>`;
     } else if (key == '/if' || key == '/each' || key == '/forin' || key == '/loop') {
+        checkStack(stack, key, code, e);
         return '<%}%>';
     } else {
         return `<%${code}%>`;
     }
 };
-module.exports = tmpl => {
+module.exports = (tmpl, e) => {
     let result = [];
     let parts = tmpl.split(openTag);
+    let stack = [];
     for (let part of parts) {
         let codes = part.split(closeTag);
         if (codes.length === 1) {//html
             result.push(codes[0]);
         } else {
-            result.push(syntax(codes[0]), codes[1]);
+            result.push(syntax(codes[0], stack, e), codes[1]);
         }
     }
+    checkStack(stack, 'unclosed', '', e);
     //console.log(result.join(''));
     return result.join('');
 };
