@@ -244,7 +244,7 @@ module.exports = {
                 open = '<%';
                 close = '%>';
                 m = cmd.match(extractReg);
-                cmd = cmd.replace(extractArtReg, '');
+                cmd = cmd.replace(extractReg, '');
             } else {
                 cmd = cmd.replace(extractArtReg, '');
             }
