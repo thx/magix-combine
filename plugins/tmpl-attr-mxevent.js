@@ -10,6 +10,7 @@ let checker = require('./checker');
 let slog = require('./util-log');
 let utils = require('./util');
 let jsGeneric = require('./js-generic');
+let tmplCmd = require('./tmpl-cmd');
 //let md5 = require('./util-md5');
 //let regexp = require('./util-rcache');
 let acorn = require('acorn');
@@ -17,11 +18,10 @@ let walker = require('acorn/dist/walk');
 let tmplChecker = checker.Tmpl;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let cmdReg = /\u0007\d+\u0007/g;
-let onlyCmdReg = /^\u0007\d+\u0007$/;
+let onlyCmdReg = /^(?:\u0007\d+\u0007)+$/;
 let dOutCmdReg = /<%([=!@])([\s\S]+?)%>/g;
 let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 let stringReg = /^['"]/;
-let mxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 let magixHolder = '\u001e';
 let holder = '\u001f';
 //let revisableReg = /@\{[^\{\}]+\}/g;
@@ -32,7 +32,7 @@ let processQuot = (str, refTmplCommands, mxEvent, e, toSrc) => {
         if (cmd) {
             cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
                 if (!onlyCmdReg.test(str)) {
-                    tmplChecker.checkMxEventParamsCMD(o, toSrc(m), toSrc(c), mxEvent, e, toSrc(str));
+                    tmplChecker.checkMxEventParamsCMD(o, mxEvent, e, toSrc(str));
                 }
                 if (o == '=') {
                     return '<%=$eq(' + c + ')%>';
@@ -49,11 +49,13 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     let store = Object.create(null);
     let cmdKey = utils.uId('\u00aa', params);
     let cmdPHReg = new RegExp(cmdKey + '\\d+' + cmdKey, 'g');
+    //console.log(JSON.stringify(params));
     params = '(' + params.replace(cmdReg, m => {
         let k = cmdKey + index++ + cmdKey;
         store[k] = m;
         return k;
     }) + ')';
+    //console.log(JSON.stringify(params));
     let ast = acorn.parse(params);
     let modifiers = [];
     let processString = node => { //存储字符串，减少分析干扰
@@ -96,7 +98,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
             if (value.type == 'Identifier') {
                 let cmd = value.name.replace(cmdPHReg, m => store[m]);
                 if (onlyCmdReg.test(cmd)) {
-                    cmd = refTmplCommands[cmd];
+                    cmd = tmplCmd.recover(cmd, refTmplCommands);
                     let modify = false;
                     cmd.replace(dOutCmdReg, (m, o) => {
                         modify = o == '@';
@@ -135,7 +137,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
 };
 module.exports = (e, match, refTmplCommands, toSrc) => {
     if (!configs.disableMagixUpdater) { //增加事件前缀
-        match = match.replace(mxEventReg, (m, name, double, single) => { //查找事件
+        match = match.replace(configs.tmplMxEventReg, (m, name, double, single) => { //查找事件
             tmplChecker.checkMxEventName(name, e);
             if (double || single) {
                 let originalMatch = toSrc(m);

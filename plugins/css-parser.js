@@ -180,7 +180,7 @@ let parse = (css, file) => {
                 break;
             } else if (tc == '@') {
                 break;
-            } else if (tc == ',') {
+            } else if (tc == ',') {//.title,.name {} #app{}
                 prev = '';
                 takeSelector();
                 overSelectors = 0;

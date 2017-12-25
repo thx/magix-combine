@@ -31,7 +31,7 @@ let {
 //[ref="@../default.css:inmain"] .open{
 //    color:red
 //}
-let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.sass|\.mx|\.style)(?:\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
+let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.sass|\.mx|\.style)(?::?\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
 let sep = path.sep;
 
 
@@ -187,7 +187,7 @@ module.exports = (e, inwatch) => {
                             }
                         }
                         let replacement;
-                        if (prefix == 'names') { //如果是读取css选择器名称对象
+                        if (prefix == 'names' || keys) { //如果是读取css选择器名称对象
                             if (keys) { //从对象中只挑取某几个key
                                 checker.CSS.markUsed(markUsedFiles, keys.split(','), e.from);
                                 replacement = JSON.stringify(cssNamesMap, keys.split(','));

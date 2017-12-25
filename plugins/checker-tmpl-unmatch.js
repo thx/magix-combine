@@ -48,9 +48,24 @@ module.exports = tmpl => {
             if (selfCloseTags.hasOwnProperty(name)) return;
             //自定义的mx-tag检测
             let checkTag = true;
-            if ((name.indexOf('mx-') === 0 ||
-                name.indexOf('.') >= 0) &&
-                !close) {//非闭合mx标签
+            let prefixes = configs.galleryPrefixes;
+            let pfx = '';
+            let ic = name.indexOf('-');
+            let ip = name.indexOf('.');
+            let i = -1;
+            if (ic != -1 || ip != -1) {
+                if (ic != -1 && ip != -1) {
+                    i = Math.min(ic, ip);
+                } else if (ic != -1) {
+                    i = ic;
+                } else {
+                    i = ip;
+                }
+            }
+            if (i != -1) {
+                pfx = name.slice(0, i);
+            }
+            if (prefixes[pfx] === 1 && !close) {//非闭合mx标签
                 let start = lineCount - 1;
                 let results = [];
                 let i = line.indexOf('>', offset);//当前行有没有'>'结束

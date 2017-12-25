@@ -5,6 +5,8 @@ https://thx.github.io/crox/
 */
 
 /*
+详细文档及讨论地址：https://github.com/thx/magix-combine/issues/27
+
 输出语句
     {{=variable}} //转义输出
     {{!variable}} //直接输出
@@ -55,12 +57,14 @@ let slog = require('./util-log');
 let chalk = require('chalk');
 let brReg = /(?:\r\n|\r|\n)/;
 let lineNoReg = /^(\d+)([\s\S]+)/;
-let openTag = '{{';
-let closeTag = /\}{2}(?!\})/;
+let slashReg = /\\|'/g;
 let asReg = /([\{\[]?[^\{\[]+?[\}\]]?)(\s+[\w_$]+)?$/;
 let loopReg = /([^=]+?)=([^=]+?)\s+to\s+([\s\S]*?)(?:\s+step\s+([\w_$\.]*))?$/;
-let numberReg = /^[+-]?(?:0x[\da-f]|\d+\.?\d*(?:E[+-]?\d*)?)$/i;
 let stringKeyReg = /^['"][\s\S]+?['"]$/;
+let extractMxEventContentReg = /^([^({]+)\(\{([\s\S]+)\}\)(['"])$/;
+let mxEventHolderReg = /\x12([^\x12]+?)\x12/g;
+let openTag = '{{';
+let closeTag = /\}{2}(?!\})/;
 let ctrls = {
     'if'(stack, ln) {
         stack.push({
@@ -144,19 +148,20 @@ let checkStack = (stack, key, code, e, lineNo) => {
         if (l) {
             let args = [chalk.red(`unexpected {{${code}}} at line:${lineNo}`)];
             if (l.ctrl) {
-                args.push('close', chalk.magenta(l.ctrl), `at line:${l.ln}, at file`);
+                args.push('unclosed', chalk.magenta(l.ctrl), `at line:${l.ln} , at file`);
             } else {
                 args.push('at file');
             }
             args.push(chalk.grey(e.shortHTMLFile));
             slog.ever.apply(slog, args);
-            throw new Error(`unexpected ${code} close ${l.ctrl} before it`);
+            throw new Error(`unexpected ${code} , close ${l.ctrl} before it`);
         }
-    } else {
-        for (let s of stack) {
-            slog.ever(chalk.red(`unclosed ${s.ctrl} at line:${s.ln}`), 'at file', chalk.grey(e.shortHTMLFile));
-            throw new Error(`unclosed ${s.ctrl} at ${e.shortHTMLFile}`);
+    } else if (stack.length) {
+        for (let s, i = stack.length; i--;) {
+            s = stack[i];
+            slog.ever(chalk.red(`unclosed ${s.ctrl} at line:${s.ln}`), ', at file', chalk.grey(e.shortHTMLFile));
         }
+        throw new Error(`unclosed art ctrls at ${e.shortHTMLFile}`);
     }
 };
 let getAssignment = (code, object, key, value) => {
@@ -205,20 +210,34 @@ let getAssignment = (code, object, key, value) => {
     }
     return { declares, assignment };
 };
-let syntax = (code, stack, e, lineNo) => {
+let syntax = (code, stack, e, lineNo, refMap) => {
     code = code.trim();
     let ctrls = code.split(/\s+/);
     let key = ctrls.shift();
+    let src = '';
+    if (configs.debug) {
+        src = `<%'${lineNo}\x11${code.replace(slashReg, '\\$&')}\x11'%>`;
+        if (code[0] === ':') {//绑定的不处理
+            let key = code.slice(1).match(/^[^<({]+/)[0].trim();
+            let old = refMap[key];
+            if (old) {
+                old.push(src);
+            } else {
+                refMap[key] = [src];
+            }
+            src = '';
+        }
+    }
     if (key == 'if') {
         checkStack(stack, key, code, e, lineNo);
-        return `<%if(${ctrls.join(' ')}){%>`;
+        return `${src}<%if(${ctrls.join(' ')}){%>`;
     } else if (key == 'else') {
         checkStack(stack, key, code, e, lineNo);
         let iv = '';
         if (ctrls.shift() == 'if') {
             iv = ` if(${ctrls.join(' ')})`;
         }
-        return `<%}else${iv}{%>`;
+        return `${src}<%}else${iv}{%>`;
     } else if (key == 'each') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
@@ -232,7 +251,7 @@ let syntax = (code, stack, e, lineNo) => {
         let value = m[1];
         let index = m[2] || utils.uId('$i', code);
         let ai = getAssignment(code, object, index, value);
-        return `<%for(let ${ai.declares},${index}=0;${index}<${object}.length;${index}++){${ai.assignment}%>`;
+        return `${src}<%for(let ${ai.declares},${index}=0;${index}<${object}.length;${index}++){${ai.assignment}%>`;
     } else if (key == 'forin') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
@@ -245,7 +264,7 @@ let syntax = (code, stack, e, lineNo) => {
         let value = m[1];
         let key1 = m[2] || utils.uId('$k', code);
         let ai = getAssignment(code, object, key1, value);
-        return `<%for(let ${key1} in ${object}){let ${ai.declares};${ai.assignment}%>`;
+        return `${src}<%for(let ${key1} in ${object}){let ${ai.declares};${ai.assignment}%>`;
     } else if (key == 'loop') {
         checkStack(stack, key, code, e, lineNo);
         let loopValue = ctrls.join(' ');
@@ -257,54 +276,51 @@ let syntax = (code, stack, e, lineNo) => {
         let variable = m[1];
         let start = m[2];
         let end = m[3];
-        if (numberReg.test(start) && numberReg.test(end)) {
-            let sn = Number(start);
-            let en = Number(end);
-            let stepBase = m[4] || 1;
+
+        let sn = Number(start);
+        let en = Number(end);
+
+        let stepBase = m[4] || 1;
+        let check = '';
+        if (configs.debug) {
+            check = `if(${stepBase}<=0){throw 'endless loop: {\u2060{${code}}\u2060} at line: ${lineNo}'}`;
+        }
+        if (!isNaN(sn) && !isNaN(en)) {
             let step = (sn > en ? '-' : '') + stepBase;
-            let check = `if(${stepBase}<=0){throw 'endless loop: {{${code}}}'}`;
-            if (!configs.debug) {
-                check = '';
-            }
             let test = sn > en ? `${variable}>=${end}` : `${variable}<=${end}`;
             return `<%${check}for(let ${variable}=${start};${test};${variable}+=${step}){%>`;
         }
         let vStep = utils.uId('$s', code);
-        let stepBase = m[4] || 1;
-        let check = `if(${stepBase}<=0){throw 'endless loop: {{${code}}}'}`;
-        if (!configs.debug) {
-            check = '';
-        }
         let step = `let ${vStep}=${start}>${end}?-${stepBase}:${stepBase};`;
-        return `<%${check}${step}for(let ${variable}=${start};${vStep}>0?${variable}<=${end}:${variable}>=${end};${variable}+=${vStep}){%>`;
+        return `${src}<%${check}${step}for(let ${variable}=${start};${vStep}>0?${variable}<=${end}:${variable}>=${end};${variable}+=${vStep}){%>`;
     } else if (key == '/if' || key == '/each' || key == '/forin' || key == '/loop') {
         checkStack(stack, key, code, e, lineNo);
-        return '<%}%>';
+        return `${src}<%}%>`;
     } else {
-        return `<%${code}%>`;
+        return `${src}<%${code}%>`;
     }
 };
-module.exports = (tmpl, e) => {
+module.exports = (tmpl, e, refMap) => {
     let result = [];
+    tmpl = tmpl.replace(configs.tmplMxEventReg, m => m.replace(extractMxEventContentReg, '$1\x12$2\x12$3'));
     let lines = tmpl.split(brReg);
     let ls = [], lc = 0;
     for (let line of lines) {
         ls.push(line.split(openTag).join(openTag + (++lc)));
     }
-    tmpl = ls.join('\r\n');
+    tmpl = ls.join('\n');
     let parts = tmpl.split(openTag);
     let stack = [];
     for (let part of parts) {
         let lni = part.match(lineNoReg);
         if (lni) {
-            part = lni[2];
-
-            let codes = part.split(closeTag); result.push(syntax(codes[0], stack, e, lni[1]), codes[1]);
+            let codes = lni[2].split(closeTag);
+            result.push(syntax(codes[0], stack, e, lni[1], refMap), codes[1]);
         } else {
             result.push(part);
         }
     }
     checkStack(stack, 'unclosed', '', e);
     //console.log(result.join(''));
-    return result.join('');
+    return result.join('').replace(mxEventHolderReg, '({$1})');
 };

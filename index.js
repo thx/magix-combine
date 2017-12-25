@@ -78,7 +78,7 @@ module.exports = {
                 p != 'tmplConstVars' &&
                 p != 'tmplUnchangableVars' &&
                 p != 'tmplGlobalVars' &&
-                p != 'mxGalleriesMap') {
+                p != 'galleries') {
                 configs[p] = cfg[p];
             }
         }
@@ -117,8 +117,19 @@ module.exports = {
         }, {
             src: 'tmplGlobalVars'
         }, {
-            src: 'mxGalleriesMap'
+            src: 'galleries'
         }];
+        let merge = (aim, src) => {
+            if (util.isObject(src)) {
+                if (!aim) aim = {};
+                for (let p in src) {
+                    aim[p] = merge(aim[p], src[p]);
+                }
+                return aim;
+            } else {
+                return src;
+            }
+        };
         if (cfg) {
             for (let s of specials) {
                 if (cfg[s.src]) {
@@ -127,7 +138,7 @@ module.exports = {
                             configs[s.to || s.src][v] = 1;
                         }
                     } else {
-                        Object.assign(configs[s.to || s.src], cfg[s.src]);
+                        configs[s.to || s.src] = merge(configs[s.to || s.src], cfg[s.src]);
                     }
                 }
             }

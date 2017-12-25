@@ -34,7 +34,11 @@ let bindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
 //support {{:lang<change,input>{refresh:true}}}
 let bindEventsReg2 = /^([^<>]+)<([^>]+)>/;
 
-let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
+
+let extractReg = /<%([@!~=:])?([\s\S]+?)%>/;
+let extractArtReg = /\{\{([@!~=:])?([\s\S]+?)\}\}(?!\})/;
+
+//let lineBreakReg = /\r\n?|\n|\u2028|\u2029/g;
 
 
 module.exports = {
@@ -91,7 +95,7 @@ module.exports = {
                 if (o) {
                     c = c.slice(1, -1);
                 }
-                c = jm.min(c).replace(lineBreakReg, '');
+                c = jm.min(c);//.replace(lineBreakReg, ';');
                 return '<%' + (o || '') + c + '%>';
             });
             tmpl = tmpl.replace(emptyCmdReg, '');
@@ -228,5 +232,40 @@ module.exports = {
             }
             return value;
         });
+    },
+    extactCmd(cmd, operates) {
+        let getGroup = () => {
+            let open = '{{';
+            let close = '}}';
+            let m = cmd.match(extractArtReg);
+            let art = true;
+            if (!m) {
+                art = false;
+                open = '<%';
+                close = '%>';
+                m = cmd.match(extractReg);
+                cmd = cmd.replace(extractArtReg, '');
+            } else {
+                cmd = cmd.replace(extractArtReg, '');
+            }
+            if (m) {
+                return {
+                    open,
+                    close,
+                    art,
+                    match: m[0],
+                    operate: m[1] || '',
+                    content: m[2]
+                };
+            }
+            return null;
+        };
+        let i;
+        do {
+            i = getGroup();
+            if (i && operates.indexOf(i.operate) != -1) {
+                return i;
+            }
+        } while (i);
     }
 };

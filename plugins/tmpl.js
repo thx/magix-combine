@@ -52,11 +52,10 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reject(ex);
             return;
         }
-
+        let artCtrlsMap = Object.create(null);
         if (flagsInfo.artEngine) {
-            fileContent = tmplArt(fileContent, e);
+            fileContent = tmplArt(fileContent, e, artCtrlsMap);
         }
-
         if (e.checker.tmplTagsMatch) {
             try {
                 unmatchChecker(fileContent);
@@ -67,13 +66,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
                 return;
             }
         }
+        let srcContent = fileContent;
         try {
             fileContent = tmplCutsomTag.process(fileContent, {
                 moduleId: e.moduleId,
                 pkgName: e.pkgName,
                 checkTmplDuplicateAttr: e.checker.tmplDuplicateAttr,
                 file,
-                shortHTMLFile: e.shortHTMLFile
+                shortHTMLFile: e.shortHTMLFile,
+                artEngine: flagsInfo.artEngine
             });
         } catch (ex) {
             slog.ever(chalk.red('parser tmpl-customtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
@@ -82,12 +83,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             return;
         }
 
-        if (flagsInfo.artEngine) {
-            fileContent = tmplArt(fileContent, e);
+        //console.log(fileContent);
+        //如果经过自定义标签后内容不一致，则进行再次的处理
+        if (flagsInfo.artEngine && srcContent != fileContent) {
+            fileContent = tmplArt(fileContent, e, artCtrlsMap);
         }
 
+        //console.log(fileContent);
 
-        if (e.checker.tmplTagsMatch) {
+        if (e.checker.tmplTagsMatch && srcContent != fileContent) {
             try {
                 unmatchChecker(fileContent);
             } catch (ex) {
@@ -105,13 +109,12 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
 
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
         fileContent = tmplCmd.compile(fileContent);
-
         let refTmplCommands = Object.create(null);
         e.refLeakGlobal = {
             reassigns: []
         };
         if (magixTmpl) {
-            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo);
+            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析

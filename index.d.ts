@@ -278,6 +278,11 @@ declare module "magix-combine" {
          * 模板中不会变的变量，减少不必要的子模板的分析输出
          */
         tmplConstVars?: object
+
+        /**
+         * 是否使用类mustach模板，默认false
+         */
+        tmplArtEngine?: boolean
         /**
          * 模板中的全局变量，这些变量不会做scope处理
          */
@@ -313,11 +318,11 @@ declare module "magix-combine" {
         /**
          * 开始编译css前处理器
          */
-        compileCSSStart?: (css: string) => Promise
+        compileCSSStart?: (css: string) => Promise<string>
         /**
          * 结束编译css时的处理器
          */
-        compileCSSEnd?: (css: string) => Promise
+        compileCSSEnd?: (css: string) => Promise<string>
         /**
          * 对自定义标签做加工处理
          */
@@ -328,14 +333,9 @@ declare module "magix-combine" {
         jsLoopDepth?: number
 
         /**
-         * 组件标签如<mx-dropdown.index />读取mx-dropdown时的根目录，默认 app/gallery/
+         * 组件配置对象
          */
-        mxGalleriesRoot?: string
-
-        /**
-         * 组件映射map
-         */
-        mxGalleriesMap?: IGMap
+        galleries?:object
         /**
          * 对模板中的标签做处理
          */

@@ -11,13 +11,9 @@ module.exports = () => {
         configs.srcFolder = path.resolve(configs.srcFolder);
         configs.jsFileExtNamesReg = new RegExp('\\.(?:' + configs.jsFileExtNames.join('|') + ')$');
         configs.moduleIdRemovedPath = configs.tmplFolder; //把路径中开始到模板目录移除就基本上是模块路径了
-        if (!configs.disableMagixUpdater && !configs.tmplCommand) {
-            configs.tmplCommand = /<%[\s\S]*?%>/g;
-        }
         if (!configs.tmplCommand) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
-        configs.artTmplCommand = /\{\{[\s\S]*?\}\}/g;
         if (configs.cssSelectorPrefix === null) {
             let str = crypto.createHash('sha512')
                 .update(configs.tmplFolder, 'ascii')
@@ -38,11 +34,7 @@ module.exports = () => {
         //模板处理，即处理view.html文件
         configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\2', 'g');
 
-        /*if (configs.addEventPrefix) {
-            configs.tmplAddEventPrefix = true;
-        } else if (configs.addEventPrefix === false) {
-            configs.tmplAddEventPrefix = false;
-        }*/
+        configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
         if (configs.addTmplViewsToDependencies) {
             configs.tmplAddViewsToDependencies = true;
@@ -75,9 +67,7 @@ module.exports = () => {
         if (configs.htmlminifierOptions) {
             configs.htmlminifier = configs.htmlminifierOptions;
         }
-        if (configs.mxTagProcessor) {
-            configs.customTagProcessor = configs.mxTagProcessor;
-        }
+
         let rsPrefix = configs.revisableStringPrefix;
         if (!rsPrefix) {
             rsPrefix = '__';
@@ -85,5 +75,16 @@ module.exports = () => {
             rsPrefix = '_' + rsPrefix;
         }
         configs.revisableStringPrefix = rsPrefix;
+
+        let galleryPrefixes = Object.create(null);
+        galleryPrefixes.native = 1;
+        for (let p in configs.galleries) {
+            if (p.endsWith('Root')) {
+                galleryPrefixes[p.slice(0, -4)] = 1;
+            } else if (p.endsWith('Map')) {
+                galleryPrefixes[p.slice(0, -3)] = 1;
+            }
+        }
+        configs.galleryPrefixes = galleryPrefixes;
     }
 };

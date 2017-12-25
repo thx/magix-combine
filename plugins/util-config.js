@@ -53,8 +53,8 @@ module.exports = {
     tmplOutputWithEvents: false, //输出事件
     tmplCompressVariable: true, //是否压缩模板中的变量
     tmplMultiBindEvents: false, //是否支持多个绑定
-    tmplMESafeguard: false,//对象表达式保护
-    tmplArtEngine: false,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
+    //tmplMESafeguard: false,//对象表达式保护
+    tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
     disableMagixUpdater: false,
@@ -63,59 +63,37 @@ module.exports = {
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
     jsFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
-    mxGalleriesRoot: 'app/gallery/',//组件根目录
-    mxGalleriesMap: {
-        'calendar-datepicker': {
-            path: 'mx-calendar/datepicker',
-            tag: 'input'
-        },
-        'calendar-rangepicker': {
-            path: 'mx-calendar/rangepicker',
-            tag: 'input'
-        },
-        'color-picker': {
-            path: 'mx-color/picker',
-            tag: 'input'
-        },
-        'suggest-index': {
-            path: 'mx-suggest/index',
-            tag: 'input'
-        },
-        'suggest': {
-            path: 'mx-suggest/index',
-            tag: 'input'
-        },
-        'time-picker': {
-            path: 'mx-time/picker',
-            tag: 'input'
-        },
-        'calendar.datepicker': {
-            path: 'mx-calendar/datepicker',
-            tag: 'input'
-        },
-        'calendar.rangepicker': {
-            path: 'mx-calendar/rangepicker',
-            tag: 'input'
-        },
-        'color.picker': {
-            path: 'mx-color/picker',
-            tag: 'input'
-        },
-        'suggest.index': {
-            path: 'mx-suggest/index',
-            tag: 'input'
-        },
-        'time.picker': {
-            path: 'mx-time/picker',
-            tag: 'input'
-        },
-        'loading': {
-            processor() {
+    artTmplCommand: /\{\{[\s\S]*?\}\}(?!\})/g,//art模板
+    galleries: {
+        mxRoot: 'app/gallery/',
+        mxMap: {
+            'mx-suggest': {
+                tag: 'input'
+            },
+            'mx-calendar.datepicker': {
+                tag: 'input'
+            },
+            'mx-calendar.rangepicker': {
+                tag: 'input'
+            },
+            'mx-color.picker': {
+                tag: 'input'
+            },
+            'mx-suggest.index': {
+                tag: 'input'
+            },
+            'mx-time.picker': {
+                tag: 'input'
+            },
+            'mx-loading'() {
                 return `<div class="loading">
                             <span class="loading-anim"></span>
                         </div>`;
             }
         }
+    },
+    customTagProcessor() {
+        return '';
     },
     tmplPadCallArguments(name) { //模板中某些函数的调用，我们可以动态添加一些参数。
         return '';
@@ -134,9 +112,6 @@ module.exports = {
     },
     compileCSSEnd(css) {
         return css;
-    },
-    customTagProcessor(tmpl, e) { //mx-tag的处理器
-        return '';
     },
     tmplTagProcessor(tag) { //为了tmpl-naked准备的，遇到模板标签如何处理
         return tag;

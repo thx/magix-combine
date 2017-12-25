@@ -4,6 +4,7 @@
 let chalk = require('chalk');
 let slog = require('./util-log');
 let fcache = require('./util-fcache');
+let tmplCmd = require('./tmpl-cmd');
 /**
  * Camelize a hyphen-delimited string.
  */
@@ -111,12 +112,13 @@ module.exports = {
             }
         }
     },
-    checkMxEventParamsCMD(operate, match, content, mxEvent, e, srcStr) {
+    checkMxEventParamsCMD(operate, mxEvent, e, srcStr) {
         if (e.checker.tmplAttrMxEvent) {
+            let i = tmplCmd.extactCmd(srcStr, ['!', '@']);
             if (operate == '!') {
-                slog.ever(chalk.red('avoid use ' + match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'use', chalk.red('<%=' + content + '%>'), 'instead');
+                slog.ever(chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'use', chalk.red(i.match.replace(open + '!', open + '=')), 'instead');
             } else if (operate == '@') {
-                slog.ever(chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'near', chalk.magenta(srcStr));
+                slog.ever(chalk.red('unsupport ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'near', chalk.magenta(srcStr));
             }
         }
     },
@@ -132,9 +134,10 @@ module.exports = {
         paramName = camelize(paramName);
         return paramName;
     },
-    checkMxViewParamsEscape(operate, content, match, view, e) {
+    checkMxViewParamsEscape(operate, match, view, e) {
         if (e.checker.tmplAttrMxView && operate === '!') {
-            slog.ever(chalk.red('avoid use ' + match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red('<%=' + content + '%>'), 'or', chalk.red('<%@' + content + '%>'), 'instead');
+            let i = tmplCmd.extactCmd(match, ['!']);
+            slog.ever(chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red(`${i.open}=${i.content}${i.close}`), 'or', chalk.red(`${i.open}@${i.content}${i.close}`), 'instead');
         }
     },
     checkStringRevisable(content, match, e) {

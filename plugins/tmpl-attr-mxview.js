@@ -120,7 +120,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                     let cmd = refTmplCommands[cm];
                     if (cmd) {
                         cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
-                            tmplChecker.checkMxViewParamsEscape(o, toSrc(c), toSrc(m), content.slice(0, q), e);
+                            tmplChecker.checkMxViewParamsEscape(o, toSrc(m), content.slice(0, q), e);
                             return '<%!$eu(' + c + ')%>';
                         });
                         refTmplCommands[cm] = cmd;

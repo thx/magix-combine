@@ -1,5 +1,5 @@
 
-let utils = require('./util');
+//let utils = require('./util');
 let acorn = require('acorn');
 let walker = require('acorn/dist/walk');
 
@@ -53,7 +53,7 @@ module.exports = {
         }
         return stack;
     },
-    splitSafeguardExpr(expr) {
+    splitSafeguardExpr(expr) {//拆分  a[b&&b[c]] && a[b&&b[c]].d => [ a[b&&b[c]] ,a[b&&b[c]].d ]
         let stack = [];
         let temp = '';
         let max = expr.length;

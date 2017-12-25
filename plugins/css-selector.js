@@ -70,7 +70,7 @@ let refProcessor = (relateFile, file, ext, name, e) => {
         if (e && configs.scopedCssMap[file]) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
-                throw new Error('not found ' + name + ' at scoped.style');
+                throw new Error('not found ' + name + ' at ' + file);
             }
             let dFiles = e.globalCssNamesInFiles[name + '!r'];
             dFiles.forEach(f => {

@@ -6,11 +6,11 @@ let attrMxView = require('./tmpl-attr-mxview');
 let attrImg = require('./tmpl-attr-img');
 let checker = require('./checker');
 let tmplCmd = require('./tmpl-cmd');
+let regexp = require('./util-rcache');
 let chalk = require('chalk');
 let slog = require('./util-log');
-let tagReg = /<([\w-]+)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
+let tagReg = /<([\w-]+)((?:"[^"]*"|'[^']*'|[^'">\s=<])*)>/g;
 let attrReg = /([\w\-:]+)="[\s\S]*?"/g;
-let unsupportOutCmdReg = /<%@[\s\S]+?%>/g;
 module.exports = {
     process(fileContent, e, refTmplCommands) {
         let toSrc = expr => {
@@ -22,8 +22,14 @@ module.exports = {
                     key.indexOf('mx-') !== 0 &&
                     key != 'mx-view') {
                     m = toSrc(m);
-                    if (unsupportOutCmdReg.test(m)) {
-                        slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile));
+                    let i = tmplCmd.extactCmd(m, ['@', '!']);
+                    if (i) {
+                        if (i.operate === '@') {
+                            slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile));
+                        } else if (i.operate == '!') {
+                            let reg = regexp.get(i.open + '!', 'g');
+                            slog.ever(chalk.red('avoid use ' + m), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.magenta(m.replace(reg, i.open + '=')), 'instead');
+                        }
                     }
                 }
             });

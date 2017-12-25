@@ -2,10 +2,10 @@
     增加mx-tag自定义标签的处理，方便开发者提取公用的html片断
  */
 /*
-    <mx-view path="app/views/default" pa="<%@a%>" pb="<%@b%>" />
-    <mx-view path="app/views/default" pa="<%@a%>" pb="<%@b%>">
+    <mx-vframe src="app/views/default" pa="{{@a}}" pb="{{@b}}" />
+    <mx-vframe src="app/views/default" pa="{{@a}}" pb="{{@b}}">
         loading...
-    </mx-view>
+    </mx-vframe>
  */
 let fs = require('fs');
 let path = require('path');
@@ -17,9 +17,12 @@ let chalk = require('chalk');
 let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
-let tmplTags = require('./tmpl-tags');
 let sep = path.sep;
-let uncheckTags = { view: 1, include: 1, native: 1, vframe: 1 };
+let uncheckTags = {
+    'mx-view': 1,
+    'mx-include': 1,
+    'mx-vframe': 1
+};
 let cmdOutReg = /^<%([!=@])([\s\S]*)%>$/;
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
 let attrNameValueReg = /\s*([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2\s*/g;
@@ -40,7 +43,7 @@ let attachMap = result => {
 let toNative = (result, cmdStore, e) => {
     let attrs = result.attrs;
     let type = '';
-    let tag = result.subTag;
+    let tag = result.mainTag;
     if (tag == 'input') {
         let m = attrs.match(inputTypeReg);
         if (m) {
@@ -88,10 +91,13 @@ let toNative = (result, cmdStore, e) => {
     });
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
-let innerView = (result, info) => {
+let innerView = (result, info, gRoot) => {
     if (util.isObject(info) && util.isFunction(info.processor)) {
         attachMap(result);
         return info.processor(result);
+    } else if (util.isFunction(info)) {
+        attachMap(result);
+        return info(result);
     }
     let tag = 'div';
     let hasTag = false;
@@ -100,11 +106,10 @@ let innerView = (result, info) => {
         hasTag = true;
         return '';
     });
-    if (!hasTag && util.isObject(info)) {
+    if (!hasTag && info && info.tag) {
         tag = info.tag;
     }
     let type = '';
-    let mxTagRoot = configs.mxGalleriesRoot;
     if (tag == 'input') {
         let m = attrs.match(inputTypeReg);
         if (m) {
@@ -114,9 +119,11 @@ let innerView = (result, info) => {
     let allAttrs = attrMap.getAll(tag, type);
     let hasPath = false;
     attrs = attrs.replace(attrNameValueReg, (m, name, q, value) => {
-        if (name == 'path' || name == 'view' || name == 'src') {
-            hasPath = true;
-            return ' mx-view=' + q + value + q;
+        if (!info) {
+            if (name == 'path' || name == 'view' || name == 'src') {
+                hasPath = true;
+                return ' mx-view=' + q + value + q;
+            }
         }
         if (!allAttrs.hasOwnProperty(name) &&
             name.indexOf('view-') !== 0 &&
@@ -126,7 +133,7 @@ let innerView = (result, info) => {
         return ' ' + name + '=' + q + value + q;
     });
     if (!hasPath && info) {
-        attrs += ' mx-view="' + mxTagRoot + (util.isObject(info) ? info.path : info) + '"';
+        attrs += ' mx-view="' + gRoot + info.path + '"';
     }
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
@@ -135,7 +142,7 @@ let innerInclude = (result, info) => {
     let file = '';
     let attrs = {};
     result.attrs.replace(attrNameValueReg, (m, name, q, value) => {
-        if (name == 'path') {
+        if (name == 'path' || name == 'src') {
             file = path.resolve(path.join(path.dirname(info.file) + sep + value));
         } else {
             attrs[name] = value;
@@ -171,7 +178,7 @@ module.exports = {
     process(tmpl, extInfo) {
         let badTags = Object.create(null);
         let cmdCache = Object.create(null);
-        let mxGalleriesMap = configs.mxGalleriesMap;
+        let galleriesMap = configs.galleries;
         let updateOffset = (pos, offset) => {
             let l = nodes => {
                 if (nodes) {
@@ -204,7 +211,7 @@ module.exports = {
             };
             l(tokens);
         };
-        let getTagInfo = (n, isMxTag) => {
+        let getTagInfo = n => {
             let content = '',
                 attrs = '';
             if (n.hasAttrs) {
@@ -214,36 +221,33 @@ module.exports = {
                 content = tmpl.slice(n.contentStart, n.contentEnd);
             }
             let tag = n.tag;
-            if (isMxTag) {
-                tag = tag.slice(3);
+            let oTag = tag;
+            if (n.pfx) {
+                tag = tag.slice(n.pfx.length + 1);
             }
-            let splitter = tag.indexOf('.') >= 0 ? '.' : '-';
-            let tags = tag.split(splitter);
-            if (splitter == '-' && tags.length > 1 && isMxTag) {
-                slog.ever(chalk.red('deprecated tag: ' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-' + tags.join('.')), 'instead');
-            }
+            let tags = tag.split('.');
+            let mainTag = tags.shift();
+            let subTags = tags.length ? tags : ['index'];
             let result = {
-                isMxTag,
+                prefix: n.pfx,
+                group: n.group,
                 unary: !n.hasContent,
-                name: tag,
-                tag,
-                mainTag: tags.shift(),
-                splitter,
-                subTags: tags,
-                subTag: tags.join(splitter),
+                tag: oTag,
+                mainTag,
+                subTags,
                 attrs,
                 content
             };
             return result;
         };
 
-        let processCustomTag = (n, isMxTag) => {
-            let result = getTagInfo(n, isMxTag);
+        let processCustomTag = n => {
+            let result = getTagInfo(n);
             attachMap(result);
             let content = result.content;
             let customContent = configs.customTagProcessor(result, extInfo);
             if (!customContent) {
-                let tagName = (isMxTag ? 'mx-' : '') + result.tag;
+                let tagName = result.tag;
                 customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
                 badTags[tagName] = 1;
             }
@@ -253,45 +257,58 @@ module.exports = {
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
         };
-        let processMxTag = n => {
-            let result = getTagInfo(n, true);
+        let processToNativeTag = n => {
+            let result = getTagInfo(n);
             let content = result.content;
-            //不能增加native tags的检测，因为组件有可能和native tag重名
-            if (!uncheckTags.hasOwnProperty(result.mainTag) &&
-                !mxGalleriesMap.hasOwnProperty(result.tag)) {
-                let cpath = path.join(configs.moduleIdRemovedPath, configs.mxGalleriesRoot);
-                cpath = path.join(cpath, 'mx-' + result.mainTag);
-                if (fs.existsSync(cpath)) {
-                    mxGalleriesMap[result.tag] = 'mx-' + result.mainTag + '/' + (result.subTag || 'index');
+            content = toNative(result, cmdCache, extInfo);
+            tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+            updateOffset(n.start, content.length - (n.end - n.start));
+        };
+        let processGalleryTag = n => {
+            let result = getTagInfo(n);
+            let content = result.content;
+            let mainTag = n.pfx + (n.group ? '.' : '-') + result.mainTag;
+            let hasGallery = galleriesMap.hasOwnProperty(n.pfx + 'Root');
+            let gRoot = galleriesMap[n.pfx + 'Root'] || '';
+            let gMap = galleriesMap[n.pfx + 'Map'] || {};
+            //console.log(mainTag, hasGallery, result);
+            if (!uncheckTags.hasOwnProperty(mainTag) && hasGallery) {
+                if (gMap.hasOwnProperty(result.tag)) {
+                    let i = gMap[result.tag];
+                    if (i && !i.path) {
+                        i.path = (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/');
+                    }
                 } else {
-                    uncheckTags[result.mainTag] = 1;
+                    let cpath = path.join(configs.moduleIdRemovedPath, gRoot);
+                    cpath = path.join(cpath, (n.group ? '' : n.pfx + '-') + result.mainTag);
+                    if (fs.existsSync(cpath)) {
+                        gMap[result.tag] = {
+                            path: (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/')
+                        };
+                    } else {
+                        uncheckTags[mainTag] = 1;
+                        slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
+                    }
                 }
             }
             let update = false;
-            if (result.mainTag == 'view' || result.mainTag == 'vframe') {
-                if (result.mainTag == 'view') {
-                    slog.ever(chalk.red('deprecated tag: mx-view'), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
+            if (n.pfx == 'mx') {
+                if (result.mainTag == 'view' || result.mainTag == 'vframe') {
+                    if (result.mainTag == 'view') {
+                        slog.ever(chalk.red('deprecated tag: mx-view'), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
+                    }
+                    content = innerView(result);
+                    update = true;
+                } else if (result.tag == 'include') {
+                    content = innerInclude(result, extInfo);
+                    update = true;
                 }
-                content = innerView(result);
+            }
+            if (!update && gMap.hasOwnProperty(result.tag)) {
+                content = innerView(result, gMap[result.tag], gRoot);
                 update = true;
-            } else if (result.tag == 'include') {
-                content = innerInclude(result, extInfo);
-                update = true;
-            } else if (result.mainTag == 'native') {
-                content = toNative(result, cmdCache, extInfo);
-                update = true;
-            } else if (mxGalleriesMap.hasOwnProperty(result.tag)) {
-                content = innerView(result, mxGalleriesMap[result.tag]);
-                update = true;
-            } else if (tmplTags.nativeTags.hasOwnProperty(result.tag)) {
-                result.subTag = result.tag;
-                content = toNative(result, cmdCache, extInfo);
-                update = true;
-            } else {
-                processCustomTag(n, true);
             }
             if (update) {
-                content = content;
                 tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
@@ -304,10 +321,16 @@ module.exports = {
                     }
                     walk(n.children);
                     if (n.customTag) {
-                        if (n.tag.indexOf('mx-') === 0) {
-                            processMxTag(n);
+                        //console.log(configs.galleryPrefixes, n.pfx);
+                        if (configs.galleryPrefixes[n.pfx] === 1) {
+                            if (n.group && n.pfx == 'native') {
+                                processToNativeTag(n);
+                            } else {
+                                processGalleryTag(n);
+                            }
                         } else {
-                            processCustomTag(n, false);
+                            //slog.ever(chalk.red('can not process custom tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
+                            processCustomTag(n);
                         }
                     }
                 }
@@ -329,6 +352,8 @@ module.exports = {
         while (hasMxTag(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
+            tmpl = tmplCmd.store(tmpl, cmdCache, configs.artTmplCommand);
+            //console.log(tmpl);
             tokens = tmplParser(tmpl);
         }
         tmpl = tmplCmd.recover(tmpl, cmdCache);

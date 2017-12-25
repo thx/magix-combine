@@ -11,9 +11,27 @@ module.exports = input => {
         html5: true,
         start(tag, attrs, unary) {
             tag = tag.toLowerCase();
+            let ic = tag.indexOf('-');
+            let ip = tag.indexOf('.');
+            let i = -1;
+            let pfx = '';
+            if (ic != -1 || ip != -1) {
+                if (ic != -1 && ip != -1) {
+                    i = Math.min(ic, ip);
+                } else if (ic != -1) {
+                    i = ic;
+                } else {
+                    i = ip;
+                }
+            }
+            if (i != -1) {
+                pfx = tag.slice(0, i);
+            }
             let token = {
                 id: 't' + id++,
                 tag,
+                pfx,
+                group: i != -1 && i == ip,
                 attrs,
                 hasContent: true,
                 start: pos
