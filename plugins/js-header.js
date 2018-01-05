@@ -7,7 +7,7 @@ let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;
 let checkerReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\[([\w,]+)\]\1\s*;?/g;
 
 let checkerReg1 = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\s*=\s*([\w,]+)\1\s*;?/g;
-let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])\1\s*;?/g;
+//let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])\1\s*;?/g;
 module.exports = (content) => {
     let execBeforeProcessor = true,
         execAfterProcessor = true;
@@ -44,11 +44,11 @@ module.exports = (content) => {
     content = content
         .replace(checkerReg, checkerProcessor)
         .replace(checkerReg1, checkerProcessor);
-    let thisAlias = configs.thisAlias;
-    content = content.replace(jsThisAliasReg, (m, q, value) => {
+    //let thisAlias = configs.thisAlias;
+    /*content = content.replace(jsThisAliasReg, (m, q, value) => {
         thisAlias = value;
         return '\r\n';
-    });
+    });*/
     snippetReg.lastIndex = 0;
     let isSnippet = snippetReg.test(content);
     content = content.replace(snippetReg, '');
@@ -63,7 +63,7 @@ module.exports = (content) => {
         addWrapper,
         checkerCfg,
         loader,
-        thisAlias,
+        //thisAlias,
         execBeforeProcessor,
         execAfterProcessor
     };

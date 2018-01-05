@@ -22,7 +22,7 @@ let attrNameValueReg = /([^=\/\s]+)(?:\s*=\s*(?:(["'])[\s\S]*?\2|\S*))?(?=$|\s)/
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let globalTmplRootReg = /[\u0003\u0006]/g;
-let virtualRoot = /<mxv-root[^>]+>([\s\S]+)<\/mxv-root>/g;
+let virtualRoot = /<mxv-root[^>]*>([\s\S]+)<\/mxv-root>/g;
 //let escape$ = str => str.replace(/\$/g, '$&$&');
 let escapeHTMLMap = {
     '&': 'amp',

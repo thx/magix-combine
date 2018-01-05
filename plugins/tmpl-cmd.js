@@ -38,7 +38,7 @@ let bindEventsReg2 = /^([^<>]+)<([^>]+)>/;
 let extractReg = /<%([@!~=:])?([\s\S]+?)%>/;
 let extractArtReg = /\{\{([@!~=:])?([\s\S]+?)\}\}(?!\})/;
 
-//let lineBreakReg = /\r\n?|\n|\u2028|\u2029/g;
+let lineBreakReg = /\r\n?|\n|\u2028|\u2029/g;
 
 
 module.exports = {
@@ -95,7 +95,7 @@ module.exports = {
                 if (o) {
                     c = c.slice(1, -1);
                 }
-                c = jm.min(c);//.replace(lineBreakReg, ';');
+                c = jm.min(c).replace(lineBreakReg, '');
                 return '<%' + (o || '') + c + '%>';
             });
             tmpl = tmpl.replace(emptyCmdReg, '');

@@ -1,3 +1,4 @@
+let classReg = /\bclass\s*=\s*"[^"]+/;
 module.exports = {
     loaderType: 'cmd', //加载器类型
     tmplFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
@@ -23,7 +24,7 @@ module.exports = {
     },
     log: true, //日志及进度条
     debug: false, //
-    thisAlias: '', //this别名
+    //thisAlias: '', //this别名
     jsLoopDepth: 3,
     revisableStringPrefix: '',//set default value at util-init.js
     checker: {
@@ -89,6 +90,17 @@ module.exports = {
                 return `<div class="loading">
                             <span class="loading-anim"></span>
                         </div>`;
+            },
+            'mx-dropdown.item'(i) {
+                return `<i ${i.attrs} class="none">${i.content}</i>`;
+            },
+            'mx-carousel.panel'(i) {
+                if (i.attrsMap.class) {
+                    i.attrs = i.attrs.replace(classReg, '$& hp100 fl none');
+                } else {
+                    i.attrs += ' class="hp100 fl none"';
+                }
+                return `<div ${i.attrs}>${i.content}</div>`;
             }
         }
     },

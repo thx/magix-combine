@@ -111,7 +111,7 @@ declare module "magix-combine" {
         /**
          * js this别名
          */
-        jsThis: boolean
+        //jsThis: boolean
 
         /**
          * 模板命令语法检查

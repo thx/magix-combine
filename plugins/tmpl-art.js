@@ -1,5 +1,5 @@
 /*
-https://github.com/lhywork/artTemplate/
+https://github.com/aui/art-template
 https://thx.github.io/crox/
 在artTemplate的基础上演化而来
 */
@@ -39,8 +39,9 @@ https://thx.github.io/crox/
         {{= key }}:{{= value }}
     {{/forin}}
 
-    {{for init = start to end step 2}}
-        {{= init }}
+    //通用for
+    {{for(let i=0;i<10;i++)}}
+        {{=i}}
     {{/for}}
 
 方法调用
@@ -59,9 +60,9 @@ let brReg = /(?:\r\n|\r|\n)/;
 let lineNoReg = /^(\d+)([\s\S]+)/;
 let slashReg = /\\|'/g;
 let asReg = /([\{\[]?[^\{\[]+?[\}\]]?)(\s+[\w_$]+)?$/;
-let loopReg = /([^=]+?)=([^=]+?)\s+to\s+([\s\S]*?)(?:\s+step\s+([\w_$\.]*))?$/;
 let stringKeyReg = /^['"][\s\S]+?['"]$/;
-let extractMxEventContentReg = /^([^({]+)\(\{([\s\S]+)\}\)(['"])$/;
+let eventLeftReg = /\(\s*\{/g;
+let eventRightReg = /\}\s*\)/g;
 let mxEventHolderReg = /\x12([^\x12]+?)\x12/g;
 let openTag = '{{';
 let closeTag = /\}{2}(?!\})/;
@@ -125,13 +126,13 @@ let ctrls = {
             };
         }
     },
-    'loop'(stack, ln) {
-        stack.push({ ctrl: 'loop', ln });
+    'for'(stack, ln) {
+        stack.push({ ctrl: 'for', ln });
     },
-    '/loop'(stack) {
+    '/for'(stack) {
         let last = stack.pop();
         if (last) {
-            if (last.ctrl != 'loop') {
+            if (last.ctrl != 'for') {
                 return last;
             }
         } else {
@@ -212,7 +213,14 @@ let getAssignment = (code, object, key, value) => {
 };
 let syntax = (code, stack, e, lineNo, refMap) => {
     code = code.trim();
-    let ctrls = code.split(/\s+/);
+    let ctrls;
+    if (code.startsWith('if(')) {
+        ctrls = ['if', code.slice(3, -1)];
+    } else if (code.startsWith('for(')) {
+        ctrls = ['for', code.slice(3)];
+    } else {
+        ctrls = code.split(/\s+/);
+    }
     let key = ctrls.shift();
     let src = '';
     if (configs.debug) {
@@ -230,7 +238,12 @@ let syntax = (code, stack, e, lineNo, refMap) => {
     }
     if (key == 'if') {
         checkStack(stack, key, code, e, lineNo);
-        return `${src}<%if(${ctrls.join(' ')}){%>`;
+        let expr = ctrls.join(' ');
+        expr = expr.trim();
+        // if (expr.startsWith('(') && expr.endsWith(')')) {
+        //     expr = expr.slice(1, -1);
+        // }
+        return `${src}<%if(${expr}){%>`;
     } else if (key == 'else') {
         checkStack(stack, key, code, e, lineNo);
         let iv = '';
@@ -243,8 +256,7 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
         let m = asValue.match(asReg);
-        //console.log(m);
-        if (!m) {
+        if (!m || ctrls[1] != 'as') {
             slog.ever(chalk.red(`unsupport each {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
             throw new Error('unsupport each {{' + code + '}}');
         }
@@ -257,7 +269,7 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
         let m = asValue.match(asReg);
-        if (!m) {
+        if (!m || ctrls[1] != 'as') {
             slog.ever(chalk.red(`unsupport forin {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
             throw new Error('unsupport forin {{' + code + '}}');
         }
@@ -265,35 +277,14 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         let key1 = m[2] || utils.uId('$k', code);
         let ai = getAssignment(code, object, key1, value);
         return `${src}<%for(let ${key1} in ${object}){let ${ai.declares};${ai.assignment}%>`;
-    } else if (key == 'loop') {
+    } else if (key == 'for') {
         checkStack(stack, key, code, e, lineNo);
-        let loopValue = ctrls.join(' ');
-        let m = loopValue.match(loopReg);
-        if (!m) {
-            slog.ever(chalk.red(`unsupport loop {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport loop {{' + code + '}}');
+        let expr = ctrls.join(' ').trim();
+        if (!expr.startsWith('(') && !expr.endsWith(')')) {
+            expr = `(${expr})`;
         }
-        let variable = m[1];
-        let start = m[2];
-        let end = m[3];
-
-        let sn = Number(start);
-        let en = Number(end);
-
-        let stepBase = m[4] || 1;
-        let check = '';
-        if (configs.debug) {
-            check = `if(${stepBase}<=0){throw 'endless loop: {\u2060{${code}}\u2060} at line: ${lineNo}'}`;
-        }
-        if (!isNaN(sn) && !isNaN(en)) {
-            let step = (sn > en ? '-' : '') + stepBase;
-            let test = sn > en ? `${variable}>=${end}` : `${variable}<=${end}`;
-            return `<%${check}for(let ${variable}=${start};${test};${variable}+=${step}){%>`;
-        }
-        let vStep = utils.uId('$s', code);
-        let step = `let ${vStep}=${start}>${end}?-${stepBase}:${stepBase};`;
-        return `${src}<%${check}${step}for(let ${variable}=${start};${vStep}>0?${variable}<=${end}:${variable}>=${end};${variable}+=${vStep}){%>`;
-    } else if (key == '/if' || key == '/each' || key == '/forin' || key == '/loop') {
+        return `${src}<%for${expr}{%>`;
+    } else if (key == '/if' || key == '/each' || key == '/forin' || key == '/loop' || key == '/for') {
         checkStack(stack, key, code, e, lineNo);
         return `${src}<%}%>`;
     } else {
@@ -302,7 +293,7 @@ let syntax = (code, stack, e, lineNo, refMap) => {
 };
 module.exports = (tmpl, e, refMap) => {
     let result = [];
-    tmpl = tmpl.replace(configs.tmplMxEventReg, m => m.replace(extractMxEventContentReg, '$1\x12$2\x12$3'));
+    tmpl = tmpl.replace(configs.tmplMxEventReg, m => m.replace(eventLeftReg, '\x12').replace(eventRightReg, '\x12'));
     let lines = tmpl.split(brReg);
     let ls = [], lc = 0;
     for (let line of lines) {

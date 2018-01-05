@@ -27,12 +27,14 @@ module.exports = input => {
             if (i != -1) {
                 pfx = tag.slice(0, i);
             }
+            let attrsMap = Object.create(null);
             let token = {
                 id: 't' + id++,
                 tag,
                 pfx,
                 group: i != -1 && i == ip,
                 attrs,
+                attrsMap,
                 hasContent: true,
                 start: pos
             };
@@ -61,6 +63,9 @@ module.exports = input => {
                 }
                 if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;
+                    attrsMap[a.name] = a.value;
+                } else {
+                    attrsMap[a.name] = '';
                 }
                 pos = input.indexOf(temp, pos) + temp.length;
             }

@@ -91,13 +91,11 @@ let toNative = (result, cmdStore, e) => {
     });
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
-let innerView = (result, info, gRoot) => {
+let innerView = (result, info, gRoot, map) => {
     if (util.isObject(info) && util.isFunction(info.processor)) {
-        attachMap(result);
-        return info.processor(result);
+        return info.processor(result, map) || '';
     } else if (util.isFunction(info)) {
-        attachMap(result);
-        return info(result);
+        return info(result, map) || '';
     }
     let tag = 'div';
     let hasTag = false;
@@ -229,6 +227,7 @@ module.exports = {
             let mainTag = tags.shift();
             let subTags = tags.length ? tags : ['index'];
             let result = {
+                id: n.id,
                 prefix: n.pfx,
                 group: n.group,
                 unary: !n.hasContent,
@@ -236,16 +235,16 @@ module.exports = {
                 mainTag,
                 subTags,
                 attrs,
+                attrsMap: n.attrsMap,
                 content
             };
             return result;
         };
 
-        let processCustomTag = n => {
+        let processCustomTag = (n, map) => {
             let result = getTagInfo(n);
-            attachMap(result);
             let content = result.content;
-            let customContent = configs.customTagProcessor(result, extInfo);
+            let customContent = configs.customTagProcessor(result, map, extInfo);
             if (!customContent) {
                 let tagName = result.tag;
                 customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
@@ -264,7 +263,7 @@ module.exports = {
             tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
             updateOffset(n.start, content.length - (n.end - n.start));
         };
-        let processGalleryTag = n => {
+        let processGalleryTag = (n, map) => {
             let result = getTagInfo(n);
             let content = result.content;
             let mainTag = n.pfx + (n.group ? '.' : '-') + result.mainTag;
@@ -305,7 +304,7 @@ module.exports = {
                 }
             }
             if (!update && gMap.hasOwnProperty(result.tag)) {
-                content = innerView(result, gMap[result.tag], gRoot);
+                content = innerView(result, gMap[result.tag], gRoot, map);
                 update = true;
             }
             if (update) {
@@ -313,24 +312,25 @@ module.exports = {
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
         };
-        let walk = nodes => {
+        let walk = (nodes, map) => {
             if (nodes) {
+                if (!map) map = nodes.__map;
                 for (let n of nodes) {
                     if (extInfo.checkTmplDuplicateAttr && n.attrs && n.attrs.length) {
                         duAttrChecker(n, extInfo, cmdCache, tmpl.slice(n.attrsStart, n.attrsEnd));
                     }
-                    walk(n.children);
+                    walk(n.children, map);
                     if (n.customTag) {
                         //console.log(configs.galleryPrefixes, n.pfx);
                         if (configs.galleryPrefixes[n.pfx] === 1) {
                             if (n.group && n.pfx == 'native') {
                                 processToNativeTag(n);
                             } else {
-                                processGalleryTag(n);
+                                processGalleryTag(n, map);
                             }
                         } else {
                             //slog.ever(chalk.red('can not process custom tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
-                            processCustomTag(n);
+                            processCustomTag(n, map);
                         }
                     }
                 }

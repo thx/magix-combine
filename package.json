@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "3.8.1",
+  "version": "3.8.2",
   "description": "合并Magix View的html,js,css成一个js文件，并检测html,js,css中可能存在的问题",
   "main": "index.js",
   "types": "index.d.ts",
@@ -16,7 +16,7 @@
     "offline"
   ],
   "dependencies": {
-    "acorn": "5.2.x",
+    "acorn": "5.3.x",
     "chalk": "2.3.x",
     "cssnano": "3.10.x",
     "html-entities-decoder": "1.0.x",

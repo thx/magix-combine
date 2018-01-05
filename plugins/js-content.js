@@ -63,7 +63,7 @@ let processContent = (from, to, content, inwatch) => {
         return Promise.resolve(fInfo);
     }
     let before = Promise.resolve(content);
-    let originalContent = content;
+    //let originalContent = content;
     if (headers.execBeforeProcessor) {
         let processor = configs.compileBeforeProcessor || configs.compileJSStart;
         before = processor(content, from);
@@ -79,11 +79,11 @@ let processContent = (from, to, content, inwatch) => {
             fileDeps: {},
             addWrapper: headers.addWrapper,
             checker: headers.checkerCfg,
-            thisAlias: headers.thisAlias,
+            //thisAlias: headers.thisAlias,
             to: to,
             loader: headers.loader || configs.loaderType,
             from: from,
-            vendorCompile: originalContent != content,
+            // vendorCompile: originalContent != content,
             shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
             content: content,
             isSnippet: headers.isSnippet,
