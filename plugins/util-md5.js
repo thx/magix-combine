@@ -16,6 +16,10 @@ let variable = count => { //压缩变量
 let counter = Object.create(null);
 let cache = Object.create(null);
 let md5 = (text, configKey, prefix) => {
+    let temp = text.split('#');
+    if (temp.length > 1) {
+        configKey = temp[0];
+    }
     if (!counter[configKey]) {
         counter[configKey] = 0;
     }

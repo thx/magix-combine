@@ -58,11 +58,12 @@ module.exports = {
     copyFile: fd.copy,
     writeFile: fd.write,
     removeFile(from) {
+        initEnv();
         from = path.resolve(from);
         deps.removeFileDepend(from);
-        let file = from.replace(configs.tmplReg, configs.srcHolder);
-        if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
+        let to = path.resolve(configs.compiledFolder + from.replace(configs.moduleIdRemovedPath, ''));
+        if (fs.existsSync(to)) {
+            fs.unlinkSync(to);
         }
     },
     removeCache(from) {
@@ -155,10 +156,10 @@ module.exports = {
                 let completed = 0;
                 let tasks = [];
                 let once = 3;
-                fd.walk(configs.tmplFolder, filepath => {
+                fd.walk(configs.commonFolder, filepath => {
                     if (configs.jsFileExtNamesReg.test(filepath)) {
                         let from = path.resolve(filepath);
-                        let to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
+                        let to = path.resolve(configs.compiledFolder + from.replace(configs.moduleIdRemovedPath, ''));
                         total++;
                         tasks.push({
                             from,
@@ -205,7 +206,7 @@ module.exports = {
         initEnv();
         from = path.resolve(from);
         this.removeCache(from);
-        let to = path.resolve(configs.srcFolder + from.replace(configs.moduleIdRemovedPath, ''));
+        let to = path.resolve(configs.compiledFolder + from.replace(configs.moduleIdRemovedPath, ''));
         return js.process(from, to, true).then(() => {
             checker.output();
             return Promise.resolve();
@@ -226,7 +227,7 @@ module.exports = {
             let completed = 0;
             let tasks = [];
             let once = 3;
-            fd.walk(configs.tmplFolder, filepath => {
+            fd.walk(configs.commonFolder, filepath => {
                 //if (filepath.indexOf('/nav') >= 0) {
                 let from = path.resolve(filepath);
                 total++;

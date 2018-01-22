@@ -6,7 +6,7 @@ let util = require('util');
 let chalk = require('chalk');
 let fd = require('./util-fd');
 let jsMx = require('./js-mx');
-let jsRequire = require('./js-require');
+let jsDeps = require('./js-deps');
 let cssProcessor = require('./css');
 let tmplProcessor = require('./tmpl');
 let atpath = require('./util-atpath');
@@ -14,13 +14,13 @@ let jsWrapper = require('./js-wrapper');
 let configs = require('./util-config');
 let checker = require('./checker');
 let md5 = require('./util-md5');
+let utils = require('./util');
 
 let slog = require('./util-log');
-let acorn = require('acorn');
-let walker = require('acorn/dist/walk');
 let fileCache = require('./js-fcache');
 let jsSnippet = require('./js-snippet');
 let jsHeader = require('./js-header');
+let acorn = require('./js-acorn');
 
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
 let mxTailReg = /\.mx$/;
@@ -29,8 +29,7 @@ let stringReg = /^['"]/;
 let moduleIdReg = /^(['"])(@moduleId)\1$/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
 let othersFileReg = /(['"])([a-z,]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
-let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/g;
-let atProcessor = str => str.replace(/@/, '\u0012@');
+let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
@@ -63,10 +62,26 @@ let processContent = (from, to, content, inwatch) => {
         return Promise.resolve(fInfo);
     }
     let before = Promise.resolve(content);
+    let moduleId = utils.extractModuleId(from);
+    let psychic = {
+        fileDeps: {},
+        to,
+        from,
+        moduleId,
+        debug: configs.debug,
+        pkgName: moduleId.slice(0, moduleId.indexOf('/')),
+        moduleFileName: moduleId.slice(moduleId.lastIndexOf('/') + 1),
+        shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
+        addWrapper: headers.addWrapper,
+        checker: headers.checkerCfg,
+        loader: headers.loader || configs.loaderType,
+        isSnippet: headers.isSnippet,
+        processContent
+    };
     //let originalContent = content;
     if (headers.execBeforeProcessor) {
         let processor = configs.compileBeforeProcessor || configs.compileJSStart;
-        before = processor(content, from);
+        before = processor(content, psychic);
         if (util.isString(before)) {
             before = Promise.resolve(before);
         }
@@ -75,37 +90,17 @@ let processContent = (from, to, content, inwatch) => {
         slog.ever('compile:', chalk.blue(from));
     }
     return before.then(content => {
-        return jsRequire.process({
-            fileDeps: {},
-            addWrapper: headers.addWrapper,
-            checker: headers.checkerCfg,
-            //thisAlias: headers.thisAlias,
-            to: to,
-            loader: headers.loader || configs.loaderType,
-            from: from,
-            // vendorCompile: originalContent != content,
-            shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
-            content: content,
-            isSnippet: headers.isSnippet,
-            processContent: processContent
-        });
+        psychic.content = content;
+        return jsDeps.process(psychic);
     }).then(e => {
+        if (headers.ignoreAllProcessor) {
+            return Promise.resolve(e);
+        }
         let tmpl = e.addWrapper ? jsWrapper(e) : e.content;
         let ast;
         let comments = {};
         try {
-            ast = acorn.parse(tmpl, {
-                onComment(block, text, start, end) {
-                    if (block) {
-                        comments[start] = {
-                            text: text.trim()
-                        };
-                        comments[end] = {
-                            text: text.trim()
-                        };
-                    }
-                }
-            });
+            ast = acorn.parse(tmpl, comments);
         } catch (ex) {
             slog.ever('parse js ast error:', chalk.red(ex.message), tmpl);
             let arr = tmpl.split(lineBreakReg);
@@ -119,6 +114,18 @@ let processContent = (from, to, content, inwatch) => {
         let modifiers = [];
         let toTops = [];
         let toBottoms = [];
+        let tmplRanges = [];
+        let tmplInRange = n => {
+            let key = n.start + '~' + n.end;
+            return tmplRanges[key] === 1;
+            /*
+            for (let r of tmplRanges) {
+                if (r.start <= n.start && r.end >= n.end) {
+                    return true;
+                }
+            }
+            return false;*/
+        };
         let processString = (node, tl) => { //存储字符串，减少分析干扰
             if (!tl) {
                 if (!stringReg.test(node.raw)) return;
@@ -136,9 +143,12 @@ let processContent = (from, to, content, inwatch) => {
             } else if (moduleIdReg.test(node.raw)) {
                 node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
                 add = true;
-            } else if (cssFileReg.test(node.raw) || configs.htmlFileReg.test(node.raw)) {
-                node.raw = node.raw.replace(new RegExp(cssFileReg, 'g'), atProcessor);
-                node.raw = node.raw.replace(new RegExp(configs.htmlFileReg, 'g'), atProcessor);
+            } else if (cssFileReg.test(node.raw)) {
+                node.raw = node.raw.replace(new RegExp(cssFileReg, 'g'), m => m.replace('@', '\u0012@'));
+                add = true;
+            } else if (configs.htmlFileReg.test(node.raw)) {
+                let magixTmpl = tmplInRange(node);
+                node.raw = node.raw.replace(new RegExp(configs.htmlFileReg, 'g'), (m, q, ctrl) => m.replace('@', (ctrl ? '' : (magixTmpl ? 'updater' : '')) + '\u0012@'));
                 add = true;
             } else if (othersFileReg.test(node.raw)) {
                 let replacement = '';
@@ -193,11 +203,31 @@ let processContent = (from, to, content, inwatch) => {
                 });
             }
         };
-        walker.simple(ast, {
+
+        acorn.walk(ast, {
             Property(node) {
-                node = node.key;
-                if (node.type == 'Literal') {
-                    processString(node);
+                if (node.key.type == 'Identifier' && node.key.name == 'tmpl') {
+                    let key = node.value.start + '~' + node.value.end;
+                    tmplRanges[key] = 1;
+                    tmplRanges.push({
+                        start: node.value.start,
+                        end: node.value.end
+                    });
+                }
+            }/*,
+            MethodDefinition(node) {
+                if (node.kind == 'get' && node.key.name == 'tmpl') {
+                    tmplRanges.push({
+                        start: node.start,
+                        end: node.end
+                    });
+                }
+            }*/
+        });
+        acorn.walk(ast, {
+            Property(node) {
+                if (node.key.type == 'Literal') {
+                    processString(node.key);
                 }
             },
             Literal: processString,
@@ -225,9 +255,22 @@ let processContent = (from, to, content, inwatch) => {
         e.content = tmpl;
         return Promise.resolve(e);
     }).then(e => {
+        if (headers.ignoreAllProcessor) {
+            return Promise.resolve(e);
+        }
         if (contentInfo) e.contentInfo = contentInfo;
         return cssProcessor(e, inwatch);
-    }).then(tmplProcessor).then(jsSnippet).then(e => {
+    }).then(e => {
+        if (headers.ignoreAllProcessor) {
+            return Promise.resolve(e);
+        }
+        return tmplProcessor(e);
+    }).then(e => {
+        if (headers.ignoreAllProcessor) {
+            return Promise.resolve(e);
+        }
+        return jsSnippet(e);
+    }).then(e => {
         if (e.addedWrapper) {
             let mxViews = e.tmplMxViewsArray || [];
             let reqs = [],
@@ -242,9 +285,27 @@ let processContent = (from, to, content, inwatch) => {
                     } else {
                         p = `"${v}"`;
                     }
+                    let reqInfo = {
+                        prefix: '',
+                        tail: ';',
+                        vId: '',
+                        mId: p.slice(1, -1),
+                        from: 'view',
+                        raw: 'mx-view="' + v + '"'
+                    };
                     if (e.deps.indexOf(p) === -1) {
-                        reqs.push(p);
-                        vars.push('require(' + p + ');');
+                        if (e.loader == 'module') {
+                            reqInfo.prefix = 'import ';
+                            reqInfo.type = 'import';
+                        } else {
+                            reqInfo.type = 'require';
+                        }
+                        let replacement = jsDeps.getReqReplacement(reqInfo, e);
+                        vars.push(replacement);
+                        if (reqInfo.mId) {
+                            let dId = JSON.stringify(reqInfo.mId);
+                            reqs.push(dId);
+                        }
                     }
                 }
             }

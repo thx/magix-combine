@@ -7,16 +7,22 @@ let crypto = require('crypto');
 module.exports = () => {
     if (!configs.$inited) {
         configs.$inited = 1;
-        configs.tmplFolder = path.resolve(configs.tmplFolder);
-        configs.srcFolder = path.resolve(configs.srcFolder);
+        if (configs.tmplFolder) {
+            configs.commonFolder = configs.tmplFolder;
+        }
+        if (configs.srcFolder) {
+            configs.compiledFolder = configs.srcFolder;
+        }
+        configs.commonFolder = path.resolve(configs.commonFolder);
+        configs.compiledFolder = path.resolve(configs.compiledFolder);
         configs.jsFileExtNamesReg = new RegExp('\\.(?:' + configs.jsFileExtNames.join('|') + ')$');
-        configs.moduleIdRemovedPath = configs.tmplFolder; //把路径中开始到模板目录移除就基本上是模块路径了
+        configs.moduleIdRemovedPath = configs.commonFolder; //把路径中开始到模板目录移除就基本上是模块路径了
         if (!configs.tmplCommand) {
             configs.tmplCommand = /<%[\s\S]*?%>/g;
         }
         if (configs.cssSelectorPrefix === null) {
             let str = crypto.createHash('sha512')
-                .update(configs.tmplFolder, 'ascii')
+                .update(configs.commonFolder, 'ascii')
                 .digest('hex');
             configs.cssSelectorPrefix = 'x' + str.substring(0, 2);
         }
@@ -29,10 +35,10 @@ module.exports = () => {
         }
         configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + names.join('|') + ')$');
 
-        configs.htmlFileReg = new RegExp('([\'"])(?:raw|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
+        configs.htmlFileReg = new RegExp('([\'"])(raw|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
 
         //模板处理，即处理view.html文件
-        configs.fileTmplReg = new RegExp('(\\btmpl\\s*:\\s*)?([\'"])(raw|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\2', 'g');
+        configs.fileTmplReg = new RegExp('([\'"])(raw|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1', 'g');
 
         configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
@@ -71,7 +77,7 @@ module.exports = () => {
         let rsPrefix = configs.revisableStringPrefix;
         if (!rsPrefix) {
             rsPrefix = '__';
-        } else if (rsPrefix.charAt(0) === '$') {
+        } else if (rsPrefix.charAt(0) === '$') {//以$开头是开发者手动处理的
             rsPrefix = '_' + rsPrefix;
         }
         configs.revisableStringPrefix = rsPrefix;

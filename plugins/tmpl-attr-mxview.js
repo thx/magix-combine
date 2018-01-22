@@ -38,10 +38,13 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
         let classLocker = Object.create(null);
         if (configs.useAtPathConverter) { //如果启用@路径转换规则
             match = match.replace(mxViewAttrReg, (m, q, c) => {
-                if (c.indexOf('@@') === 0) {
+                if (c.startsWith('@@')) {
                     return 'mx-view="' + c.slice(1) + '"';
                 }
-                return atpath.resolvePath(m, e.moduleId);
+                if (c.startsWith('.')) {
+                    m = 'mx-view="@' + c + '"';
+                }
+                return atpath.resolvePath(m, e.htmlModuleId);
             });
         }
 

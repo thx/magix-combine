@@ -24,7 +24,7 @@ module.exports = e => {
         };
         let readFile = (key, file) => {
             count++;
-            let to = path.resolve(configs.srcFolder + file.replace(configs.moduleIdRemovedPath, ''));
+            let to = path.resolve(configs.compiledFolder + file.replace(configs.moduleIdRemovedPath, ''));
             if (fs.existsSync(file)) {
                 e.processContent(file, to, '', false).then(info => {
                     contentCache[key] = info.content;

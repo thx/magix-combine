@@ -10,7 +10,8 @@ let checkerReg1 = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\s*=\s*([\
 //let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])\1\s*;?/g;
 module.exports = (content) => {
     let execBeforeProcessor = true,
-        execAfterProcessor = true;
+        execAfterProcessor = true,
+        ignoreAllProcessor = false;
     let addWrapper = true;
     let excludeProcessor = (m, q, keys) => {
         keys = keys.split(',');
@@ -23,8 +24,14 @@ module.exports = (content) => {
         if (keys.indexOf('after') > -1 || keys.indexOf('afterProcessor') > -1) {
             execAfterProcessor = false;
         }
+        if (keys.indexOf('allProcessor') > -1) {
+            ignoreAllProcessor = true;
+        }
         return '\r\n';
     };
+    if (ignoreAllProcessor) {
+        execBeforeProcessor = execAfterProcessor = false;
+    }
     content = content
         .replace(excludeReg, excludeProcessor)
         .replace(excludeReg1, excludeProcessor);
@@ -64,6 +71,7 @@ module.exports = (content) => {
         checkerCfg,
         loader,
         //thisAlias,
+        ignoreAllProcessor,
         execBeforeProcessor,
         execAfterProcessor
     };

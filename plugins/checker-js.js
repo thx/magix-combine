@@ -3,7 +3,7 @@
     1.　检测接口数据的使用
     2.　检测循环嵌套
  */
-let walker = require('acorn/dist/walk');
+let acorn = require('./js-acorn');
 let serviceChecker = require('./checker-js-service');
 let loopChecker = require('./checker-js-loop');
 //let thisChecker = require('./checker-js-this');
@@ -26,7 +26,7 @@ module.exports = {
                 serviceChecker(node, comments, tmpl, e);
             }
         };
-        walker.simple(ast, {
+        acorn.walk(ast, {
             FunctionDeclaration: callChecker,
             FunctionExpression: callChecker,
             ArrowFunctionExpression: callChecker

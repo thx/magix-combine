@@ -24,10 +24,14 @@ module.exports = {
                 tempCache[key] = 1;
                 if (r) {
                     let files = e.cssNamesInFiles[key + '!r'];
-                    checker.CSS.markUsed(files, key, e.from);
-                    files.forEach(f => {
-                        deps.addFileDepend(f, e.from, e.to);
-                    });
+                    if (files) {
+                        checker.CSS.markUsed(files, key, e.from);
+                        files.forEach(f => {
+                            deps.addFileDepend(f, e.from, e.to);
+                        });
+                    } else {
+                        throw new Error(`can not find class name "${key}" at file "${e.from}" in which files`);
+                    }
                 } else {
                     checker.CSS.markUndeclared(e.srcHTMLFile, key);
                 }

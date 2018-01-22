@@ -66,6 +66,16 @@ let refProcessor = (relateFile, file, ext, name, e) => {
             throw new Error('unsupport use scoped.style in ' + relateFile);
         }
     } else {
+        /*
+            a.css
+                [ref='@./b.css:good'] .name{
+
+                }
+            file='path/to/b.css';
+            relateFile='path/to/a.css';
+
+            b good a
+        */
         file = path.resolve(path.dirname(relateFile) + sep + file + ext);
         if (e && configs.scopedCssMap[file]) {
             let sname = e.globalCssNamesMap[name];

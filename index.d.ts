@@ -175,11 +175,11 @@ declare module "magix-combine" {
         /**
          * 编译的模板目录。默认tmpl
          */
-        tmplFolder?: string
+        commonFolder?: string
         /**
          * 编译结果存储目录。默认src
          */
-        srcFolder?: string
+        compiledFolder?: string
         /**
          * 匹配模板中模板引擎语句的正则，对模板处理时，先去掉无关的内容处理起来会更准确
          */

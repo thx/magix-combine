@@ -2,9 +2,8 @@
     对模板增加根变量的分析，模板引擎中不需要用with语句
     压缩模板引擎代码
  */
-let acorn = require('acorn');
+let acorn = require('./js-acorn');
 let chalk = require('chalk');
-let walker = require('acorn/dist/walk');
 let tmplCmd = require('./tmpl-cmd');
 let configs = require('./util-config');
 let utils = require('./util');
@@ -33,7 +32,7 @@ let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
-let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/;
+let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/;
 let artCtrlsReg = /<%'\x17\d+\x11([^\x11]+)\x11\x17'%><%[\s\S]+?%>/g;
 let cmap = {
     [vphUse]: '\u0001',
@@ -236,7 +235,7 @@ module.exports = {
             slog.ever(chalk.red(msg), 'near', chalk.magenta(near), 'at', chalk.grey(sourceFile));
             throw new Error(msg + ' near ' + near);
         };
-        walker.simple(ast, {
+        acorn.walk(ast, {
             ArrayPattern: patternChecker,
             ObjectPattern: patternChecker,
             ForOfStatement: patternChecker,
@@ -302,7 +301,7 @@ module.exports = {
                 });
             }
         };
-        walker.simple(ast, {
+        acorn.walk(ast, {
             Property(node) {
                 if (node.key.type == 'Literal') {
                     processString(node.key);
@@ -384,6 +383,14 @@ module.exports = {
                     end: node.id.end,
                     name: tname,
                     type: 'vd',
+                });
+            },
+            ThisExpression(node) {
+                modifiers.push({
+                    key: '',
+                    start: node.start,
+                    end: node.end,
+                    name: vphGlb
                 });
             },
             FunctionDeclaration: node => { //函数声明
@@ -657,7 +664,7 @@ module.exports = {
         //    });
         //};
         //let meMap = Object.create(null);
-        walker.simple(ast, {
+        acorn.walk(ast, {
             VariableDeclarator(node) {
                 let key = stripChar(node.id.name); //把汉字前缀换成代码前缀
                 var m = key.match(/\u0002(\d+)/);

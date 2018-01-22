@@ -1,3 +1,21 @@
+## 3.8.3
+1. 预防`class`处理出错
+2. 修正`mx-include`标签
+3. 调整`native.tag`的属性处理
+4. 调整`js`代码及`html`编译前的逻辑
+5. 修正`mx-include`的参数传递
+6. 增强`revisable string`,增加分组写法`@{group#descriptor.text}`
+8. 增加`acorn spread object`和`acorn await async`插件
+9. 重构模块依赖分析部分，增加`es6 module`
+10. `js wrapper`增加`module`，可以使用`es6`的模块加载
+11. 重命名配置项`tmplFolder`=>`commonFolder`,`srcFolder`=>`compiledFolder`
+12. 修复`removeFile`不能删除`compiledFolder`中文件的`bug`
+13. 调整模板中`view`相对路径的处理，不需要添加`@`前缀
+14. 统一模板中的`view`提前打包到`js`文件中的依赖处理
+15. 调整`magix`模板的识别
+16. 模板中增加`this`的识别及处理
+17. 调整组件的输出，定义复合型组件
+
 ## 3.8.2
 1. 严格`each`及`forin`中的`as`语句
 2. 代码去`this`检查，已没必要

@@ -13,8 +13,7 @@ let jsGeneric = require('./js-generic');
 let tmplCmd = require('./tmpl-cmd');
 //let md5 = require('./util-md5');
 //let regexp = require('./util-rcache');
-let acorn = require('acorn');
-let walker = require('acorn/dist/walk');
+let acorn = require('./js-acorn');
 let tmplChecker = checker.Tmpl;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let cmdReg = /\u0007\d+\u0007/g;
@@ -88,7 +87,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
             });
         }
     };
-    walker.simple(ast, {
+    acorn.walk(ast, {
         Property(node) {
             let key = node.key;
             if (key.type == 'Literal') {

@@ -25,20 +25,36 @@ let uncheckTags = {
 };
 let cmdOutReg = /^<%([!=@])([\s\S]*)%>$/;
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
-let attrNameValueReg = /\s*([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2\s*/g;
+let attrNameValueReg = /\b([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2\s*/g;
 let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let fileCache = Object.create(null);
 
-let attachMap = result => {
-    let aMap = {};
-    result.attrs.replace(attrNameValueReg, (m, key, q, content) => {
-        aMap[key] = content;
+let splitAttrs = (tag, type, attrs) => {
+    let viewAttrs = '';
+    attrs = attrs.replace(tagReg, (m, t) => {
+        tag = t;
+        return '';
     });
-    result.attrsMap = aMap;
-    return result;
+    let attrsMap = attrMap.getAll(tag, type);
+    attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
+        if (!attrsMap[key] && !key.startsWith('mx-') && !key.startsWith('data-')) {
+            if (!key.startsWith('view-')) {
+                key = 'view-' + key;
+            }
+            viewAttrs += ' ' + key + '="' + content + '"';
+            return '';
+        }
+        return m;
+    }).trim();
+    viewAttrs = viewAttrs.trim();
+    return {
+        tag,
+        attrs,
+        viewAttrs
+    };
 };
 let toNative = (result, cmdStore, e) => {
     let attrs = result.attrs;
@@ -51,23 +67,13 @@ let toNative = (result, cmdStore, e) => {
         }
     }
     let bAttrs = attrMap.getBooleanProps(tag, type);
-    let allAttrs = attrMap.getAll(tag, type);
-    let hasPath = false;
-    attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
-        if (key == 'path' ||
-            key == 'view') {
-            hasPath = true;
-            return ' mx-view=' + q + content + q;
-        }
-        return m;
-    });
     attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
         if (bAttrs.hasOwnProperty(key)) {
             if (tmplCommandAnchorReg.test(content)) {
                 let oc = tmplCmd.recover(content, cmdStore);
                 let ocm = oc.match(cmdOutReg);
                 if (ocm) {
-                    return '<%if(' + ocm[2] + '){%> ' + key + ' <%}%>';
+                    return ' <%if(' + ocm[2] + '){%>' + key + '<%}%> ';
                 } else {
                     slog.ever(chalk.red('check attribute ' + key + '=' + q + oc + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="<%= data.' + key + ' %>" or ' + key + '="<%! data.' + key + ' %>" or ' + key + '="<%@ data.' + key + ' %>"');
                 }
@@ -81,21 +87,18 @@ let toNative = (result, cmdStore, e) => {
                     return ' ' + key + ' ';
                 }
             }
-        } else if (!allAttrs.hasOwnProperty(key) &&
-            key.indexOf('view-') !== 0 &&
-            key.indexOf('mx-') !== 0 &&
-            hasPath) {
-            return ' view-' + key + '=' + q + content + q;
         }
         return m;
     });
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
-let innerView = (result, info, gRoot, map) => {
+let innerView = (result, info, gRoot, map, extInfo) => {
+    if (info) {
+        result.mxView = gRoot + info.path;
+        result.seprateAttrs = (tag, type) => splitAttrs(tag, type, result.attrs);
+    }
     if (util.isObject(info) && util.isFunction(info.processor)) {
-        return info.processor(result, map) || '';
-    } else if (util.isFunction(info)) {
-        return info(result, map) || '';
+        return info.processor(result, map, extInfo) || '';
     }
     let tag = 'div';
     let hasTag = false;
@@ -116,22 +119,43 @@ let innerView = (result, info, gRoot, map) => {
     }
     let allAttrs = attrMap.getAll(tag, type);
     let hasPath = false;
-    attrs = attrs.replace(attrNameValueReg, (m, name, q, value) => {
+    let processedAttrs = {};
+    attrs = attrs.replace(attrNameValueReg, (m, key, q, value) => {
         if (!info) {
-            if (name == 'path' || name == 'view' || name == 'src') {
+            if (key == 'path' || key == 'view' || key == 'src') {
                 hasPath = true;
                 return ' mx-view=' + q + value + q;
             }
         }
-        if (!allAttrs.hasOwnProperty(name) &&
-            name.indexOf('view-') !== 0 &&
-            name.indexOf('mx-') !== 0) {
-            name = 'view-' + name;
+        if (!allAttrs.hasOwnProperty(key) &&
+            key.indexOf('view-') !== 0 &&
+            key.indexOf('mx-') !== 0) {
+            key = 'view-' + key;
         }
-        return ' ' + name + '=' + q + value + q;
+        if (info) {
+            let pKey = '_' + key;
+            if (info[key]) {
+                processedAttrs[key] = 1;
+            } else if (info[pKey]) {
+                processedAttrs[pKey] = 1;
+                value += ' ' + info[pKey];
+            }
+        }
+        return ' ' + key + '=' + q + value + q;
     });
+    if (info) {
+        for (let p in info) {
+            if (p != 'path' && p != 'tag' && !processedAttrs[p]) {
+                let v = info[p];
+                if (p.startsWith('_')) {
+                    p = p.slice(1);
+                }
+                attrs += ` ${p}="${v}"`;
+            }
+        }
+    }
     if (!hasPath && info) {
-        attrs += ' mx-view="' + gRoot + info.path + '"';
+        attrs += ' mx-view="' + result.mxView + '"';
     }
     return `<${tag} ${attrs}>${result.content}</${tag}>`;
 };
@@ -139,15 +163,17 @@ let innerView = (result, info, gRoot, map) => {
 let innerInclude = (result, info) => {
     let file = '';
     let attrs = {};
+    let src = '';
     result.attrs.replace(attrNameValueReg, (m, name, q, value) => {
         if (name == 'path' || name == 'src') {
-            file = path.resolve(path.join(path.dirname(info.file) + sep + value));
+            src = m;
+            file = path.resolve(path.join(path.dirname(info.srcOwnerHTMLFile) + sep + value));
         } else {
             attrs[name] = value;
         }
     });
     if (!fs.existsSync(file)) {
-        slog.ever(chalk.red('can not find file:' + file), 'for tag', chalk.magenta('<mx-' + result.tag + '>'), 'at', chalk.magenta(info.shortHTMLFile));
+        slog.ever(chalk.red('can not find file:' + file), 'for tag', chalk.magenta('<' + result.tag + ' ' + src + '>'), 'at', chalk.magenta(info.shortOwnerHTMLFile));
         return '';
     } else {
         let content = '';
@@ -164,6 +190,9 @@ let innerInclude = (result, info) => {
         });
         try {
             info.templateLang = path.extname(file).slice(1);
+            info.srcHTMLFile = file;
+            info.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+            info.includeSnippet = true;
             content = configs.compileTmplStart(content, info);
             content = configs.compileTmplEnd(content, info);
         } catch (ex) {
@@ -173,7 +202,7 @@ let innerInclude = (result, info) => {
     }
 };
 module.exports = {
-    process(tmpl, extInfo) {
+    process(tmpl, extInfo, e) {
         let badTags = Object.create(null);
         let cmdCache = Object.create(null);
         let galleriesMap = configs.galleries;
@@ -244,7 +273,7 @@ module.exports = {
         let processCustomTag = (n, map) => {
             let result = getTagInfo(n);
             let content = result.content;
-            let customContent = configs.customTagProcessor(result, map, extInfo);
+            let customContent = configs.customTagProcessor(result, map, extInfo, e);
             if (!customContent) {
                 let tagName = result.tag;
                 customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
@@ -274,6 +303,11 @@ module.exports = {
             if (!uncheckTags.hasOwnProperty(mainTag) && hasGallery) {
                 if (gMap.hasOwnProperty(result.tag)) {
                     let i = gMap[result.tag];
+                    if (util.isFunction(i)) {
+                        gMap[result.tag] = i = {
+                            processor: i
+                        };
+                    }
                     if (i && !i.path) {
                         i.path = (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/');
                     }
@@ -286,7 +320,7 @@ module.exports = {
                         };
                     } else {
                         uncheckTags[mainTag] = 1;
-                        slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
+                        slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile));
                     }
                 }
             }
@@ -294,17 +328,17 @@ module.exports = {
             if (n.pfx == 'mx') {
                 if (result.mainTag == 'view' || result.mainTag == 'vframe') {
                     if (result.mainTag == 'view') {
-                        slog.ever(chalk.red('deprecated tag: mx-view'), 'at', chalk.magenta(extInfo.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
+                        slog.ever(chalk.red('deprecated tag: mx-view'), 'at', chalk.magenta(e.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
                     }
                     content = innerView(result);
                     update = true;
-                } else if (result.tag == 'include') {
+                } else if (result.mainTag == 'include') {
                     content = innerInclude(result, extInfo);
                     update = true;
                 }
             }
             if (!update && gMap.hasOwnProperty(result.tag)) {
-                content = innerView(result, gMap[result.tag], gRoot, map);
+                content = innerView(result, gMap[result.tag], gRoot, map, extInfo);
                 update = true;
             }
             if (update) {
@@ -316,8 +350,8 @@ module.exports = {
             if (nodes) {
                 if (!map) map = nodes.__map;
                 for (let n of nodes) {
-                    if (extInfo.checkTmplDuplicateAttr && n.attrs && n.attrs.length) {
-                        duAttrChecker(n, extInfo, cmdCache, tmpl.slice(n.attrsStart, n.attrsEnd));
+                    if (e.checker.checkTmplDuplicateAttr && n.attrs && n.attrs.length) {
+                        duAttrChecker(n, e, cmdCache, tmpl.slice(n.attrsStart, n.attrsEnd));
                     }
                     walk(n.children, map);
                     if (n.customTag) {

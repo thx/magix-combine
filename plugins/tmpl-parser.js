@@ -1,5 +1,6 @@
 let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
 let tmplTags = require('./tmpl-tags');
+let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 module.exports = input => {
     let ctrls = [];
     let pos = 0;
@@ -63,9 +64,17 @@ module.exports = input => {
                 }
                 if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;
-                    attrsMap[a.name] = a.value;
-                } else {
-                    attrsMap[a.name] = '';
+                    if (!tmplCommandAnchorReg.test(a.name)) {
+                        attrsMap[a.name] = {
+                            unary: false,
+                            quote: a.quote,
+                            value: a.value
+                        };
+                    }
+                } else if (!tmplCommandAnchorReg.test(a.name)) {
+                    attrsMap[a.name] = {
+                        unary: true
+                    };
                 }
                 pos = input.indexOf(temp, pos) + temp.length;
             }

@@ -1,7 +1,7 @@
 
 //let utils = require('./util');
-let acorn = require('acorn');
-let walker = require('acorn/dist/walk');
+
+let acorn = require('./js-acorn');
 
 let stringReg = /^['"]/;
 let qmap = {
@@ -100,7 +100,7 @@ module.exports = {
                 });
             }
         };
-        walker.simple(ast, {
+        acorn.walk(ast, {
             Property(node) {
                 let key = node.key;
                 let value = node.value;

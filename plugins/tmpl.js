@@ -5,6 +5,7 @@ let path = require('path');
 let fs = require('fs');
 let chalk = require('chalk');
 let util = require('util');
+let utils = require('./util');
 let fd = require('./util-fd');
 let deps = require('./util-deps');
 let atpath = require('./util-atpath');
@@ -22,7 +23,7 @@ let checker = require('./checker');
 let tmplVars = require('./tmpl-vars');
 let md5 = require('./util-md5');
 let slog = require('./util-log');
-let revisableReg = /@\{[a-zA-Z\.0-9\-\~]+\}/g;
+let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]*)\]/g;
@@ -34,8 +35,8 @@ let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 
-let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo, lang) => {
-    let key = prefix + holder + magixTmpl + holder + fileContent;
+let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang) => {
+    let key = magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
         if (unsupportCharsReg.test(fileContent)) {
@@ -71,11 +72,11 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             fileContent = tmplCutsomTag.process(fileContent, {
                 moduleId: e.moduleId,
                 pkgName: e.pkgName,
-                checkTmplDuplicateAttr: e.checker.tmplDuplicateAttr,
-                file,
-                shortHTMLFile: e.shortHTMLFile,
+                //checkTmplDuplicateAttr: e.checker.tmplDuplicateAttr,
+                srcOwnerHTMLFile: file,
+                shortOwnerHTMLFile: e.shortHTMLFile,
                 artEngine: flagsInfo.artEngine
-            });
+            }, e);
         } catch (ex) {
             slog.ever(chalk.red('parser tmpl-customtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
@@ -113,9 +114,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         e.refLeakGlobal = {
             reassigns: []
         };
-        if (magixTmpl) {
-            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
-        }
+        //if (magixTmpl) {
+        fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
+        //}
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
         if (!configs.debug) {
@@ -138,7 +139,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
             reject(ex);
             return;
         }
-        if (magixTmpl) {
+        if (magixTmpl && !configs.magixUpdaterIncreasement) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
             //console.log(tmplCmd.recover(fileContent,refTmplCommands));
             if (e.refLeakGlobal.exists) {
@@ -154,22 +155,16 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, prefix
         fileContent = configs.compileTmplEnd(fileContent);
         //console.log(JSON.stringify(fileContent),refTmplCommands);
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
-        if (magixTmpl) {
-            for (let p in refTmplCommands) {
-                let cmd = refTmplCommands[p];
-                if (util.isString(cmd)) {
-                    refTmplCommands[p] = cmd.replace(removeVdReg, '')
-                        .replace(removeIdReg, '')
-                        .replace(stringReg, '$1');
-                }
+        for (let p in refTmplCommands) {
+            let cmd = refTmplCommands[p];
+            if (util.isString(cmd)) {
+                refTmplCommands[p] = cmd.replace(removeVdReg, '')
+                    .replace(removeIdReg, '')
+                    .replace(stringReg, '$1');
             }
-            let info = tmplPartial.process(fileContent, refTmplCommands, e, flagsInfo);
-            temp.info = info;
-        } else {
-            temp.info = {
-                tmpl: tmplCmd.recover(fileContent, refTmplCommands)
-            };
         }
+        let info = tmplPartial.process(fileContent, refTmplCommands, e, flagsInfo);
+        temp.info = info;
         fCache = temp;
     }
     return fCache;
@@ -181,7 +176,7 @@ module.exports = e => {
             moduleId = e.moduleId,
             fileContentCache = Object.create(null);
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
-        e.content = e.content.replace(configs.fileTmplReg, (match, prefix, quote, ctrl, name, ext, flags) => {
+        e.content = e.content.replace(configs.fileTmplReg, (match, quote, ctrl, name, ext, flags) => {
             name = atpath.resolvePath(name, moduleId);
             //console.log(raw,name,prefix,configs.tmplOutputWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.' + ext);
@@ -194,10 +189,10 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
-                let magixTmpl = (!configs.disableMagixUpdater && prefix && ctrl != 'raw') || ctrl == 'updater' || flags;
+                let magixTmpl = ctrl == 'updater' || flags;
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 let lang = singleFile ? e.contentInfo.templateLang : ext;
-
+                e.htmlModuleId = utils.extractModuleId(file);
                 e.srcHTMLFile = file;
                 e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
                 if (ext != lang) {
@@ -232,25 +227,19 @@ module.exports = e => {
                         }
                     }
                 }
-                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, prefix, file, flagsInfo, lang);
+                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang);
                 if (magixTmpl) {
                     let temp = {
-                        html: fcInfo.info.tmpl,
-                        subs: fcInfo.info.list
+                        html: fcInfo.info.tmpl
                     };
+                    if (!configs.magixUpdaterIncreasement) temp.subs = fcInfo.info.list;
                     if (configs.debug) temp.file = e.shortHTMLFile;
                     if (configs.tmplOutputWithEvents) temp.events = fcInfo.events;
-                    return (prefix || '') + JSON.stringify(temp);
+                    return JSON.stringify(temp);
                 }
-                if (prefix && configs.tmplOutputWithEvents) {
-                    return prefix + JSON.stringify({
-                        html: fcInfo.info.tmpl,
-                        events: fcInfo.events
-                    });
-                }
-                return (prefix || '') + JSON.stringify(fcInfo.info.tmpl);
+                return JSON.stringify(fcInfo.info.tmpl);
             }
-            return (prefix || '') + quote + 'unfound file:' + name + '.' + ext + quote;
+            return quote + 'unfound file:' + name + '.' + ext + quote;
         });
         resolve(e);
     });
