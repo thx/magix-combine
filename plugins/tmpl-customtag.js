@@ -23,9 +23,8 @@ let uncheckTags = {
     'mx-include': 1,
     'mx-vframe': 1
 };
-let cmdOutReg = /^<%([!=@])([\s\S]*)%>$/;
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
-let attrNameValueReg = /\b([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2\s*/g;
+let attrNameValueReg = /(?:^|\s)([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2/g;
 let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
@@ -34,17 +33,23 @@ let fileCache = Object.create(null);
 
 let splitAttrs = (tag, type, attrs) => {
     let viewAttrs = '';
+    let viewAttrsMap = {};
     attrs = attrs.replace(tagReg, (m, t) => {
         tag = t;
         return '';
     });
     let attrsMap = attrMap.getAll(tag, type);
     attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
-        if (!attrsMap[key] && !key.startsWith('mx-') && !key.startsWith('data-')) {
-            if (!key.startsWith('view-')) {
+        if (!attrsMap[key] &&
+            !key.startsWith('mx-') &&
+            !key.startsWith('data-')) {
+            if (key.startsWith('@view-')) {
+                key = 'view-@' + key.slice(6);
+            } else if (!key.startsWith('view-')) {
                 key = 'view-' + key;
             }
             viewAttrs += ' ' + key + '="' + content + '"';
+            viewAttrsMap[key.slice(5)] = content;
             return '';
         }
         return m;
@@ -53,7 +58,8 @@ let splitAttrs = (tag, type, attrs) => {
     return {
         tag,
         attrs,
-        viewAttrs
+        viewAttrs,
+        viewAttrsMap
     };
 };
 let toNative = (result, cmdStore, e) => {
@@ -70,12 +76,14 @@ let toNative = (result, cmdStore, e) => {
     attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
         if (bAttrs.hasOwnProperty(key)) {
             if (tmplCommandAnchorReg.test(content)) {
-                let oc = tmplCmd.recover(content, cmdStore);
-                let ocm = oc.match(cmdOutReg);
-                if (ocm) {
-                    return ' <%if(' + ocm[2] + '){%>' + key + '<%}%> ';
+                let cmdContent = tmplCmd.extractCmdContent(content, cmdStore);
+                if (cmdContent.succeed) {
+                    return ' <%if(' + cmdContent.content + '){%>' + key + '<%}%> ';
                 } else {
-                    slog.ever(chalk.red('check attribute ' + key + '=' + q + oc + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="<%= data.' + key + ' %>" or ' + key + '="<%! data.' + key + ' %>" or ' + key + '="<%@ data.' + key + ' %>"');
+                    let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
+                    let ex2 = cmdContent.art ? `{{!data.${key}}}` : `<%!data.${key}%>`;
+                    let ex3 = cmdContent.art ? `{{@data.${key}}}` : `<%@data.${key}%>`;
+                    slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
                 }
             } else {
                 if (content === 'false' ||
@@ -126,6 +134,9 @@ let innerView = (result, info, gRoot, map, extInfo) => {
                 hasPath = true;
                 return ' mx-view=' + q + value + q;
             }
+        }
+        if (key.startsWith('@view-')) {
+            return ' view-@' + key.slice(6) + '=' + q + value + q;
         }
         if (!allAttrs.hasOwnProperty(key) &&
             key.indexOf('view-') !== 0 &&
@@ -319,10 +330,13 @@ module.exports = {
                             path: (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/')
                         };
                     } else {
-                        uncheckTags[mainTag] = 1;
-                        slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile));
+                        uncheckTags[mainTag] = cpath;
                     }
                 }
+            }
+            let tip = uncheckTags[mainTag];
+            if (tip && tip !== 1) {
+                slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile), 'try path', chalk.magenta(tip));
             }
             let update = false;
             if (n.pfx == 'mx') {
@@ -342,6 +356,33 @@ module.exports = {
                 update = true;
             }
             if (update) {
+                tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+                updateOffset(n.start, content.length - (n.end - n.start));
+            }
+        };
+        let processAtAttrs = n => {
+            let result = getTagInfo(n);
+            let update = false;
+            let content = '';
+            let tag = result.tag;
+            let attrs = result.attrs;
+            attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
+                if (tmplCommandAnchorReg.test(content) && key.startsWith('@')) {
+                    let cmdContent = tmplCmd.extractCmdContent(content, cmdCache);
+                    if (cmdContent.succeed) {
+                        update = true;
+                        m = m.trim().slice(1);
+                        return ' <%if(' + cmdContent.content + '){%>' + m + '<%}%> ';
+                    } else {
+                        let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
+                        let ex2 = cmdContent.art ? `{{!data.${key}}}` : `<%!data.${key}%>`;
+                        let ex3 = cmdContent.art ? `{{@data.${key}}}` : `<%@data.${key}%>`;
+                        slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
+                    }
+                }
+            });
+            if (update) {
+                content = `<${tag} ${attrs}>${result.content}</${tag}>`;
                 tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
@@ -366,6 +407,8 @@ module.exports = {
                             //slog.ever(chalk.red('can not process custom tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
                             processCustomTag(n, map);
                         }
+                    } else {
+                        processAtAttrs(n);
                     }
                 }
             }
@@ -374,7 +417,7 @@ module.exports = {
             let map = nodes.__map;
             for (let n in map) {
                 n = map[n];
-                if (!badTags[n.tag] && n.customTag) {
+                if (!badTags[n.tag] && n.customTag || n.atAttr) {
                     return true;
                 }
             }

@@ -4,7 +4,9 @@ let postcss = require('postcss');
 let configs = require('./util-config');
 module.exports = css => {
     return new Promise((resolve, reject) => {
-        postcss(autoprefixer(configs.autoprefixer)).process(css).then(res => {
+        postcss(autoprefixer(configs.autoprefixer)).process(css, {
+            from: undefined
+        }).then(res => {
             resolve(res.css);
         }).catch(ex => {
             reject(ex);

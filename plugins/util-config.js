@@ -2,6 +2,7 @@ let classReg = /\bclass\s*=\s*"[^"]+/;
 let compound = defaultTag => {
     return i => {
         let a = i.seprateAttrs(defaultTag);
+        //console.log(a);
         return `<${a.tag} ${a.attrs}>${i.content}</${a.tag}><div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
     };
 };

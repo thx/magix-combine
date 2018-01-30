@@ -10,7 +10,7 @@ let regexp = require('./util-rcache');
 let chalk = require('chalk');
 let slog = require('./util-log');
 let tagReg = /<([\w-]+)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
-let attrReg = /([\w\-:]+)="[\s\S]*?"/g;
+let attrReg = /([\w\-:@]+)="[\s\S]*?"/g;
 module.exports = {
     process(fileContent, e, refTmplCommands) {
         let toSrc = expr => {

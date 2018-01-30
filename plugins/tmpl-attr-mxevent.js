@@ -163,7 +163,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                     return m.slice(0, idx) + holder + magixHolder + m.slice(idx);
                 } else {
                     let left = m.indexOf('(');
-                    let right = m.indexOf(')');
+                    let right = m.lastIndexOf(')');
                     if (left > -1 && right > -1) {
                         let params = m.slice(left + 1, right).trim();
                         if (params) {

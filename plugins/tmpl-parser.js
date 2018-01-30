@@ -54,13 +54,17 @@ module.exports = input => {
             let temp = '<' + tag;
             pos = input.indexOf(temp, pos) + temp.length;
             for (let i = 0, len = attrs.length, a; i < len; i++) {
-                if (i === 0) token.attrsStart = pos + 1;
+                if (i === 0) {
+                    token.attrsStart = pos + (input.charAt(pos + 1) ? 0 : 1);
+                }
                 a = attrs[i];
                 temp = a.name;
                 if (temp == 'mx-guid') {
                     token.guid = a.value;
                 } else if (temp == 'mx-view') {
                     token.hasMxView = true;
+                } else if (temp.startsWith('@')) {
+                    token.atAttr = true;
                 }
                 if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;
@@ -123,16 +127,14 @@ module.exports = input => {
             }
         }
     }
-    let walk = (nodes, inSVG) => {
+    let walk = nodes => {
         if (nodes) {
             for (let n of nodes) {
-                if (n.tag == 'svg') inSVG = true;
-                walk(n.children, inSVG);
+                walk(n.children);
                 if (!tmplTags.nativeTags.hasOwnProperty(n.tag) &&
-                    (!inSVG || !tmplTags.svgTags.hasOwnProperty(n.tag))) {
+                    !tmplTags.svgTags.hasOwnProperty(n.tag)) {
                     n.customTag = true;
                 }
-                if (n.tag == 'svg') inSVG = false;
             }
         }
     };

@@ -40,6 +40,8 @@ let extractArtReg = /\{\{([@!~=:])?([\s\S]+?)\}\}(?!\})/;
 
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/g;
 
+let cmdOutReg = /^<%(?:[!=@])([\s\S]*)%>$/;
+let artCtrlsReg = /<%'\x17?\d+\x11([^\x11]+)\x11\x17?'%>(<%[\s\S]+?%>)/g;
 
 module.exports = {
     compile(tmpl) {
@@ -267,5 +269,31 @@ module.exports = {
                 return i;
             }
         } while (i);
+    },
+    extractCmdContent(cmd, refTmplCommands) {
+        let oc = this.recover(cmd, refTmplCommands);
+        let art = oc.replace(artCtrlsReg, '{{$1}}');
+        let old = oc.replace(artCtrlsReg, '$2');
+        let ocm = old.match(cmdOutReg);
+        if (ocm) {
+            if (ocm[1].indexOf('%>') > -1 || ocm[1].indexOf('<%') > -1) {
+                return {
+                    isArt: !!art,
+                    origin: art || old,
+                    succeed: false
+                };
+            }
+            return {
+                isArt: !!art,
+                origin: art || old,
+                succeed: true,
+                content: ocm[1]
+            };
+        }
+        return {
+            isArt: !!art,
+            origin: art || old,
+            succeed: false
+        };
     }
 };

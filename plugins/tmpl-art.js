@@ -226,7 +226,12 @@ let syntax = (code, stack, e, lineNo, refMap) => {
     if (configs.debug) {
         src = `<%'${lineNo}\x11${code.replace(slashReg, '\\$&')}\x11'%>`;
         if (code[0] === ':') {//绑定的不处理
-            let key = code.slice(1).match(/^[^<({]+/)[0].trim();
+            let match = code.slice(1).match(/^[^<({]+/);
+            if (!match) {
+                slog.ever(chalk.red(`bad art {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+                return;
+            }
+            let key = match[0].trim();
             let old = refMap[key];
             if (old) {
                 old.push(src);

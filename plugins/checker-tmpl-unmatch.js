@@ -22,7 +22,7 @@ let selfCloseTags = {
     wbr: 1
 };
 let commentReg = /<!--[\s\S]*?-->/g;
-let tagRemovedReg = /<(style|script|svg)[^>]*>[\s\S]*?<\/\1>/g;
+let tagRemovedReg = /<(style|script)[^>]*>[\s\S]*?<\/\1>/g;
 let tagReg = /<(\/)?([a-z0-9\-.:_]+)[^>]*>?/ig;
 let brReg = /(?:\r\n|\r|\n)/;
 let brPlaceholder = m => {

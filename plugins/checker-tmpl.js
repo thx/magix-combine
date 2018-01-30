@@ -134,6 +134,9 @@ module.exports = {
         paramName = camelize(paramName);
         return paramName;
     },
+    checkAtAttr(expr, e) {
+        slog.ever(chalk.red('unsupport ' + expr), 'at', chalk.grey(e.shortHTMLFile));
+    },
     checkMxViewParamsEscape(operate, match, view, e) {
         if (e.checker.tmplAttrMxView && operate === '!') {
             let i = tmplCmd.extactCmd(match, ['!']);
