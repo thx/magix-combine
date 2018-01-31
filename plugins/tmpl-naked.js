@@ -31,8 +31,8 @@ let processTmpl = (tmpl, shortFrom) => {
     tmpl = tmpl.replace(pureTagReg, m => {
         return configs.tmplTagProcessor(m, shortFrom);
     });
-    tmpl = tmplCmd.recover(tmpl, store);
     tmpl = tmpl.replace(commentPHReg, m => comment[m]);
+    tmpl = tmplCmd.recover(tmpl, store);
     //tmpl = configs.compileTmplEnd(tmpl);
     return tmpl;
 };

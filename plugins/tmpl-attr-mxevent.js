@@ -166,12 +166,14 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                     let right = m.lastIndexOf(')');
                     if (left > -1 && right > -1) {
                         let params = m.slice(left + 1, right).trim();
-                        if (params) {
-                            tmplChecker.checkMxEventParams(name, params, originalMatch, e);
-                            params = encodeParams(params, refTmplCommands, originalMatch, e, toSrc);
-                        }
                         left = m.slice(0, left + 1);
-                        right = (params || '') + m.slice(right);
+                        right = m.slice(right);
+                        if (cmdReg.test(left) || cmdReg.test(right)) {
+                            right = params + right;
+                        } else if (params) {
+                            tmplChecker.checkMxEventParams(name, params, originalMatch, e);
+                            right = encodeParams(params, refTmplCommands, originalMatch, e, toSrc) + right;
+                        }
                     } else {
                         slog.ever(chalk.red('bad event:' + m), 'at', chalk.grey(e.shortHTMLFile));
                         left = m;
