@@ -23,6 +23,7 @@ let checker = require('./checker');
 let tmplVars = require('./tmpl-vars');
 let md5 = require('./util-md5');
 let slog = require('./util-log');
+let tmplToFn = require('./tmpl-tofn');
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -139,7 +140,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
-        if (magixTmpl && !configs.magixUpdaterIncreasement) {
+        if (magixTmpl && !configs.magixUpdaterIncrement) {
             fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
             //console.log(tmplCmd.recover(fileContent,refTmplCommands));
             if (e.refLeakGlobal.exists) {
@@ -229,10 +230,13 @@ module.exports = e => {
                 }
                 let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang);
                 if (magixTmpl) {
+                    if (configs.magixUpdaterIncrement) {
+                        return tmplToFn(fcInfo.info.tmpl, e.shortHTMLFile);
+                    }
                     let temp = {
-                        html: fcInfo.info.tmpl
+                        html: fcInfo.info.tmpl,
+                        subs: fcInfo.info.list
                     };
-                    if (!configs.magixUpdaterIncreasement) temp.subs = fcInfo.info.list;
                     if (configs.debug) temp.file = e.shortHTMLFile;
                     if (configs.tmplOutputWithEvents) temp.events = fcInfo.events;
                     return JSON.stringify(temp);

@@ -280,7 +280,7 @@ declare module "magix-combine" {
         tmplConstVars?: object
 
         /**
-         * 是否使用类mustach模板，默认false
+         * 是否使用类mustach模板，默认true
          */
         tmplArtEngine?: boolean
         /**

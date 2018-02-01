@@ -1,7 +1,10 @@
 let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
 let tmplTags = require('./tmpl-tags');
+let chalk = require('chalk');
+let slog = require('./util-log');
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
-module.exports = input => {
+let upperCaseReg = /[A-Z]/g;
+module.exports = (input, htmlFile) => {
     let ctrls = [];
     let pos = 0;
     let tokens = [];
@@ -11,6 +14,9 @@ module.exports = input => {
     new HTMLParser(input, {
         html5: true,
         start(tag, attrs, unary) {
+            if (htmlFile && upperCaseReg.test(tag)) {
+                slog.ever(chalk.red('avoid use ' + tag), 'at', chalk.magenta(htmlFile), 'use ', chalk.red(tag.toLowerCase()), 'instead');
+            }
             tag = tag.toLowerCase();
             let ic = tag.indexOf('-');
             let ip = tag.indexOf('.');

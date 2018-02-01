@@ -424,14 +424,14 @@ module.exports = {
             return false;
         };
         tmpl = tmplCmd.store(tmpl, cmdCache);
-        let tokens = tmplParser(tmpl);
+        let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 3;
         while (hasMxTag(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
             tmpl = tmplCmd.store(tmpl, cmdCache, configs.artTmplCommand);
             //console.log(tmpl);
-            tokens = tmplParser(tmpl);
+            tokens = tmplParser(tmpl, e.shortHTMLFile);
         }
         tmpl = tmplCmd.recover(tmpl, cmdCache);
         return tmpl;

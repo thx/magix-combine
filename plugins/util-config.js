@@ -63,7 +63,7 @@ module.exports = {
     tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
     disableMagixUpdater: false,
-    magixUpdaterIncreasement: false,
+    magixUpdaterIncrement: false,
     globalCss: [], //全局样式
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查
