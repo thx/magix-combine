@@ -131,6 +131,7 @@ module.exports = {
                 return src;
             }
         };
+        debugger;
         if (cfg) {
             for (let s of specials) {
                 if (cfg[s.src]) {

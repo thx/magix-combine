@@ -509,13 +509,13 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
     let list = [];
     let g = 0;
     let walk = (nodes, parentOwnKeys) => {
+        let ownKeys = Object.create(null);
+        for (let p in parentOwnKeys) { //继承父结构的keys
+            ownKeys[p] = parentOwnKeys[p];
+        }
         for (let n of nodes) {
-            let ownKeys = Object.create(null);
             if (n.guid) {
                 let guid = 'mx-guid="' + n.guid + '"';
-                for (let p in parentOwnKeys) { //继承父结构的keys
-                    ownKeys[p] = parentOwnKeys[p];
-                }
                 let selector = n.tag + '[' + guid + ']';
                 if (n.tag == 'mxv-root') {
                     selector = '#\u001f';

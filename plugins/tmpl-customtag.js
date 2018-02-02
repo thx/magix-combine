@@ -361,6 +361,7 @@ module.exports = {
             }
         };
         let processAtAttrs = n => {
+            debugger;
             let result = getTagInfo(n);
             let update = false;
             let content = '';
@@ -380,6 +381,7 @@ module.exports = {
                         slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
                     }
                 }
+                return m;
             });
             if (update) {
                 content = `<${tag} ${attrs}>${result.content}</${tag}>`;

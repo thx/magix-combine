@@ -24,6 +24,7 @@ let tmplVars = require('./tmpl-vars');
 let md5 = require('./util-md5');
 let slog = require('./util-log');
 let tmplToFn = require('./tmpl-tofn');
+//let tmplDecode = require('./tmpl-decode');
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -115,9 +116,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         e.refLeakGlobal = {
             reassigns: []
         };
-        //if (magixTmpl) {
-        fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
-        //}
+        if (magixTmpl) {
+            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
+        }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
         if (!configs.debug) {
@@ -190,7 +191,7 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
-                let magixTmpl = ctrl == 'updater' || flags;
+                let magixTmpl = ctrl != 'raw' || flags;
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 let lang = singleFile ? e.contentInfo.templateLang : ext;
                 e.htmlModuleId = utils.extractModuleId(file);
@@ -231,7 +232,9 @@ module.exports = e => {
                 let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang);
                 if (magixTmpl) {
                     if (configs.magixUpdaterIncrement) {
-                        return tmplToFn(fcInfo.info.tmpl, e.shortHTMLFile);
+                        let tmpl = fcInfo.info.tmpl;
+                        //tmpl = tmplDecode(tmpl);
+                        return tmplToFn(tmpl, e.shortHTMLFile);
                     }
                     let temp = {
                         html: fcInfo.info.tmpl,

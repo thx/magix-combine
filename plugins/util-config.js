@@ -54,7 +54,16 @@ module.exports = {
     },
     tmplFileExtNames: ['html', 'haml', 'pug', 'jade', 'tpl'], //模板后缀
     tmplConstVars: {}, //模板中不会变的变量，减少子模板的分析
-    tmplGlobalVars: {}, //模板中全局变量
+    tmplGlobalVars: {
+        window: 1,
+        JSON: 1,
+        document: 1,
+        console: 1,
+        Math: 1,
+        Number: 1,
+        isNaN: 1,
+        isFinite: 1
+    }, //模板中全局变量
     tmplAddViewsToDependencies: false, //是否把模板中的view做为依赖提前加载
     tmplOutputWithEvents: false, //输出事件
     tmplCompressVariable: true, //是否压缩模板中的变量
