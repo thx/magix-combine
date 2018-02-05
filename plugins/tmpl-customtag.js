@@ -18,6 +18,17 @@ let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
 let sep = path.sep;
+let selfClose = {
+    input: 1,
+    br: 1,
+    hr: 1,
+    img: 1,
+    embed: 1,
+    source: 1,
+    area: 1,
+    param: 1,
+    col: 1
+};
 let uncheckTags = {
     'mx-view': 1,
     'mx-include': 1,
@@ -98,7 +109,16 @@ let toNative = (result, cmdStore, e) => {
         }
         return m;
     });
-    return `<${tag} ${attrs}>${result.content}</${tag}>`;
+    let html = `<${tag} ${attrs}`;
+    let unary = selfClose.hasOwnProperty(tag);
+    if (unary) {
+        html += `/`;
+    }
+    html += `>${result.content}`;
+    if (!unary) {
+        html += `</${tag}>`;
+    }
+    return html;
 };
 let innerView = (result, info, gRoot, map, extInfo) => {
     if (info) {
@@ -168,7 +188,17 @@ let innerView = (result, info, gRoot, map, extInfo) => {
     if (!hasPath && info) {
         attrs += ' mx-view="' + result.mxView + '"';
     }
-    return `<${tag} ${attrs}>${result.content}</${tag}>`;
+
+    let html = `<${tag} ${attrs}`;
+    let unary = selfClose.hasOwnProperty(tag);
+    if (unary) {
+        html += `/`;
+    }
+    html += `>${result.content}`;
+    if (!unary) {
+        html += `</${tag}>`;
+    }
+    return html;
 };
 
 let innerInclude = (result, info) => {
@@ -361,7 +391,6 @@ module.exports = {
             }
         };
         let processAtAttrs = n => {
-            debugger;
             let result = getTagInfo(n);
             let update = false;
             let content = '';
@@ -384,7 +413,16 @@ module.exports = {
                 return m;
             });
             if (update) {
-                content = `<${tag} ${attrs}>${result.content}</${tag}>`;
+                let html = `<${tag} ${attrs}`;
+                let unary = selfClose.hasOwnProperty(tag);
+                if (unary) {
+                    html += `/`;
+                }
+                html += `>${result.content}`;
+                if (!unary) {
+                    html += `</${tag}>`;
+                }
+                content = html;
                 tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
@@ -427,7 +465,7 @@ module.exports = {
         };
         tmpl = tmplCmd.store(tmpl, cmdCache);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
-        let checkTimes = 2 << 3;
+        let checkTimes = 2 << 2;
         while (hasMxTag(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);

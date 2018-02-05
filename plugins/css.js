@@ -176,7 +176,6 @@ module.exports = (e, inwatch) => {
                                         } catch (ex) {
                                             reject(ex);
                                         }
-                                        cssGlobal.add(file, cssNamesMap, cssNamesToFiles);
                                         cloneAssign(gCSSNamesMap, cssNamesMap);
                                         cloneAssign(gCSSTagToFiles, cssTagsToFiles);
                                         checker.CSS.fileToSelectors(file, cssNamesMap, inwatch);

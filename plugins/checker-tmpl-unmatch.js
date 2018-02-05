@@ -1,26 +1,6 @@
 //https://github.com/marcosbasualdo/UnclosedHtmlTags/blob/master/index.js
 
 let configs = require('./util-config');
-let selfCloseTags = {
-    area: 1,
-    base: 1,
-    basefont: 1,
-    br: 1,
-    col: 1,
-    embed: 1,
-    frame: 1,
-    hr: 1,
-    img: 1,
-    input: 1,
-    isindex: 1,
-    keygen: 1,
-    link: 1,
-    meta: 1,
-    param: 1,
-    source: 1,
-    track: 1,
-    wbr: 1
-};
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script)[^>]*>[\s\S]*?<\/\1>/g;
 let tagReg = /<(\/)?([a-z0-9\-.:_]+)[^>]*>?/ig;
@@ -45,27 +25,10 @@ module.exports = tmpl => {
     for (let line of lines) {
         line.replace(tagReg, (m, close, name, offset) => {
             //自闭合不检测
-            if (selfCloseTags.hasOwnProperty(name)) return;
+            //if (selfCloseTags.hasOwnProperty(name)) return;
             //自定义的mx-tag检测
             let checkTag = true;
-            let prefixes = configs.galleryPrefixes;
-            let pfx = '';
-            let ic = name.indexOf('-');
-            let ip = name.indexOf('.');
-            let i = -1;
-            if (ic != -1 || ip != -1) {
-                if (ic != -1 && ip != -1) {
-                    i = Math.min(ic, ip);
-                } else if (ic != -1) {
-                    i = ic;
-                } else {
-                    i = ip;
-                }
-            }
-            if (i != -1) {
-                pfx = name.slice(0, i);
-            }
-            if (prefixes[pfx] === 1 && !close) {//非闭合mx标签
+            if (!close) {//非闭合标签
                 let start = lineCount - 1;
                 let results = [];
                 let i = line.indexOf('>', offset);//当前行有没有'>'结束

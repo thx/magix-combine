@@ -1012,7 +1012,7 @@ module.exports = {
                     let i = extractFunctions(expr);
                     let ii = findIndex(offset, expr);
                     let artExpr = getOriginalArtCtrl(i.expr, ii);
-                    return `${artExpr}<%!${i.expr}%>`;
+                    return `${artExpr}<%=${i.expr}%>`;
                 });
                 attr = attr + ' ' + bind;
             }

@@ -40,7 +40,7 @@ module.exports = () => {
         //模板处理，即处理view.html文件
         configs.fileTmplReg = new RegExp('([\'"])(raw|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1', 'g');
 
-        configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+        configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep|html)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
         if (configs.addTmplViewsToDependencies) {
             configs.tmplAddViewsToDependencies = true;

@@ -3,7 +3,7 @@
  */
 let pureTagReg = /<[^>\s\/]+[^>]*>/g;
 let attrsNameValueReg = /([^\s]+)=(["'])[\s\S]+?\2/ig;
-let eventReg = /mx-(?!view|vframe|keys|options|data|partial|init)[a-zA-Z]+/;
+let eventReg = /mx-(?!view|vframe|keys|options|data|partial|init|html)[a-zA-Z]+/;
 module.exports = {
     extract(tmpl) {
         let map = Object.create(null);

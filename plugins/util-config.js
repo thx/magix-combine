@@ -26,6 +26,7 @@ module.exports = {
         removeEmptyAttributes: true, //移除空的属性
         collapseInlineTagWhitespace: true, //移除标签间的空白
         caseSensitive: true, //保持大小写
+        keepClosingSlash: true,
         //collapseBooleanAttributes: true,//boolean属性
         removeRedundantAttributes: true //移除默认的属性，如input当type="text"时 type可被移除
     },

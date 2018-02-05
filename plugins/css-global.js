@@ -25,7 +25,6 @@ let globalCssTagsInFiles = Object.create(null);
 let scopedStyle = '';
 let scopedStyles = [];
 let globalPromise;
-let lazyGlobalInfo = Object.create(null);
 let processGlobal = ctx => { //处理全局样式，因全局样式过于自由，不建议使用
     globalCssNamesMap = Object.create(null); //样式名映射，原始到压缩的映射
     globalCssNamesInFiles = Object.create(null); //样式名到文件的映射
@@ -203,13 +202,6 @@ module.exports = {
         if (!globalPromise) {
             globalPromise = Promise.resolve(info);
             globalPromise = globalPromise.then(processGlobal).then(processScope).then(() => {
-                for (let p in lazyGlobalInfo) {
-                    let info = lazyGlobalInfo[p];
-                    if (info) {
-                        Object.assign(globalCssNamesMap, info.a);
-                        Object.assign(globalCssNamesInFiles, info.b);
-                    }
-                }
                 return {
                     globalCssNamesMap,
                     globalCssNamesInFiles,
@@ -221,25 +213,12 @@ module.exports = {
         }
         return globalPromise;
     },
-    add(file, cssNamesMap, cssNamesInFiles) {
-        lazyGlobalInfo[file] = {
-            a: globalCssNamesMap,
-            b: cssNamesInFiles
-        };
-        Object.assign(globalCssNamesMap, cssNamesMap);
-        Object.assign(globalCssNamesInFiles, cssNamesInFiles);
-    },
     reset(file) {
         let { globalCssMap, scopedCssMap } = configs;
         if (file && (globalCssMap && globalCssMap[file] ||
             scopedCssMap && scopedCssMap[file])) {
             globalPromise = null;
             cssAtRule.reset();
-        }
-        let info = lazyGlobalInfo[file];
-        if (info) {
-            info.a = null;
-            info.b = null;
         }
     }
 };
