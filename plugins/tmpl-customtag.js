@@ -68,6 +68,7 @@ let splitAttrs = (tag, type, attrs) => {
     viewAttrs = viewAttrs.trim();
     return {
         tag,
+        unaryTag: selfClose.hasOwnProperty(tag),
         attrs,
         viewAttrs,
         viewAttrsMap

@@ -1,3 +1,9 @@
+## 3.8.9
+1. 升级依赖
+2. 修正模板中变量压缩与全局变量冲突的问题
+3. `cssnano`默认不压缩字体，看这里:[https://github.com/ben-eb/cssnano/issues/430](https://github.com/ben-eb/cssnano/issues/430) 看这里:[https://github.com/ben-eb/cssnano/issues/439](https://github.com/ben-eb/cssnano/issues/439) 看这里：[https://github.com/less/less.js/issues/3160](https://github.com/less/less.js/issues/3160)
+4. 精简`debug`模式下的模板生成函数
+
 ## 3.8.8
 1. 去除在`view`中设置`global`的样式添加到全局的处理,只在当前`view`有效
 2. `textarea`中的内容还是要转义

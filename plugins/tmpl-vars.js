@@ -367,7 +367,11 @@ module.exports = {
             VariableDeclarator(node) { //变量声明
                 let tname = node.id.name;
                 if (!configs.debug && configs.tmplCompressVariable) {
-                    let cname = md5.byNum(varCount++);
+                    let cname;
+                    do {
+                        cname = md5.byNum(varCount++);
+                    }
+                    while (globalExists[cname]);
                     if (!compressVarsMap[tname]) { //可能使用同一个key进行多次声明，我们要处理这种情况
                         compressVarsMap[tname] = [];
                     }
@@ -436,11 +440,15 @@ module.exports = {
                     p = node.params[i];
                     params[p.name] = 1; //记录有哪些参数
                     if (!configs.debug && configs.tmplCompressVariable) { //如果启用变量压缩
+                        let cname;
+                        do {
+                            cname = md5.byNum(varCount++);
+                        } while (globalExists[cname]);
                         modifiers.push({ //压缩参数
                             key: vphDcd + p.start,
                             start: p.start,
                             end: p.end,
-                            name: pVarsMap[p.name] = md5.byNum(varCount++)　 //压缩参数
+                            name: pVarsMap[p.name] = cname　 //压缩参数
                         });
                     } else {
                         modifiers.push({

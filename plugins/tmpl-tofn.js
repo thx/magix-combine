@@ -31,10 +31,14 @@ module.exports = (tmpl, file) => {
             } else if (content) {
                 if (line > -1) {
                     source += `';$art='` + art + `';$line=` + line + `;`;
+                    content = '';
                 } else {
                     source += `';`;
                 }
-                source += `$expr='<%` + expr + `%>';` + content + `;$p+='`;
+                if (expr) {
+                    source += `$expr='<%` + expr + `%>';`;
+                }
+                source += content + `;$p+='`;
             }
         } else {
             if (operate == `@`) {

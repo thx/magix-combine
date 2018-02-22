@@ -61,7 +61,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         }
         if (e.checker.tmplTagsMatch) {
             try {
-                unmatchChecker(fileContent);
+                unmatchChecker(fileContent,e);
             } catch (ex) {
                 slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
                 ex.message += ' at ' + e.shortHTMLFile;
@@ -96,7 +96,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
 
         if (e.checker.tmplTagsMatch && srcContent != fileContent) {
             try {
-                unmatchChecker(fileContent);
+                unmatchChecker(fileContent,e);
             } catch (ex) {
                 slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
                 ex.message += ' at ' + e.shortHTMLFile;

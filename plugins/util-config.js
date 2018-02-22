@@ -2,8 +2,14 @@ let classReg = /\bclass\s*=\s*"[^"]+/;
 let compound = defaultTag => {
     return i => {
         let a = i.seprateAttrs(defaultTag);
+        let host=`<${a.tag} ${a.attrs}`;
+        if(a.unaryTag){
+            host+='/>';
+        }else{
+            host+=`>${i.content}</${a.tag}>`;
+        }
         //console.log(a);
-        return `<${a.tag} ${a.attrs}>${i.content}</${a.tag}><div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
+    return `${host}<div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
     };
 };
 module.exports = {
@@ -12,7 +18,8 @@ module.exports = {
     compiledFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
     cssnano: { //css压缩选项
         safe: true,
-        autoprefixer: false
+        autoprefixer: false,
+        minifyFontValues: false
     },
     less: {}, //less编译选项
     sass: {}, //sass编译选项
@@ -78,7 +85,7 @@ module.exports = {
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
-    jsFileExtNames: ['js', 'mx', 'ts'], //选择编译时的后缀名
+    jsFileExtNames: ['js', 'mx', 'ts', 'jsx', 'es', 'tsx'], //选择编译时的后缀名
     artTmplCommand: /\{\{[\s\S]*?\}\}(?!\})/g,//art模板
     galleries: {
         mxRoot: 'app/gallery/',
