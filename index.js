@@ -119,6 +119,9 @@ module.exports = {
             src: 'tmplGlobalVars'
         }, {
             src: 'galleries'
+        }, {
+            src: 'cssSelectorPrefix',
+            to: 'projectName'
         }];
         let merge = (aim, src) => {
             if (util.isObject(src)) {

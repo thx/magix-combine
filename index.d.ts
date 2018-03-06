@@ -197,9 +197,9 @@ declare module "magix-combine" {
          */
         sass: object
         /**
-         * 生成样式选择器时的前缀，通常是项目名。默认为mx-
+         * 生成样式选择器时的前缀，通常是项目名。
          */
-        cssSelectorPrefix?: string
+        projectName?: string
         /**
          * 是否输出css sourcemap
          */

@@ -69,6 +69,12 @@ module.exports = (input, htmlFile) => {
                     token.guid = a.value;
                 } else if (temp == 'mx-view') {
                     token.hasMxView = true;
+                } else if (temp == '_mxs') {
+                    token.mxsKey = a.value;
+                } else if (temp == '_mxa') {
+                    token.mxsAttrKey = a.value;
+                } else if (temp == 'mx-static' || temp == 'mxs') {
+                    token.userStaticKey = a.value || true;
                 } else if (temp.startsWith('@')) {
                     token.atAttr = true;
                 }

@@ -18,6 +18,7 @@ let tmplGuid = require('./tmpl-guid');
 let tmplAttr = require('./tmpl-attr');
 let tmplClass = require('./tmpl-attr-class');
 let tmplPartial = require('./tmpl-partial');
+let tmplStatic = require('./tmpl-static');
 let unmatchChecker = require('./checker-tmpl-unmatch');
 let checker = require('./checker');
 let tmplVars = require('./tmpl-vars');
@@ -61,7 +62,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         }
         if (e.checker.tmplTagsMatch) {
             try {
-                unmatchChecker(fileContent,e);
+                unmatchChecker(fileContent, e);
             } catch (ex) {
                 slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
                 ex.message += ' at ' + e.shortHTMLFile;
@@ -96,7 +97,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
 
         if (e.checker.tmplTagsMatch && srcContent != fileContent) {
             try {
-                unmatchChecker(fileContent,e);
+                unmatchChecker(fileContent, e);
             } catch (ex) {
                 slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
                 ex.message += ' at ' + e.shortHTMLFile;
@@ -141,21 +142,24 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
-        if (magixTmpl && !configs.magixUpdaterIncrement) {
-            fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
-            //console.log(tmplCmd.recover(fileContent,refTmplCommands));
-            if (e.refLeakGlobal.exists) {
-                slog.ever(chalk.red('segment failed'), 'at', chalk.magenta(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/thx/magix-combine/issues/21'));
-                if (e.refLeakGlobal.reassigns) {
-                    e.refLeakGlobal.reassigns.forEach(it => {
-                        slog.ever(it);
-                    });
+        if (magixTmpl) {
+            if (configs.magixUpdaterIncrement) {
+                fileContent = tmplStatic(fileContent, e.shortHTMLFile);
+            } else {
+                fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
+                //console.log(tmplCmd.recover(fileContent,refTmplCommands));
+                if (e.refLeakGlobal.exists) {
+                    slog.ever(chalk.red('segment failed'), 'at', chalk.magenta(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/thx/magix-combine/issues/21'));
+                    if (e.refLeakGlobal.reassigns) {
+                        e.refLeakGlobal.reassigns.forEach(it => {
+                            slog.ever(it);
+                        });
+                    }
                 }
             }
         }
 
         fileContent = configs.compileTmplEnd(fileContent);
-        //console.log(JSON.stringify(fileContent),refTmplCommands);
         fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
         for (let p in refTmplCommands) {
             let cmd = refTmplCommands[p];

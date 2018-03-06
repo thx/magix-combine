@@ -42,13 +42,20 @@ let tmplContentReg = /\$\{content\}/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let fileCache = Object.create(null);
 
-let splitAttrs = (tag, type, attrs) => {
+let splitAttrs = (tag, attrs) => {
     let viewAttrs = '';
     let viewAttrsMap = {};
     attrs = attrs.replace(tagReg, (m, t) => {
         tag = t;
         return '';
     });
+    let type = '';
+    if (tag == 'input') {
+        let m = attrs.match(inputTypeReg);
+        if (m) {
+            type = m[2];
+        }
+    }
     let attrsMap = attrMap.getAll(tag, type);
     attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
         if (!attrsMap[key] &&
@@ -124,7 +131,7 @@ let toNative = (result, cmdStore, e) => {
 let innerView = (result, info, gRoot, map, extInfo) => {
     if (info) {
         result.mxView = gRoot + info.path;
-        result.seprateAttrs = (tag, type) => splitAttrs(tag, type, result.attrs);
+        result.seprateAttrs = tag => splitAttrs(tag, result.attrs);
     }
     if (util.isObject(info) && util.isFunction(info.processor)) {
         return info.processor(result, map, extInfo) || '';

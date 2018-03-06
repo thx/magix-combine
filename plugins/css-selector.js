@@ -34,7 +34,7 @@ let genCssNamesKey = (file, ignorePrefix) => {
     }
     //css前缀是配置项中的前缀加上模块的md5信息
     if (!ignorePrefix) {
-        cssId = configs.cssSelectorPrefix + cssId;
+        cssId = configs.projectName + cssId;
     }
     return cssId;
 };
@@ -45,7 +45,7 @@ let genCssSelector = (selector, cssNameKey, key) => {
             mappedName = cssNameKey + '-' + mappedName;
         }
     } else {
-        mappedName = configs.cssSelectorPrefix + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult');
+        mappedName = configs.projectName + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult');
     }
     return mappedName;
 };

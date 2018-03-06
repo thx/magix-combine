@@ -1056,6 +1056,7 @@ module.exports = {
                 }
             };
             let findCount = 0;
+            let syncPaths = {};
             if (configs.tmplMultiBindEvents) {
                 let bindStructs = {};
                 let transformEvent = (exprInfo, source/*, attrName*/) => { //转换事件
@@ -1063,6 +1064,7 @@ module.exports = {
                     storeUserEvents(); //存储用户的事件
                     let expr = exprInfo.expr;
                     expr = analyseExpr(expr, source); //分析表达式
+                    syncPaths[expr.result] = 1;
                     let info;
                     if (!bindStructs.__) {
                         bindStructs.__ = [];
@@ -1166,6 +1168,7 @@ module.exports = {
                     let fns = exprInfo.fns;
                     let ssKey = '';
                     let rexpr = analyseExpr(expr, source); //分析表达式
+                    syncPaths[rexpr.result] = 1;
                     if (fns.length) { //传递的参数
                         f = ',f:' + fns;//flags
                         ssKey = '<%#[' + rexpr.host.join(',') + ']%>';
@@ -1242,6 +1245,8 @@ module.exports = {
                     let info = oldEvents[old];
                     attrs = attrs.replace(info.old, '');
                 }
+                let keys = Object.keys(syncPaths).join('\x1e');
+                attrs = ' mxe="' + keys + '"' + attrs;
             }
             return '<' + tag + attrs + '>';
         });

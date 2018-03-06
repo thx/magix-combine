@@ -2,6 +2,7 @@ let configs = require('./util-config');
 let escapeSlashRegExp = /\\|'/g;
 let escapeBreakReturnRegExp = /\r|\n/g;
 let mathcer = /<%([@=!])?([\s\S]*?)%>|$/g;
+let viewIdReg = /\x1f/g;
 module.exports = (tmpl, file) => {
     // Compile the template source, escaping string literals appropriately.
     let index = 0;
@@ -59,7 +60,7 @@ module.exports = (tmpl, file) => {
     if (configs.debug) {
         source = `var $expr,$art,$line;try{${source}}catch(ex){setTimeout(function(){var msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;},0)}`;
     }
-
+    source = source.replace(viewIdReg, `'+$viewId+'`);
     source = `var $g='\x1e',$t,$p='',$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=function(v){return v==null?'':''+v},$ef=function(m){return '&'+$em[m]+';'},$e=function(v){return $n(v).replace($er,$ef)},$i=function(v,k,f){for(f=$$[$g];--f;)if($$[k=$g+f]===v)return k;$$[k=$g+$$[$g]++]=v;return k},$um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=function(m){return $um[m]},$uq=/[!')(*]/g,$eu=function(v){return encodeURIComponent($n(v)).replace($uq,$uf)},$qr=/[\\\\'\"]/g,$eq=function(v){return $n(v).replace($qr,'\\\\$&')};${source}return $p`;
-    return `function($$){${source}}`;
+    return `function($$,$viewId){$viewId=$viewId||'\x1f';${source}}`;
 };

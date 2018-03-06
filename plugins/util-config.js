@@ -25,7 +25,7 @@ module.exports = {
     sass: {}, //sass编译选项
     autoprefixer: {},
     cssSourceMap: false,
-    cssSelectorPrefix: null, //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
+    projectName: null, //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
     htmlminifier: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
         collapseWhitespace: true, //空白
