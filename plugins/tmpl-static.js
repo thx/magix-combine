@@ -9,9 +9,19 @@ let configs = require('./util-config');
 let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 let staticKeyReg = /\s*_mxs="[^"]+"/g;
 let attrKeyReg = /\s+_mxa="[^"]+"/g;
-let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
+let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let forceStaticKey = /\s+mx-static(?:\s*=\s*(['"])[^'"]+\1)?/;
-module.exports = (tmpl, file) => {
+let hasVariable = (part, refTmplCommands) => {
+    let exist = false;
+    part.replace(tmplCommandAnchorReg, m => {
+        let temp = refTmplCommands[m];
+        if (temp.indexOf('\x01') > -1 || temp.indexOf('\x03.') > -1) {
+            exist = true;
+        }
+    });
+    return exist;
+};
+module.exports = (tmpl, file, refTmplCommands) => {
     let g = 0;
     let prefix = configs.projectName + md5(file, 'tmplFiles', '', true) + ':';
     tmpl = tmpl.replace(tagReg, (match, tag, attrs, close, tKey) => {
@@ -52,13 +62,13 @@ module.exports = (tmpl, file) => {
                 keysMap[' _mxs="' + n.mxsKey + '"'] = t;
                 keysMap[' _mxa="' + n.mxsAttrKey + '"'] = attr;
                 if (attr) {
-                    if (tmplCommandAnchorRegTest.test(attr)) {
+                    if (hasVariable(attr, refTmplCommands)) {
                         keys.push(' _mxa="' + n.mxsAttrKey + '"');
                     }
                 } else {
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
                 }
-                if (tmplCommandAnchorRegTest.test(t)) {
+                if (hasVariable(t, refTmplCommands)) {
                     if (n.userStaticKey) {
                         userKeysMap[' _mxs="' + n.mxsKey + '"'] = n.userStaticKey;
                         if (n.children) {

@@ -144,7 +144,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         }
         if (magixTmpl) {
             if (configs.magixUpdaterIncrement) {
-                fileContent = tmplStatic(fileContent, e.shortHTMLFile);
+                fileContent = tmplStatic(fileContent, e.shortHTMLFile, refTmplCommands);
             } else {
                 fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
                 //console.log(tmplCmd.recover(fileContent,refTmplCommands));
@@ -205,8 +205,12 @@ module.exports = e => {
                     slog.ever(chalk.red('conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
                 }
                 let flagsInfo = {
-                    artEngine: configs.tmplArtEngine
+                    artEngine: configs.tmplArtEngine,
+                    tmplScopedGlobalVars: Object.assign(Object.create(null), configs.tmplGlobalVars),
+                    tmplScopedConstVars: Object.assign(Object.create(null), configs.tmplConstVars)
                 };
+                flagsInfo.tmplScopedConstVars.vId = 1;
+                flagsInfo.tmplScopedConstVars.viewId = 1;
                 if (flags) {
                     flags.replace(tmplVarsReg, (m, key, vars) => {
                         vars = vars.trim();

@@ -34,6 +34,7 @@ let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/;
 let artCtrlsReg = /<%'\x17\d+\x11([^\x11]+)\x11\x17'%><%[\s\S]+?%>/g;
+let radioCheckboxReg = /\btype\s*=\s*(['"])(?:radio|checkbox)\1/;
 let cmap = {
     [vphUse]: '\u0001',
     [vphDcd]: '\u0002',
@@ -195,11 +196,8 @@ module.exports = {
             slog.ever('parse html cmd ast error:', chalk.red(ex.message));
             reject(ex);
         }
-        let globalExists = Object.assign(Object.create(null), configs.tmplGlobalVars);
+        let globalExists = Object.assign(Object.create(null), extInfo.tmplScopedGlobalVars);
         let globalTracker = Object.create(null);
-        if (extInfo.tmplScopedGlobalVars) {
-            globalExists = Object.assign(globalExists, extInfo.tmplScopedGlobalVars);
-        }
         /*
             变量和变量声明在ast里面遍历的顺序不一致，需要对位置信息保存后再修改fn
          */
@@ -225,10 +223,7 @@ module.exports = {
         };
         let fnRange = [];
         let compressVarToOriginal = Object.create(null);
-        let constVars = Object.assign(Object.create(null), configs.tmplConstVars);
-        if (extInfo.tmplScopedConstVars) {
-            constVars = Object.assign(constVars, extInfo.tmplScopedConstVars);
-        }
+        let constVars = Object.assign(Object.create(null), extInfo.tmplScopedConstVars);
         let patternChecker = node => {
             let msg = 'unpupport ' + fn.slice(node.start, node.end);
             let near = fn.slice(node.start - 10, node.end + 10);
@@ -1029,6 +1024,7 @@ module.exports = {
             return '<textarea' + attr + '>' + content + '</textarea>';
         });
         fn = fn.replace(tagReg, (match, tag, attrs) => {
+            let isCheckboxOrRadio = radioCheckboxReg.test(attrs);
             let bindEvents = configs.tmplBindEvents.slice();
             let oldEvents = Object.create(null);
             let e;
@@ -1245,8 +1241,10 @@ module.exports = {
                     let info = oldEvents[old];
                     attrs = attrs.replace(info.old, '');
                 }
-                let keys = Object.keys(syncPaths).join('\x1e');
-                attrs = ' mxe="' + keys + '"' + attrs;
+                if (isCheckboxOrRadio) {
+                    let keys = Object.keys(syncPaths).join('\x1e');
+                    attrs = ' mxe="' + keys + '"' + attrs;
+                }
             }
             return '<' + tag + attrs + '>';
         });
