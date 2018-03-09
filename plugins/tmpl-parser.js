@@ -69,8 +69,11 @@ module.exports = (input, htmlFile) => {
                     token.guid = a.value;
                 } else if (temp == 'mx-view') {
                     token.hasMxView = true;
+                    token.mxView = a.value;
                 } else if (temp == '_mxs') {
                     token.mxsKey = a.value;
+                } else if (temp == '_mxv') {
+                    token.mxvKey = a.value;
                 } else if (temp == '_mxa') {
                     token.mxsAttrKey = a.value;
                 } else if (temp == 'mx-static' || temp == 'mxs') {

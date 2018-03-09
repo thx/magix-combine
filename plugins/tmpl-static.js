@@ -9,7 +9,9 @@ let configs = require('./util-config');
 let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 let staticKeyReg = /\s*_mxs="[^"]+"/g;
 let attrKeyReg = /\s+_mxa="[^"]+"/g;
+let mxvKeyReg = /\s+_mxv="[^"]+"/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
+let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let forceStaticKey = /\s+mx-static(?:\s*=\s*(['"])[^'"]+\1)?/;
 let hasVariable = (part, refTmplCommands) => {
     let exist = false;
@@ -25,7 +27,8 @@ module.exports = (tmpl, file, refTmplCommands) => {
     let g = 0;
     let prefix = configs.projectName + md5(file, 'tmplFiles', '', true) + ':';
     tmpl = tmpl.replace(tagReg, (match, tag, attrs, close, tKey) => {
-        tKey = ' _mxs="' + g++ + '"';
+        tKey = ' _mxv="' + g++ + '"';
+        tKey += ' _mxs="' + g++ + '"';
         tKey += ' _mxa="' + g++ + '"';
         return '<' + tag + tKey + attrs + (close || '') + '>';
     });
@@ -68,6 +71,21 @@ module.exports = (tmpl, file, refTmplCommands) => {
                 } else {
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
                 }
+                if (!n.hasMxView || !tmplCommandAnchorRegTest.test(n.mxView)) {
+                    let hasSubView = 0;
+                    if (n.children) {
+                        for (let c of n.children) {
+                            if (c.mxvKey) {
+                                hasSubView = 1;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasSubView) {
+                        keys.push(' _mxv="' + n.mxvKey + '"');
+                        delete n.mxvKey;
+                    }
+                }
                 if (hasVariable(t, refTmplCommands)) {
                     if (n.userStaticKey) {
                         userKeysMap[' _mxs="' + n.mxsKey + '"'] = n.userStaticKey;
@@ -97,14 +115,14 @@ module.exports = (tmpl, file, refTmplCommands) => {
         let r = userKeysMap[m];
         if (!r || r === true) {
             r = keysMap[m];
-            r = md5(r, file + ':key', '', true);
+            r = md5(r, file + ':key', prefix, true);
         } else {
-            r = md5(m, file + ':key', '', true) + ':' + r;
+            r = md5(m, file + ':key', prefix, true) + ':' + r;
         }
-        return ' mxs="' + prefix + r + '"';
+        return ' mxs="' + r + '"';
     }).replace(attrKeyReg, m => {
         m = keysMap[m];
-        return ' mxa="' + prefix + md5(m, file + ':akey', '', true) + '"';
-    }).replace(tagReg, m => m.replace(forceStaticKey, ''));
+        return ' mxa="' + md5(m, file + ':akey', prefix, true) + '"';
+    }).replace(mxvKeyReg, ' mxv').replace(tagReg, m => m.replace(forceStaticKey, ''));
     return tmpl;
 };

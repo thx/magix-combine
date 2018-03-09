@@ -209,8 +209,6 @@ module.exports = e => {
                     tmplScopedGlobalVars: Object.assign(Object.create(null), configs.tmplGlobalVars),
                     tmplScopedConstVars: Object.assign(Object.create(null), configs.tmplConstVars)
                 };
-                flagsInfo.tmplScopedConstVars.vId = 1;
-                flagsInfo.tmplScopedConstVars.viewId = 1;
                 if (flags) {
                     flags.replace(tmplVarsReg, (m, key, vars) => {
                         vars = vars.trim();

@@ -313,6 +313,7 @@ let processContent = (from, to, content, inwatch) => {
             if (e.requires.length && reqs) {
                 reqs = ',' + reqs;
             }
+            debugger;
             e.content = e.content.replace(e.requiresAnchorKey, reqs);
             e.content = e.content.replace(e.varsAnchorKey, vars.join('\r\n'));
         }

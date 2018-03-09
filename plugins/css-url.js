@@ -24,7 +24,7 @@ let processor = (url, short, e) => {
         });
     }
 };
-processor.clear = file => {
-    delete cache[file];
+processor.clear = () => {
+    cache = {};
 };
 module.exports = processor;

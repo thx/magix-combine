@@ -71,7 +71,7 @@ module.exports = {
         checker.CSS.reset();
         jsFileCache.clear(from);
         cssGlobal.reset(from);
-        cssUrl.clear(from);
+        cssUrl.clear();
     },
     config(cfg) {
         for (let p in cfg) {
@@ -79,7 +79,8 @@ module.exports = {
                 p != 'tmplConstVars' &&
                 p != 'tmplUnchangableVars' &&
                 p != 'tmplGlobalVars' &&
-                p != 'galleries') {
+                p != 'galleries' &&
+                p != 'cssSelectorPrefix') {
                 configs[p] = cfg[p];
             }
         }
@@ -136,7 +137,7 @@ module.exports = {
         };
         if (cfg) {
             for (let s of specials) {
-                if (cfg[s.src]) {
+                if (cfg[s.src] !== undefined) {
                     if (Array.isArray(cfg[s.src])) {
                         for (let v of cfg[s.src]) {
                             configs[s.to || s.src][v] = 1;

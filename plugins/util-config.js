@@ -2,14 +2,14 @@ let classReg = /\bclass\s*=\s*"[^"]+/;
 let compound = defaultTag => {
     return i => {
         let a = i.seprateAttrs(defaultTag);
-        let host=`<${a.tag} ${a.attrs}`;
-        if(a.unaryTag){
-            host+='/>';
-        }else{
-            host+=`>${i.content}</${a.tag}>`;
+        let host = `<${a.tag} ${a.attrs}`;
+        if (a.unaryTag) {
+            host += '/>';
+        } else {
+            host += `>${i.content}</${a.tag}>`;
         }
         //console.log(a);
-    return `${host}<div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
+        return `${host}<div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
     };
 };
 module.exports = {
@@ -61,7 +61,10 @@ module.exports = {
         tmplTagsMatch: true //标签配对
     },
     tmplFileExtNames: ['html', 'haml', 'pug', 'jade', 'tpl'], //模板后缀
-    tmplConstVars: {}, //模板中不会变的变量，减少子模板的分析
+    tmplConstVars: {
+        vId: 1,
+        viewId: 1
+    }, //模板中不会变的变量，减少子模板的分析
     tmplGlobalVars: {
         window: 1,
         JSON: 1,
