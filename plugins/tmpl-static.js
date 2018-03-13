@@ -8,8 +8,8 @@ let tmplParser = require('./tmpl-parser');
 let configs = require('./util-config');
 let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 let staticKeyReg = /\s*_mxs="[^"]+"/g;
-let attrKeyReg = /\s+_mxa="[^"]+"/g;
-let mxvKeyReg = /\s+_mxv="[^"]+"/g;
+let attrKeyReg = /\s*_mxa="[^"]+"/g;
+let mxvKeyReg = /\s*_mxv="[^"]+"/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let forceStaticKey = /\s+mx-static(?:\s*=\s*(['"])[^'"]+\1)?/;
@@ -60,7 +60,7 @@ module.exports = (tmpl, file, refTmplCommands) => {
                 }
                 let t = tmpl.slice(n.start, n.end).replace(staticKeyReg, '').replace(attrKeyReg, '');
                 let attr = tmpl.slice(n.attrsStart, n.attrsEnd).trim();
-                attr = attr.replace(staticKeyReg, '').replace(attrKeyReg, '').trim();
+                attr = attr.replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').trim();
                 let removeStaticKey = false;
                 keysMap[' _mxs="' + n.mxsKey + '"'] = t;
                 keysMap[' _mxa="' + n.mxsAttrKey + '"'] = attr;
@@ -71,7 +71,18 @@ module.exports = (tmpl, file, refTmplCommands) => {
                 } else {
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
                 }
-                if (!n.hasMxView || !tmplCommandAnchorRegTest.test(n.mxView)) {
+                let checkView = 0;
+                if (n.hasMxView) {
+                    let query = n.mxView.split('?');
+                    if (query.length > 1) {
+                        checkView = !tmplCommandAnchorRegTest.test(query[1]);
+                    } else {
+                        checkView = 1;
+                    }
+                } else {
+                    checkView = 1;
+                }
+                if (checkView) {
                     let hasSubView = 0;
                     if (n.children) {
                         for (let c of n.children) {

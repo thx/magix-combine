@@ -41,12 +41,12 @@ let clone = object => {
 let cloneAssign = (dest, src) => {
     Object.assign(dest, clone(src));
 };
-let uId = (fix, str) => {
+let uId = (fix, str, withoutSuffix) => {
     let id;
     do {
         id = Math.random().toString(36).replace(/[\d\.]/g, '');
     } while (~str.indexOf(id));
-    return (fix || '') + id + (fix || '');
+    return (fix || '') + id + (withoutSuffix ? '' : (fix || ''));
 };
 module.exports = {
     clone,

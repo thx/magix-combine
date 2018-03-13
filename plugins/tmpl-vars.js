@@ -222,18 +222,22 @@ module.exports = {
             });
         };
         let fnRange = [];
+        let blockRange = [];
+        let blockVariableMap = Object.create(null);
         let compressVarToOriginal = Object.create(null);
         let constVars = Object.assign(Object.create(null), extInfo.tmplScopedConstVars);
         let patternChecker = node => {
             let msg = 'unpupport ' + fn.slice(node.start, node.end);
-            let near = fn.slice(node.start - 10, node.end + 10);
-            slog.ever(chalk.red(msg), 'near', chalk.magenta(near), 'at', chalk.grey(sourceFile));
-            throw new Error(msg + ' near ' + near);
+            slog.ever(chalk.red(msg), 'at', chalk.grey(sourceFile));
+            throw new Error(msg);
         };
         acorn.walk(ast, {
             ArrayPattern: patternChecker,
             ObjectPattern: patternChecker,
             ForOfStatement: patternChecker,
+            BlockStatement(node) {
+                blockRange.push(node);
+            },
             CallExpression(node) { //方法调用
                 let vname = '';
                 let callee = node.callee;
@@ -278,6 +282,77 @@ module.exports = {
                 }
             }
         });
+        blockRange.sort((a, b) => a.start - b.start);
+        acorn.walk(ast, {
+            VariableDeclaration(node) {
+                if (node.kind == 'let' || node.kind == 'const') {
+                    let range;
+                    for (let br of blockRange) {
+                        if (node.start > br.start && node.end < br.end) {
+                            range = br;
+                        }
+                    }
+                    if (range) {
+                        let key = range.start + '~' + range.end;
+                        if (!blockVariableMap[key]) {
+                            blockVariableMap[key] = Object.create(null);
+                        }
+                        for (let d of node.declarations) {
+                            if (!d.id.name.startsWith('$art_')) {
+                                blockVariableMap[key][d.id.name] = utils.uId('$rewrite_scoped_' + d.id.name + '_', tmpl, true);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        acorn.walk(ast, {
+            VariableDeclarator(node) {
+                let map;
+                for (let br of blockRange) {
+                    if (node.start > br.start && node.end < br.end) {
+                        let key = br.start + '~' + br.end;
+                        let m = blockVariableMap[key];
+                        if (m && m[node.id.name]) {
+                            map = m;
+                        }
+                    }
+                }
+                if (map) {
+                    modifiers.push({
+                        start: node.id.start,
+                        end: node.id.end,
+                        name: map[node.id.name],
+                    });
+                }
+            },
+            Identifier(node) {
+                let map;
+                for (let br of blockRange) {
+                    if (node.start > br.start && node.end < br.end) {
+                        let key = br.start + '~' + br.end;
+                        let m = blockVariableMap[key];
+                        if (m && m[node.name]) {
+                            map = m;
+                        }
+                    }
+                }
+                if (map) {
+                    modifiers.push({
+                        start: node.start,
+                        end: node.end,
+                        name: map[node.name],
+                    });
+                }
+            }
+        });
+        modifiers.sort((a, b) => a.start - b.start);
+        for (let i = modifiers.length - 1, m; i >= 0; i--) {
+            m = modifiers[i];
+            fn = fn.slice(0, m.start) + m.name + fn.slice(m.end);
+        }
+        modifiers = [];
+        ast = acorn.parse(fn);
         let processString = node => { //存储字符串，减少分析干扰
             if (stringReg.test(node.raw)) {
                 let q = node.raw.match(stringReg)[0];
@@ -717,7 +792,24 @@ module.exports = {
                         });
                     }
                 }
-            },/*
+            }/*,
+            VariableDeclaration(node) {
+                if (node.kind == 'let' || node.kind == 'const') {
+                    for (let vd of node.declarations) {
+                        let range;
+                        for (let br of blockRange) {
+                            if (br.start < vd.start && vd.end < br.end) {
+                                range = br;
+                                break;
+                            }
+                        }
+                        if (range) {
+                            fnRange.push(range);
+                        }
+                    }
+                }
+            }*/
+            /*
             MemberExpression(node) {
                 //处理模板中的对象表达式
                 if (configs.tmplMESafeguard) {
@@ -861,6 +953,7 @@ module.exports = {
             let pos = match[1];
             pos = pos | 0;
             let key = head.replace(/\u0001\d+/, '\u0001'); //获取这个变量对应的赋值信息
+            debugger;
             let list = getTrackerList(key, pos); //获取追踪列表
             if (!list) return null;
             for (let i = list.length - 1, item; i >= 0; i--) { //根据赋值时的位置查找最优的对应

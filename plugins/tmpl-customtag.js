@@ -131,7 +131,7 @@ let toNative = (result, cmdStore, e) => {
 let innerView = (result, info, gRoot, map, extInfo) => {
     if (info) {
         result.mxView = gRoot + info.path;
-        result.seprateAttrs = tag => splitAttrs(tag, result.attrs);
+        result.seprateAttrs = tag => splitAttrs(info.tag || tag, result.attrs);
     }
     if (util.isObject(info) && util.isFunction(info.processor)) {
         return info.processor(result, map, extInfo) || '';
@@ -348,14 +348,20 @@ module.exports = {
             let hasGallery = galleriesMap.hasOwnProperty(n.pfx + 'Root');
             let gRoot = galleriesMap[n.pfx + 'Root'] || '';
             let gMap = galleriesMap[n.pfx + 'Map'] || {};
-            //console.log(mainTag, hasGallery, result);
             if (!uncheckTags.hasOwnProperty(mainTag) && hasGallery) {
                 if (gMap.hasOwnProperty(result.tag)) {
                     let i = gMap[result.tag];
                     if (util.isFunction(i)) {
-                        gMap[result.tag] = i = {
-                            processor: i
+                        i = {
+                            processor: i,
+                            tag: i.tag || '',
+                            isolated: i.isolated || 0
                         };
+                        if (i.isolated) {
+                            delete i.processor;
+                            delete i.isolated;
+                        }
+                        gMap[result.tag] = i;
                     }
                     if (i && !i.path) {
                         i.path = (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/');

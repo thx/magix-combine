@@ -167,23 +167,20 @@ let checkStack = (stack, key, code, e, lineNo) => {
 };
 let getAssignment = (code, object, key, value) => {
     let assignment = '';
-    let declares = '';
     key = key.trim();
     value = value.trim();
     if ((value[0] == '{' && value[value.length - 1] == '}') ||
         (value[0] == '[' && value[value.length - 1] == ']')) {
         let ae = value[0] == '[';
         let vs = value.slice(1, -1).split(',');
-        let temp = utils.uId('$v', code);
-        declares += `${temp},`;
-        assignment = `${temp}=${object}[${key}];if(${temp}){`;
+        let temp = utils.uId('$art_v', code);
+        assignment = `let ${temp}=${object}[${key}];`;
         if (ae) {
             for (let i = 0, v; i < vs.length; i++) {
                 v = vs[i];
                 v = v.trim();
                 if (v) {
-                    declares += v + ',';
-                    assignment += `${v}=${temp}[${i}];`;
+                    assignment += `let ${v}=${temp}[${i}];`;
                 }
             }
         } else {
@@ -193,9 +190,8 @@ let getAssignment = (code, object, key, value) => {
                     kv.push(v);
                 }
                 let ovalue = kv[1].trim();
-                declares += ovalue + ',';
                 let okey = kv[0].trim();
-                assignment += `${ovalue}=${temp}`;
+                assignment += `let ${ovalue}=${temp}`;
                 if (stringKeyReg.test(okey)) {
                     assignment += `[${okey}];`;
                 } else {
@@ -203,13 +199,11 @@ let getAssignment = (code, object, key, value) => {
                 }
             }
         }
-        declares = declares.slice(0, -1);
-        assignment = assignment.slice(0, -1) + '}';
+        assignment = assignment.slice(0, -1);
     } else {
-        declares = value;
-        assignment = `${value}=${object}[${key}]`;
+        assignment = `let ${value}=${object}[${key}]`;
     }
-    return { declares, assignment };
+    return assignment;
 };
 let syntax = (code, stack, e, lineNo, refMap) => {
     code = code.trim();
@@ -266,9 +260,9 @@ let syntax = (code, stack, e, lineNo, refMap) => {
             throw new Error('unsupport each {{' + code + '}}');
         }
         let value = m[1];
-        let index = m[2] || utils.uId('$i', code);
+        let index = m[2] || utils.uId('$art_i', code);
         let ai = getAssignment(code, object, index, value);
-        return `${src}<%for(let ${ai.declares},${index}=0;${index}<${object}.length;${index}++){${ai.assignment}%>`;
+        return `${src}<%for(let ${index}=0;${index}<${object}.length;${index}++){${ai}%>`;
     } else if (key == 'forin') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
@@ -279,9 +273,9 @@ let syntax = (code, stack, e, lineNo, refMap) => {
             throw new Error('unsupport forin {{' + code + '}}');
         }
         let value = m[1];
-        let key1 = m[2] || utils.uId('$k', code);
+        let key1 = m[2] || utils.uId('$art_k', code);
         let ai = getAssignment(code, object, key1, value);
-        return `${src}<%for(let ${key1} in ${object}){let ${ai.declares};${ai.assignment}%>`;
+        return `${src}<%for(let ${key1} in ${object}){${ai}%>`;
     } else if (key == 'for') {
         checkStack(stack, key, code, e, lineNo);
         let expr = ctrls.join(' ').trim();
@@ -317,6 +311,5 @@ module.exports = (tmpl, e, refMap) => {
         }
     }
     checkStack(stack, 'unclosed', '', e);
-    //console.log(result.join(''));
     return result.join('').replace(mxEventHolderReg, '({$1})');
 };
