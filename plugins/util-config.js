@@ -82,6 +82,7 @@ module.exports = {
     tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
+    tmplStaticAnalyze: true,//模板静态节点分析
     disableMagixUpdater: false,
     magixUpdaterIncrement: false,
     globalCss: [], //全局样式

@@ -272,14 +272,5 @@ module.exports = {
     },
     getFileDependents(file) {
         return deps.getDependents(file);
-    },
-    stripCmd(tmpl) {
-        initEnv();
-        if (configs.tmplCommand) {
-            return tmpl.replace(configs.tmplCommand, () => {
-                return '';
-            });
-        }
-        return tmpl;
     }
 };

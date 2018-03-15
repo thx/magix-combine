@@ -144,7 +144,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         }
         if (magixTmpl) {
             if (configs.magixUpdaterIncrement) {
-                fileContent = tmplStatic(fileContent, e.shortHTMLFile, refTmplCommands);
+                if (configs.tmplStaticAnalyze) {
+                    fileContent = tmplStatic(fileContent, e.shortHTMLFile, refTmplCommands);
+                }
             } else {
                 fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
                 //console.log(tmplCmd.recover(fileContent,refTmplCommands));
@@ -196,6 +198,9 @@ module.exports = e => {
             }
             if (singleFile || fs.existsSync(file)) {
                 let magixTmpl = ctrl != 'raw' || flags;
+                if (configs.disableMagixUpdater) {
+                    magixTmpl = false;
+                }
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 let lang = singleFile ? e.contentInfo.templateLang : ext;
                 e.htmlModuleId = utils.extractModuleId(file);

@@ -223,6 +223,7 @@ module.exports = {
         };
         let fnRange = [];
         let blockRange = [];
+        let vds = [];
         let blockVariableMap = Object.create(null);
         let compressVarToOriginal = Object.create(null);
         let constVars = Object.assign(Object.create(null), extInfo.tmplScopedConstVars);
@@ -280,71 +281,57 @@ module.exports = {
                         name: (node.arguments.length ? ',' : '') + args.join(',')
                     });
                 }
+            },
+            VariableDeclaration(node) {
+                if (node.kind == 'let' || node.kind == 'const') {
+                    vds.push(node);
+                }
             }
         });
         blockRange.sort((a, b) => a.start - b.start);
-        acorn.walk(ast, {
-            VariableDeclaration(node) {
-                if (node.kind == 'let' || node.kind == 'const') {
-                    let range;
-                    for (let br of blockRange) {
-                        if (node.start > br.start && node.end < br.end) {
-                            range = br;
-                        }
-                    }
-                    if (range) {
-                        let key = range.start + '~' + range.end;
-                        if (!blockVariableMap[key]) {
-                            blockVariableMap[key] = Object.create(null);
-                        }
-                        for (let d of node.declarations) {
-                            if (!d.id.name.startsWith('$art_')) {
-                                blockVariableMap[key][d.id.name] = utils.uId('$rewrite_scoped_' + d.id.name + '_', tmpl, true);
-                            }
-                        }
+        for (let vd of vds) {
+            let range;
+            for (let br of blockRange) {
+                if (vd.start > br.start && vd.end < br.end) {
+                    range = br;
+                }
+            }
+            if (range) {
+                let key = range.start + '~' + range.end;
+                if (!blockVariableMap[key]) {
+                    blockVariableMap[key] = Object.create(null);
+                }
+                for (let d of vd.declarations) {
+                    if (!d.id.name.startsWith('$art_')) {
+                        blockVariableMap[key][d.id.name] = utils.uId('$rewrite_scoped_' + d.id.name + '_', tmpl, true);
                     }
                 }
             }
-        });
+        }
+        let varsReplace = node => {
+            let map;
+            for (let br of blockRange) {
+                if (node.start > br.start && node.end < br.end) {
+                    let key = br.start + '~' + br.end;
+                    let m = blockVariableMap[key];
+                    if (m && m[node.name]) {
+                        map = m;
+                    }
+                }
+            }
+            if (map) {
+                modifiers.push({
+                    start: node.start,
+                    end: node.end,
+                    name: map[node.name],
+                });
+            }
+        };
         acorn.walk(ast, {
             VariableDeclarator(node) {
-                let map;
-                for (let br of blockRange) {
-                    if (node.start > br.start && node.end < br.end) {
-                        let key = br.start + '~' + br.end;
-                        let m = blockVariableMap[key];
-                        if (m && m[node.id.name]) {
-                            map = m;
-                        }
-                    }
-                }
-                if (map) {
-                    modifiers.push({
-                        start: node.id.start,
-                        end: node.id.end,
-                        name: map[node.id.name],
-                    });
-                }
+                varsReplace(node.id);
             },
-            Identifier(node) {
-                let map;
-                for (let br of blockRange) {
-                    if (node.start > br.start && node.end < br.end) {
-                        let key = br.start + '~' + br.end;
-                        let m = blockVariableMap[key];
-                        if (m && m[node.name]) {
-                            map = m;
-                        }
-                    }
-                }
-                if (map) {
-                    modifiers.push({
-                        start: node.start,
-                        end: node.end,
-                        name: map[node.name],
-                    });
-                }
-            }
+            Identifier: varsReplace
         });
         modifiers.sort((a, b) => a.start - b.start);
         for (let i = modifiers.length - 1, m; i >= 0; i--) {
@@ -953,7 +940,6 @@ module.exports = {
             let pos = match[1];
             pos = pos | 0;
             let key = head.replace(/\u0001\d+/, '\u0001'); //获取这个变量对应的赋值信息
-            debugger;
             let list = getTrackerList(key, pos); //获取追踪列表
             if (!list) return null;
             for (let i = list.length - 1, item; i >= 0; i--) { //根据赋值时的位置查找最优的对应

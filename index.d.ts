@@ -201,7 +201,7 @@ declare module "magix-combine" {
          */
         projectName?: string
         /**
-         * 是否输出css sourcemap
+         * 是否输出css sourcemap，默认false
          */
         cssSourceMap?: boolean
 
@@ -212,7 +212,7 @@ declare module "magix-combine" {
         /**
          * 加载器类型，该选项决定如何添加包装，如添加define函数。默认为cmd加载器
          */
-        loaderType?: "amd" | "amd_es" | "cmd" | "cmd_es" | "iife" | "iife_es" | "none" | "webpack" | "kissy" | "kissy_es"
+        loaderType?: "amd" | "amd_es" | "cmd" | "cmd_es" | "iife" | "iife_es" | "none" | "webpack" | "kissy" | "kissy_es" | "umd" | "umd_es" | "acmd" | "acmd_es"
         /**
          * html压缩选项
          */
@@ -231,7 +231,7 @@ declare module "magix-combine" {
          */
         checker?: ICheckerConfig
         /**
-         * 是否把模板中的view打包到js中的文件依赖中，默认false
+         * 是否把模板中的view打包到js中的文件依赖中，默认false。如果为true，渲染的view会在加载相应的js时提前加载，有效解决页面渲染时子view加载的闪烁问题
          */
         addTmplViewsToDependencies?: boolean
         /**
@@ -243,13 +243,17 @@ declare module "magix-combine" {
          */
         tmplAddEventPrefix?: boolean
         /**
-         * 绑定表达式<%:expr%>绑定的事件。默认为["change"]
+         * 绑定表达式<%:expr%>绑定的事件名称。默认为["change"]
          */
         tmplBindEvents?: string[]
         /**
-         * 绑定表达式<%:expr%>绑定的处理名称。默认为syncValue
+         * 绑定表达式<%:expr%>绑定的事件处理名称。默认为"@{sync.value.from.ui}"
          */
         tmplBindName?: string
+        /**
+         * 模板中静态节点分析，只有在magixUpdaterIncrease启用的情况下该配置项才生效，默认true
+         */
+        tmplStaticAnalyze?: boolean
         /**
          * 项目中使用的全局样式，不建议使用该选项
          */
@@ -267,18 +271,17 @@ declare module "magix-combine" {
          */
         useAtPathConverter?: boolean
         /**
-         * 待编译的文件后缀，默认为["js","mx"]
+         * 待编译的文件后缀，默认为['js', 'mx', 'ts', 'jsx', 'es', 'tsx']
          */
         jsFileExtNames?: string[]
         /**
-         * 待编译的模板文件后缀，默认为["html","mx"]
+         * 待编译的模板文件后缀，默认为['html', 'haml', 'pug', 'jade', 'tpl']
          */
         tmplFileExtNames?: string[]
         /**
          * 模板中不会变的变量，减少不必要的子模板的分析输出
          */
         tmplConstVars?: object
-
         /**
          * 是否使用类mustach模板，默认true
          */
@@ -287,10 +290,6 @@ declare module "magix-combine" {
          * 模板中的全局变量，这些变量不会做scope处理
          */
         tmplGlobalVars?: object
-        /**
-         * 模板标签匹配检测时，不去检测的标签名称
-         */
-        tmplUncheckTags?: object
         /**
          * 模板输出时是否输出识别到的事件列表，默认为false
          */
@@ -328,14 +327,14 @@ declare module "magix-combine" {
          */
         customTagProcessor?: (tmpl: string, e?: ICombineResult) => string
         /**
-         * js代码中循环嵌套的层数，默认3层
+         * 检测js代码中循环嵌套的层数，当超过该值时，输出提示，默认3层。合理的数据结构可以减少循环的嵌套，有效的提升性能
          */
         jsLoopDepth?: number
 
         /**
          * 组件配置对象
          */
-        galleries?:object
+        galleries?: object
         /**
          * 对模板中的标签做处理
          */
@@ -434,12 +433,6 @@ declare module "magix-combine" {
      * 处理tmpl文件夹中的模板文件，通常向节点添加spm等属性
      */
     function processTmpl(): Promise<void>
-    /**
-     * 移除模板中的命令语句
-     * @param tmpl 源模板
-     */
-    function stripCmd(tmpl: string): string
-
     /**
      * 移除某个文件的缓存，在下次编译的时候重新编译该文件
      * @param file 文件路径
