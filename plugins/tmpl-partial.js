@@ -200,9 +200,6 @@ let newExtractUpdateKeys = (tmpl, refTmplCommands, content, pKeys, extInfo) => {
 let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView, kInfo) => {
     let attrsKeys = kInfo.attrKeys,
         tmplKeys = Object.create(null);
-    if (!kInfo.attrAKeys.length) {
-        return;
-    }
     tmpl.replace(extractAttrsReg, (match, attr) => {
         let originalAttr = attr;
         let mxView = '';

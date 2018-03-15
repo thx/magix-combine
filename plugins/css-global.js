@@ -137,9 +137,9 @@ let processScope = ctx => {
                     scopedStyle += c;
                 } else if (!i.exists) { //未找到
                     checker.CSS.markUnexists(currentFile, '/scoped.style');
-                    scopedStyle += ' unfound-' + currentFile;
+                    scopedStyle += ` .unfound[file="${currentFile}"]{}`;
                     scopedStyles.push({
-                        css: ' unfound-' + currentFile,
+                        css: `.unfound[file="${currentFile}"]{}`,
                         map: i.map,
                         key: cssNamesKey
                     });
