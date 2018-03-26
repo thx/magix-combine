@@ -203,7 +203,7 @@ declare module "magix-combine" {
         /**
          * 是否输出css sourcemap，默认false
          */
-        cssSourceMap?: boolean
+        sourceMapCss?: boolean
 
         /**
          * autprefixer配置

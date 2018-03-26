@@ -20,7 +20,7 @@ let processTmpl = (tmpl, shortFrom) => {
         templateLang: tLang
     });*/
     tmpl = tmplCmd.store(tmpl, store);
-    tmpl = tmplCmd.store(tmpl, store, configs.artTmplCommand);
+    tmpl = tmplCmd.store(tmpl, store, configs.tmplArtCommand);
     
     tmpl = tmpl.replace(htmlCommentCelanReg, m => {
         let key = '\x00' + cIdx++ + '\x00';

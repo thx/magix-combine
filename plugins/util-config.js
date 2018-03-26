@@ -24,7 +24,6 @@ module.exports = {
     less: {}, //less编译选项
     sass: {}, //sass编译选项
     autoprefixer: {},
-    cssSourceMap: false,
     projectName: null, //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
     htmlminifier: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
@@ -73,7 +72,13 @@ module.exports = {
         Math: 1,
         Number: 1,
         isNaN: 1,
-        isFinite: 1
+        isFinite: 1,
+        Array: 1,
+        Date: 1,
+        String: 1,
+        Function: 1,
+        Boolean: 1,
+        Object: 1
     }, //模板中全局变量
     tmplAddViewsToDependencies: false, //是否把模板中的view做为依赖提前加载
     tmplOutputWithEvents: false, //输出事件
@@ -83,14 +88,17 @@ module.exports = {
     tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
     tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
     tmplStaticAnalyze: true,//模板静态节点分析
+    tmplArtCommand: /\{\{[\s\S]*?\}\}(?!\})/g,//art模板
+    tmplCommand: /<%[\s\S]*?%>/g,
     disableMagixUpdater: false,
     magixUpdaterIncrement: false,
+    selectorSilentErrorCss: false,
+    sourceMapCss: false,
     globalCss: [], //全局样式
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
     jsFileExtNames: ['js', 'mx', 'ts', 'jsx', 'es', 'tsx'], //选择编译时的后缀名
-    artTmplCommand: /\{\{[\s\S]*?\}\}(?!\})/g,//art模板
     galleries: {
         mxRoot: 'app/gallery/',
         mxMap: {

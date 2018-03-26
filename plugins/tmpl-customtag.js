@@ -303,7 +303,7 @@ module.exports = {
             }
             let tags = tag.split('.');
             let mainTag = tags.shift();
-            let subTags = tags.length ? tags : ['index'];
+            let subTags = tags.length ? tags : n.group ? [] : ['index'];
             let result = {
                 id: n.id,
                 prefix: n.pfx,
@@ -322,7 +322,8 @@ module.exports = {
         let processCustomTag = (n, map) => {
             let result = getTagInfo(n);
             let content = result.content;
-            let customContent = configs.customTagProcessor(result, map, extInfo, e);
+            let fn = galleriesMap[result.tag] || configs.customTagProcessor;
+            let customContent = fn(result, map, extInfo, e);
             if (!customContent) {
                 let tagName = result.tag;
                 customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
@@ -344,43 +345,65 @@ module.exports = {
         let processGalleryTag = (n, map) => {
             let result = getTagInfo(n);
             let content = result.content;
-            let mainTag = n.pfx + (n.group ? '.' : '-') + result.mainTag;
             let hasGallery = galleriesMap.hasOwnProperty(n.pfx + 'Root');
             let gRoot = galleriesMap[n.pfx + 'Root'] || '';
             let gMap = galleriesMap[n.pfx + 'Map'] || {};
-            if (!uncheckTags.hasOwnProperty(mainTag) && hasGallery) {
+            if (!uncheckTags.hasOwnProperty(result.tag)) {
+                let vpath = (n.group ? '' : n.pfx + '-') + result.mainTag;
+                if (result.subTags.length) {
+                    vpath += '/' + result.subTags.join('/');
+                }
                 if (gMap.hasOwnProperty(result.tag)) {
                     let i = gMap[result.tag];
                     if (util.isFunction(i)) {
                         i = {
-                            processor: i,
+                            processor: i.processor || i,
                             tag: i.tag || '',
                             isolated: i.isolated || 0
                         };
+                        gMap[result.tag] = i;
+                    }
+                    if (i) {
+                        //临时兼容
                         if (i.isolated) {
                             delete i.processor;
                             delete i.isolated;
                         }
-                        gMap[result.tag] = i;
-                    }
-                    if (i && !i.path) {
-                        i.path = (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/');
+                        if (!i.path) {
+                            i.path = vpath;
+                        }
                     }
                 } else {
-                    let cpath = path.join(configs.moduleIdRemovedPath, gRoot);
-                    cpath = path.join(cpath, (n.group ? '' : n.pfx + '-') + result.mainTag);
-                    if (fs.existsSync(cpath)) {
-                        gMap[result.tag] = {
-                            path: (n.group ? '' : n.pfx + '-') + result.mainTag + '/' + result.subTags.join('/')
-                        };
+                    if (hasGallery) {
+                        let subs = result.subTags.slice(0, -1);
+                        if (subs.length) {
+                            subs = subs.join(sep);
+                        } else {
+                            subs = '';
+                        }
+                        let main = (n.group ? '' : n.pfx + '-') + result.mainTag;
+                        let cpath = path.join(configs.moduleIdRemovedPath, gRoot, main, subs);
+                        if (fs.existsSync(cpath)) {
+                            gMap[result.tag] = {
+                                path: vpath
+                            };
+                        } else {
+                            uncheckTags[result.tag] = {
+                                resolve: cpath + sep,
+                                msg: 'folder not found. try path'
+                            };
+                        }
                     } else {
-                        uncheckTags[mainTag] = cpath;
+                        uncheckTags[result.tag] = {
+                            resolve: `${n.pfx}Root or ${n.pfx}Map`,
+                            msg: 'missing config galleries'
+                        };
                     }
                 }
             }
-            let tip = uncheckTags[mainTag];
+            let tip = uncheckTags[result.tag];
             if (tip && tip !== 1) {
-                slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile), 'try path', chalk.magenta(tip));
+                slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile), tip.msg, chalk.magenta(tip.resolve));
             }
             let update = false;
             if (n.pfx == 'mx') {
@@ -483,7 +506,7 @@ module.exports = {
         while (hasMxTag(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
-            tmpl = tmplCmd.store(tmpl, cmdCache, configs.artTmplCommand);
+            tmpl = tmplCmd.store(tmpl, cmdCache, configs.tmplArtCommand);
             //console.log(tmpl);
             tokens = tmplParser(tmpl, e.shortHTMLFile);
         }

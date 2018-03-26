@@ -73,6 +73,8 @@ module.exports = (input, htmlFile) => {
                 } else if (temp == '_mxs') {
                     token.mxsKey = a.value;
                 } else if (temp == '_mxv') {
+                    token.mxvAutoKey = a.value;
+                } else if (temp == 'mxv') {
                     token.mxvKey = a.value;
                 } else if (temp == '_mxa') {
                     token.mxsAttrKey = a.value;

@@ -3,6 +3,7 @@ let escapeSlashRegExp = /\\|'/g;
 let escapeBreakReturnRegExp = /\r|\n/g;
 let mathcer = /<%([@=!])?([\s\S]*?)%>|$/g;
 let viewIdReg = /\x1f/g;
+let closeReg = /\);?\s*$/;
 module.exports = (tmpl, file) => {
     // Compile the template source, escaping string literals appropriately.
     let index = 0;
@@ -58,9 +59,13 @@ module.exports = (tmpl, file) => {
     source += `';`;
 
     if (configs.debug) {
-        source = `var $expr,$art,$line;try{${source}}catch(ex){setTimeout(function(){var msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;},0)}`;
+        source = `let $expr,$art,$line;try{${source}}catch(ex){setTimeout(()=>{let msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;},0)}`;
     }
     source = source.replace(viewIdReg, `'+$viewId+'`);
-    source = `var $g='\x1e',$t,$p='',$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=function(v){return v==null?'':''+v},$ef=function(m){return '&'+$em[m]+';'},$e=function(v){return $n(v).replace($er,$ef)},$i=function(v,k,f){for(f=$$[$g];--f;)if($$[k=$g+f]===v)return k;$$[k=$g+$$[$g]++]=v;return k},$um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=function(m){return $um[m]},$uq=/[!')(*]/g,$eu=function(v){return encodeURIComponent($n(v)).replace($uq,$uf)},$qr=/[\\\\'\"]/g,$eq=function(v){return $n(v).replace($qr,'\\\\$&')};${source}return $p`;
-    return `function($$,$viewId){$viewId=$viewId||'\x1f';${source}}`;
+    source = `let $g='\x1e',$t,$p='',$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=v=>''+(v==null?'':v),$ef=m=>\`&\${$em[m]};\`,$e=v=>$n(v).replace($er,$ef),$i=(v,k,f,b)=>{if($primivite&&$primivite(v)){b=1;k=v;}else{for(f=$$[$g];--f;){if($$[k=$g+f]===v){b=1;break;}}}if(!b){$$[k=$g+$$[$g]++]=v;}return k;},$um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=m=>$um[m],$uq=/[!')(*]/g,$eu=v=>encodeURIComponent($n(v)).replace($uq,$uf),$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&');${source}return $p`;
+    source = configs.compileTmplCommand(`($$,$viewId,$primivite)=>{$viewId=$viewId||'\x1f';${source}}`, configs);
+    if (source.startsWith('(')) {
+        source = source.substring(1).replace(closeReg, '');
+    }
+    return source;
 };

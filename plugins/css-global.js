@@ -207,7 +207,7 @@ module.exports = {
                     globalCssNamesInFiles,
                     globalCssTagsInFiles,
                     scopedStyle,
-                    scopedStyles: configs.debug && configs.cssSourceMap ? scopedStyle : null
+                    scopedStyles: configs.debug && configs.sourceMapCss ? scopedStyle : null
                 };
             });
         }

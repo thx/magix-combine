@@ -28,8 +28,10 @@ let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /^(['"])(@moduleId)\1$/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
+let cssFileGlobalReg = new RegExp(cssFileReg, 'g');
 let othersFileReg = /(['"])([a-z,]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
+let doubleAtReg = /@@/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
@@ -137,22 +139,27 @@ let processContent = (from, to, content, inwatch) => {
                     return md5(m, 'revisableString', configs.revisableStringPrefix);
                 });
             }
-            if (tl && node.raw == '@moduleId') {
+            let raw = node.raw;
+            if (tl && raw == '@moduleId') {
                 node.raw = e.moduleId;
                 add = true;
-            } else if (moduleIdReg.test(node.raw)) {
-                node.raw = node.raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
+            } else if (moduleIdReg.test(raw)) {
+                node.raw = raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
                 add = true;
-            } else if (cssFileReg.test(node.raw)) {
-                node.raw = node.raw.replace(new RegExp(cssFileReg, 'g'), m => m.replace('@', '\u0012@'));
+            } else if (cssFileReg.test(raw)) {
+                node.raw = raw.replace(cssFileGlobalReg, (m, offset) => {
+                    let c = raw.charAt(offset - 1);
+                    if (c == '@') return m.substring(1);
+                    return m.replace('@', '\u0012@');
+                }).replace(doubleAtReg, '@');
                 add = true;
-            } else if (configs.htmlFileReg.test(node.raw)) {
+            } else if (configs.htmlFileReg.test(raw)) {
                 let magixTmpl = tmplInRange(node);
-                node.raw = node.raw.replace(new RegExp(configs.htmlFileReg, 'g'), (m, q, ctrl) => m.replace('@', (ctrl ? '' : (magixTmpl ? 'updater' : '')) + '\u0012@'));
+                node.raw = raw.replace(configs.htmlFileGlobalReg, (m, q, ctrl) => m.replace('@', (ctrl ? '' : (magixTmpl ? 'updater' : '')) + '\u0012@'));
                 add = true;
-            } else if (othersFileReg.test(node.raw)) {
+            } else if (othersFileReg.test(raw)) {
                 let replacement = '';
-                node.raw.replace(othersFileReg, (m, q, actions, file) => {
+                raw.replace(othersFileReg, (m, q, actions, file) => {
                     if (actions) {
                         actions = actions.split(',');
                         //let as = [];
@@ -168,13 +175,12 @@ let processContent = (from, to, content, inwatch) => {
                             replacement = '';
                         }
                     } else {
-                        replacement = node.raw.replace(/@/g, '\u0012@');
+                        replacement = raw.replace(/@/g, '\u0012@');
                     }
                 });
                 node.raw = replacement;
                 add = true;
             } else if (configs.useAtPathConverter) {
-                let raw = node.raw;
                 //字符串以@开头，且包含/
                 let i = tl ? 0 : 1;
                 if (raw.charAt(i) == '@' && raw.indexOf('/') > 0) {
@@ -195,6 +201,11 @@ let processContent = (from, to, content, inwatch) => {
                     }
                 }
             }
+            raw = node.raw.replace(doubleAtReg, '@');
+            if (raw != node.raw) {
+                node.raw = raw;
+                add = true;
+            }
             if (add) {
                 modifiers.push({
                     start: node.start,
@@ -203,7 +214,6 @@ let processContent = (from, to, content, inwatch) => {
                 });
             }
         };
-
         acorn.walk(ast, {
             Property(node) {
                 if (node.key.type == 'Identifier' && node.key.name == 'tmpl') {
@@ -318,11 +328,16 @@ let processContent = (from, to, content, inwatch) => {
         }
         return e;
     }).then(e => {
+        let after = Promise.resolve(e);
         if (headers.execAfterProcessor) {
             let processor = configs.compileAfterProcessor || configs.compileJSEnd;
-            return processor(e);
+            after = processor(e.content, e);
+            if (util.isString(after)) {
+                e.content = after;
+                after = Promise.resolve(e);
+            }
         }
-        return e;
+        return after;
     }).then(e => {
         fileCache.add(e.from, key, e);
         return e;

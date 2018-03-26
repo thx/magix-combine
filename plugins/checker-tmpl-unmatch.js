@@ -49,7 +49,7 @@ module.exports = (tmpl, e) => {
         let i = currentLine.indexOf('>', offset),
             closed = false, results = [];
         if (i == -1) {
-            let start = lineCount - 1;
+            let start = lineCount;
             while (start < lines.length) {//从当前行向后查找'>'结束
                 let current = lines[start++];
                 i = current.indexOf('>');

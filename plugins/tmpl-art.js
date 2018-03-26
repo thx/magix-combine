@@ -261,8 +261,9 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         }
         let value = m[1];
         let index = m[2] || utils.uId('$art_i', code);
-        let ai = getAssignment(code, object, index, value);
-        return `${src}<%for(let ${index}=0;${index}<${object}.length;${index}++){${ai}%>`;
+        let refObj = utils.uId('$art_obj', code);
+        let ai = getAssignment(code, refObj, index, value);
+        return `${src}<%for(let ${index}=0,${refObj}=${object};${index}<${refObj}.length;${index}++){${ai}%>`;
     } else if (key == 'forin') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
@@ -274,8 +275,9 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         }
         let value = m[1];
         let key1 = m[2] || utils.uId('$art_k', code);
-        let ai = getAssignment(code, object, key1, value);
-        return `${src}<%for(let ${key1} in ${object}){${ai}%>`;
+        let refObj = utils.uId('$art_obj', code);
+        let ai = getAssignment(code, refObj, key1, value);
+        return `${src}<%let ${refObj}=${object};for(let ${key1} in ${refObj}){${ai}%>`;
     } else if (key == 'for') {
         checkStack(stack, key, code, e, lineNo);
         let expr = ctrls.join(' ').trim();

@@ -1,6 +1,11 @@
 /*
     对模板增加根变量的分析，模板引擎中不需要用with语句
     压缩模板引擎代码
+    
+    !!
+    不推荐在模板中声明变量，尽管目前是支持的
+    不推荐在模板中进行函数调用，尽管目前也是支持的
+    对于函数调用，如<%=fn(args1,args2)%>，一定是给定同样的args1及args2，返回值必须相同，不支持像Math.random()这样的随机返回的函数调用
  */
 let acorn = require('./js-acorn');
 let chalk = require('chalk');
@@ -19,7 +24,7 @@ let ssKeyReg = /\s*<%#([\s\S]*?)%>\s*/g;
 let ssKeyMatchReg = /^([^'"]+?)?(?:\s*,?\s*(['"])([^\[\]"']+)\2)?$/;
 let pathReg = /<%~([\s\S]+?)%>/g;
 let textaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
-let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
+let mxViewAttrReg = /(?:\b|\s|^)mx-view\s*=\s*(['"])([^'"]+?)\1/g;
 let vphUse = String.fromCharCode(0x7528); //用
 let vphDcd = String.fromCharCode(0x58f0); //声
 let vphCst = String.fromCharCode(0x56fa); //固
@@ -33,7 +38,7 @@ let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/;
-let artCtrlsReg = /<%'\x17\d+\x11([^\x11]+)\x11\x17'%><%[\s\S]+?%>/g;
+let artCtrlsReg = /<%'\x17\d+\x11([^\x11]+)\x11\x17'%>(<%[\s\S]+?%>)/g;
 let radioCheckboxReg = /\btype\s*=\s*(['"])(?:radio|checkbox)\1/;
 let cmap = {
     [vphUse]: '\u0001',
@@ -94,7 +99,11 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:us
         evts,
         fns
     });
-};/*
+};
+
+let viewAttrReg = /\bview-([\w\-@]+)=(["'])([\s\S]*?)\2/g;
+
+/*
 let getMemberExpr = (node, fn) => {
     let prop = getPropExpr(node.property, fn);
     let host = getHostExpr(node.object, fn);
@@ -207,22 +216,22 @@ module.exports = {
         let compressVarsMap = Object.create(null);
         let varCount = 0;
         let recoverString = tmpl => {
-            //还原代码中的字符串，代码中的字符串占位符使用\u0004包裹
-            //模板中的绑定特殊字符串包含\u0017，这里要区分这个字符串的来源
-            return tmpl.replace(/(['"])(\u0004\d+\u0004)\1/g, (m, q, c) => {
+            //还原代码中的字符串，代码中的字符串占位符使用\x04包裹
+            //模板中的绑定特殊字符串包含\x17，这里要区分这个字符串的来源
+            return tmpl.replace(/(['"])(\x04\d+\x04)\1/g, (m, q, c) => {
                 let str = stringStore[c].slice(1, -1); //获取源字符串
                 let result;
-                if (str.charAt(0) == '\u0017') { //如果是\u0017，这个是绑定时的特殊字符串
+                if (str.charAt(0) == '\x17') { //如果是\x17，这个是绑定时的特殊字符串
                     result = q + str.slice(1) + q;
-                } else { //其它情况再使用\u0017包裹
-                    result = q + '\u0017' + str + '\u0017' + q;
+                } else { //其它情况再使用\x17包裹
+                    result = q + '\x17' + str + '\x17' + q;
                 }
                 //console.log(JSON.stringify(m), result, JSON.stringify(result));
                 return result;
             });
         };
         let fnRange = [];
-        let blockRange = [];
+        let blockRange = [{ start: 0, end: fn.length }];
         let vds = [];
         let blockVariableMap = Object.create(null);
         let compressVarToOriginal = Object.create(null);
@@ -280,6 +289,18 @@ module.exports = {
                         end: node.end - 1,
                         name: (node.arguments.length ? ',' : '') + args.join(',')
                     });
+                }
+            },
+            VariableDeclarator(node) {
+                if (node.init) {
+                    switch (node.init.type) {
+                        case 'ArrayExpression':
+                        case 'ObjectExpression':
+                        case 'FunctionExpression':
+                        case 'ArrowFunctionExpression':
+                            slog.ever(chalk.red('avoid declare ' + fn.substring(node.start, node.end)), 'at', chalk.grey(sourceFile));
+                            break;
+                    }
                 }
             },
             VariableDeclaration(node) {
@@ -343,7 +364,7 @@ module.exports = {
         let processString = node => { //存储字符串，减少分析干扰
             if (stringReg.test(node.raw)) {
                 let q = node.raw.match(stringReg)[0];
-                let key = '\u0004' + (stringIndex++) + '\u0004';
+                let key = '\x04' + (stringIndex++) + '\x04';
                 if (revisableReg.test(node.raw) && !configs.debug) {
                     node.raw = node.raw.replace(revisableReg, m => {
                         return md5(m, 'revisableString', '_');
@@ -376,16 +397,14 @@ module.exports = {
                         name: tname
                     });
                 } else { //如果变量不在全局变量里，则增加使用前缀
-                    if (!configs.tmplGlobalVars.hasOwnProperty(tname)) {
-                        //console.log(node.name, compressVarsMap);
-                        modifiers.push({
-                            key: vphUse + node.end,
-                            start: node.start,
-                            end: node.end,
-                            name: tname,
-                            type: 'ui'
-                        });
-                    }
+                    //console.log(node.name, compressVarsMap);
+                    modifiers.push({
+                        key: vphUse + node.end,
+                        start: node.start,
+                        end: node.end,
+                        name: tname,
+                        type: 'ui'
+                    });
                 }
             },
             AssignmentExpression(node) { //赋值语句
@@ -401,11 +420,11 @@ module.exports = {
                             type: 'ae'
                         });
                     }
-                    if (!globalExists[tname]) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
+                    if (!globalExists[tname] || globalExists[tname] === 1) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
                         slog.ever(chalk.red('undeclare variable:' + lname), 'at', chalk.grey(sourceFile));
                     }
                     globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
-                    if (globalExists[tname] > 2) {
+                    if (globalExists[tname] > 3) {
                         if (e.refGlobalLeak && !e.refGlobalLeak['_' + lname]) {
                             e.refGlobalLeak['_' + lname] = 1;
                             e.refGlobalLeak.reassigns.push(chalk.red('avoid reassign variable:' + lname) + ' at ' + chalk.grey(sourceFile));
@@ -416,7 +435,7 @@ module.exports = {
                     while (start.object) {
                         start = start.object;
                     } //模板中使用如<%list.x=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
-                    if (!globalExists[start.name]) {
+                    if (!globalExists[start.name] || globalExists[start.name] === 1) {
                         slog.ever(chalk.red('avoid writeback: ' + fn.slice(node.start, node.end)), 'at', chalk.grey(sourceFile));
                     }
                 }
@@ -437,7 +456,7 @@ module.exports = {
                         pos: node.start
                     });
                 }
-                globalExists[tname] = node.init ? 2 : 1; //每次到变量声明的地方都重新记录这个变量的赋值次数
+                globalExists[tname] = node.init ? 3 : 2; //每次到变量声明的地方都重新记录这个变量的赋值次数
                 modifiers.push({
                     key: vphDcd + node.start,
                     start: node.id.start,
@@ -455,7 +474,7 @@ module.exports = {
                 });
             },
             FunctionDeclaration: node => { //函数声明
-                globalExists[node.id.name] = 2;
+                globalExists[node.id.name] = 3;
                 fnRange.push(node);
             },
             FunctionExpression: node => fnRange.push(node),
@@ -732,10 +751,10 @@ module.exports = {
         acorn.walk(ast, {
             VariableDeclarator(node) {
                 let key = stripChar(node.id.name); //把汉字前缀换成代码前缀
-                var m = key.match(/\u0002(\d+)/);
+                var m = key.match(/\x02(\d+)/);
                 if (m) {
                     let pos = m[1]; //获取这个变量在代码中的位置
-                    key = key.replace(/\u0002\d+/, '\u0001'); //转换变量标记，统一变成使用的标记
+                    key = key.replace(/\x02\d+/, '\x01'); //转换变量标记，统一变成使用的标记
                     if (!globalTracker[key]) { //全局追踪
                         globalTracker[key] = [];
                     }
@@ -757,7 +776,7 @@ module.exports = {
                 //if (i) {
                 //  i.ae = true;
                 //}
-                let key = '\u0001' + node.left.name;
+                let key = '\x01' + node.left.name;
                 let value = stripChar(fn.slice(node.right.start, node.right.end));
                 if (!globalTracker[key]) {
                     globalTracker[key] = [];
@@ -969,10 +988,10 @@ module.exports = {
             if (!info) {
                 let tipExpr = toOriginalExpr(srcExpr.trim());
                 expr = toOriginalExpr(expr);
-                slog.ever(chalk.red('can not resolve expr: ' + tipExpr), 'at', chalk.grey(sourceFile));
+                slog.ever(chalk.red('can not resolve expr: ' + tipExpr), 'at', chalk.grey(sourceFile), 'check variable reference or global variable declaration');
                 return ['<%throw new Error("can not resolve bind expr: ' + expr + ' read more: https://github.com/thx/magix/issues/37")%>'];
             }
-            if (info != '\u0003') { //递归查找,第3种情况
+            if (info != '\x03' || info != '\x06') { //递归查找,第3种情况
                 ps = find(info, srcExpr).concat(ps.slice(1));
             }
             return ps; //.join('.');
@@ -1051,6 +1070,45 @@ module.exports = {
             }
             return r.join('\x1e');
         };
+        let findRoot = expr => {
+            let ps = jsGeneric.splitExpr(expr);
+            let head = ps[0];
+            if (head == '\x03') {
+                return ps[1];
+            } else if (head == '\x06') {
+                return null;
+            }
+            let info = best(head);
+            if (!info) {
+                return null;
+            }
+            if (info != '\x03' || info != '\x06') {
+                return findRoot(info);
+            }
+            return null;
+        };
+        let extractMxViewRootKeys = attrs => {
+            let keys = [];
+            let takeKeys = (m, c, v) => {
+                if (c == '@') {
+                    m = findRoot(v);
+                    if (m && keys.indexOf(m) === -1) {
+                        keys.push(m);
+                    }
+                }
+            };
+            attrs.replace(artCtrlsReg, '$2')
+                .replace(mxViewAttrReg, (m, q, value) => {
+                    q = value.indexOf('?');
+                    if (q > -1) {
+                        value = value.substring(q + 1);
+                        value.replace(tmplCmdReg, takeKeys);
+                    }
+                }).replace(viewAttrReg, (m, key, q, value) => {
+                    value.replace(tmplCmdReg, takeKeys);
+                });
+            return keys;
+        };
         fn = tmplCmd.store(fn, cmdStore); //存储代码，只分析模板
         //textarea情况：<textarea><%:taValue%></textarea>处理成=><textarea <%:taValue%>><%=taValue%></textarea>
         let findIndex = (offset, expr) => {
@@ -1110,7 +1168,6 @@ module.exports = {
             let hasMagixView = mxViewAttrReg.test(attrs); //是否有mx-view属性
             //console.log(cmdStore, attrs);
             attrs = tmplCmd.recover(attrs, cmdStore, recoverString); //还原
-
             let replacement = (m, name, params) => {
                 name = name.replace(revisableReg, m => {
                     return md5(m, 'revisableString', configs.revisableStringPrefix);
@@ -1323,6 +1380,12 @@ module.exports = {
                 if (isCheckboxOrRadio) {
                     let keys = Object.keys(syncPaths).join('\x1e');
                     attrs = ' mxe="' + keys + '"' + attrs;
+                }
+            }
+            if (configs.magixUpdaterIncrement) {
+                let keys = extractMxViewRootKeys(attrs);
+                if (keys.length) {
+                    attrs = ' mxv="' + keys + '"' + attrs;
                 }
             }
             return '<' + tag + attrs + '>';

@@ -17,9 +17,6 @@ module.exports = () => {
         configs.compiledFolder = path.resolve(configs.compiledFolder);
         configs.jsFileExtNamesReg = new RegExp('\\.(?:' + configs.jsFileExtNames.join('|') + ')$');
         configs.moduleIdRemovedPath = configs.commonFolder; //把路径中开始到模板目录移除就基本上是模块路径了
-        if (!configs.tmplCommand) {
-            configs.tmplCommand = /<%[\s\S]*?%>/g;
-        }
         if (configs.projectName === null) {
             let str = crypto.createHash('sha512')
                 .update(configs.commonFolder, 'ascii')
@@ -35,10 +32,11 @@ module.exports = () => {
         }
         configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + names.join('|') + ')$');
 
-        configs.htmlFileReg = new RegExp('([\'"])(raw|updater)?@[^\'"]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
+        configs.htmlFileReg = new RegExp('([\'"])(raw|updater)?@[^\'"\\s@]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
+        configs.htmlFileGlobalReg = new RegExp(configs.htmlFileReg, 'g');
 
         //模板处理，即处理view.html文件
-        configs.fileTmplReg = new RegExp('([\'"])(raw|updater)?\\u0012@([^\'"]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1', 'g');
+        configs.fileTmplReg = new RegExp('([\'"])(raw|updater)?\\u0012@([^\'"\\s@]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1', 'g');
 
         configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep|html|static)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 

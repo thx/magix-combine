@@ -30,7 +30,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
         if (ext == '.sass') {
             cssCompileConfigs.indentedSyntax = true;
         }
-        if (configs.debug && configs.cssSourceMap) {
+        if (configs.debug && configs.sourceMapCss) {
             cssCompileConfigs.sourceMap = file;
         }
         sass.render(cssCompileConfigs, (err, result) => {
@@ -54,7 +54,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
         cssCompileConfigs.paths = [path.dirname(file)];
         if (configs.debug) {
             cssCompileConfigs.filename = file;
-            if (configs.cssSourceMap) {
+            if (configs.sourceMapCss) {
                 cssCompileConfigs.dumpLineNumbers = 'comments';
                 cssCompileConfigs.sourceMap = {
                     outputSourceFiles: true
@@ -66,7 +66,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
                 slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
-            let map = sourceMap(configs.debug && configs.cssSourceMap ? result.map : '', file);
+            let map = sourceMap(configs.debug && configs.sourceMapCss ? result.map : '', file);
             resolve({
                 exists: true,
                 file,

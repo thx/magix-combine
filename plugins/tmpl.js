@@ -145,7 +145,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         if (magixTmpl) {
             if (configs.magixUpdaterIncrement) {
                 if (configs.tmplStaticAnalyze) {
-                    fileContent = tmplStatic(fileContent, e.shortHTMLFile, refTmplCommands);
+                    fileContent = tmplStatic(fileContent, e.shortHTMLFile);
                 }
             } else {
                 fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);

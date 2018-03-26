@@ -201,8 +201,12 @@ module.exports = (e, inwatch) => {
                             checker.CSS.markUsed(markUsedFiles, key, e.from);
                             let c = cssNamesMap[key];
                             if (!c) {
-                                checker.CSS.markUnexists(m, e.from);
-                                c = 'unfound-[' + key + ']-from-' + fileName;
+                                if (configs.selectorSilentErrorCss) {
+                                    c = key;
+                                } else {
+                                    checker.CSS.markUnexists(m, e.from);
+                                    c = 'unfound-[' + key + ']-from-' + fileName;
+                                }
                             }
                             replacement = q + c + q;
                         } else { //输出整个css文件内容

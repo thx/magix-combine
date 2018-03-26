@@ -100,6 +100,34 @@ module.exports = {
                 });
             }
         };
+        let processIdAndME = node => {
+            let value = node.value;
+            let key = node.key;
+            let oValue = str.slice(value.start, value.end);
+            if (node.shorthand) {
+                modifiers.push({
+                    start: node.end,
+                    end: node.end,
+                    value: ':' + endChar + '",' + oValue + ',"' + startChar
+                });
+            } else if (node.computed) {
+                modifiers.push({
+                    start: key.start - 1,
+                    end: key.end + 1,
+                    value: endChar + '",' + str.slice(key.start, key.end) + ',"' + startChar
+                }, {
+                        start: value.start,
+                        end: value.end,
+                        value: endChar + '",' + oValue + ',"' + startChar
+                    });
+            } else {
+                modifiers.push({
+                    start: value.start,
+                    end: value.end,
+                    value: endChar + '",' + oValue + ',"' + startChar
+                });
+            }
+        };
         acorn.walk(ast, {
             Property(node) {
                 let key = node.key;
@@ -107,28 +135,36 @@ module.exports = {
                 if (key.type == 'Literal') {
                     processString(key);
                 }
-                if (value.type == 'Identifier' || value.type == 'MemberExpression') {
-                    let oValue = str.slice(value.start, value.end);
-                    if (node.shorthand) {
+                let oValue = str.slice(value.start, value.end);
+                if (node.shorthand) {
+                    modifiers.push({
+                        start: node.end,
+                        end: node.end,
+                        value: ':' + endChar + '",' + oValue + ',"' + startChar
+                    });
+                } else if (node.computed) {
+                    modifiers.push({
+                        start: key.start - 1,
+                        end: key.end + 1,
+                        value: endChar + '",' + str.slice(key.start, key.end) + ',"' + startChar
+                    });
+                } else if (value.type == 'Identifier' ||
+                    value.type == 'MemberExpression') {
+                    modifiers.push({
+                        start: value.start,
+                        end: value.end,
+                        value: endChar + '",' + oValue + ',"' + startChar
+                    });
+                }
+            },
+            ArrayExpression(node) {
+                for (let e of node.elements) {
+                    if (e.type == 'Identifier' ||
+                        e.type == 'MemberExpression') {
+                        let oValue = str.slice(e.start, e.end);
                         modifiers.push({
-                            start: node.end,
-                            end: node.end,
-                            value: ':' + endChar + '",' + oValue + ',"' + startChar
-                        });
-                    } else if (node.computed) {
-                        modifiers.push({
-                            start: key.start - 1,
-                            end: key.end + 1,
-                            value: endChar + '",' + str.slice(key.start, key.end) + ',"' + startChar
-                        }, {
-                                start: value.start,
-                                end: value.end,
-                                value: endChar + '",' + oValue + ',"' + startChar
-                            });
-                    } else {
-                        modifiers.push({
-                            start: value.start,
-                            end: value.end,
+                            start: e.start,
+                            end: e.end,
                             value: endChar + '",' + oValue + ',"' + startChar
                         });
                     }
@@ -136,7 +172,6 @@ module.exports = {
             },
             Literal: processString
         });
-
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });
