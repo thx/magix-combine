@@ -78,7 +78,7 @@ let getContentWithoutGuid = (n, tmpl) => {
         return b.start - a.start;
     });
     for (let r of removed) {
-        tmpl = tmpl.slice(0, r.start) + tmpl.slice(r.end);
+        tmpl = tmpl.substring(0, r.start) + tmpl.substring(r.end);
     }
     return tmpl;
 };
@@ -527,13 +527,13 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                         tmplInfo.pKeys = pKeys; //记录父结构有哪些keys，当数据变化且在父结构中时，当前结构是不需要去做更新操作的，由父代劳
                     }
                 }
-                let match = tmpl.slice(n.start, n.end);
+                let match = tmpl.substring(n.start, n.end);
                 if (n.hasContent) {
-                    let content = tmpl.slice(n.contentStart, n.contentEnd);
+                    let content = tmpl.substring(n.contentStart, n.contentEnd);
                     tmplInfo.tmpl = content;
                     tmplInfo.s = ++g + holder;
                     tmplInfo.tmplRange = [n.contentStart, n.contentEnd];
-                    let remain = tmpl.slice(n.start, n.contentStart) + tmpl.slice(n.contentEnd, n.end);
+                    let remain = tmpl.substring(n.start, n.contentStart) + tmpl.substring(n.contentEnd, n.end);
                     let tContent = getContentWithoutGuid(n, tmpl);
                     let kInfo = newExtractUpdateKeys(remain, refTmplCommands, tContent, parentOwnKeys, extInfo);
                     if (kInfo.keys.length) {
@@ -544,7 +544,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                         if (n.tag == 'textarea') { //textarea特殊处理，因为textarea可以有节点内容
                             if (tmplCommandAnchorRegTest.test(content)) {
                                 let idx = n.contentStart - n.start - 1;
-                                match = match.slice(0, idx) + ' value="' + escapeHTML(content) + '"' + match.slice(idx);
+                                match = match.substring(0, idx) + ' value="' + escapeHTML(content) + '"' + match.substring(idx);
                             }
                             addAttrs(n.tag, match, tmplInfo, refTmplCommands, e, false, kInfo);
                             delete tmplInfo.s; //这3行删除不必要的属性，节省资源
@@ -610,7 +610,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
     let r = getRange(0, tmpl.length, modifiers);
     for (let i = r.length, m; i--;) {
         m = r[i];
-        tmpl = tmpl.slice(0, m.start) + m.replacement + tmpl.slice(m.end);
+        tmpl = tmpl.substring(0, m.start) + m.replacement + tmpl.substring(m.end);
     }
     tmpl = tmpl.replace(virtualRoot, '$1');
     tmpl = commandAnchorRecover(tmpl, refTmplCommands); //恢复模板命令
@@ -622,7 +622,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
                 m = r[i];
                 let start = m.start - s.tmplRange[0];
                 let end = m.end - s.tmplRange[0];
-                s.tmpl = s.tmpl.slice(0, start) + m.replacement + s.tmpl.slice(end);
+                s.tmpl = s.tmpl.substring(0, start) + m.replacement + s.tmpl.substring(end);
             }
             s.tmpl = commandAnchorRecover(s.tmpl, refTmplCommands);
 

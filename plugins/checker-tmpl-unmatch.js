@@ -54,14 +54,14 @@ module.exports = (tmpl, e) => {
                 let current = lines[start++];
                 i = current.indexOf('>');
                 if (i > -1) {
-                    results.push(current.slice(0, i));
+                    results.push(current.substring(0, i));
                     break;
                 } else {
                     results.push(current);
                 }
             }
         } else {
-            results.push(currentLine.slice(offset, i));
+            results.push(currentLine.substring(offset, i));
         }
         let near = results.join('');//当前标签的片断
         let found = null;

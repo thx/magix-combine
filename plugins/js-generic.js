@@ -100,34 +100,6 @@ module.exports = {
                 });
             }
         };
-        let processIdAndME = node => {
-            let value = node.value;
-            let key = node.key;
-            let oValue = str.slice(value.start, value.end);
-            if (node.shorthand) {
-                modifiers.push({
-                    start: node.end,
-                    end: node.end,
-                    value: ':' + endChar + '",' + oValue + ',"' + startChar
-                });
-            } else if (node.computed) {
-                modifiers.push({
-                    start: key.start - 1,
-                    end: key.end + 1,
-                    value: endChar + '",' + str.slice(key.start, key.end) + ',"' + startChar
-                }, {
-                        start: value.start,
-                        end: value.end,
-                        value: endChar + '",' + oValue + ',"' + startChar
-                    });
-            } else {
-                modifiers.push({
-                    start: value.start,
-                    end: value.end,
-                    value: endChar + '",' + oValue + ',"' + startChar
-                });
-            }
-        };
         acorn.walk(ast, {
             Property(node) {
                 let key = node.key;
@@ -135,7 +107,7 @@ module.exports = {
                 if (key.type == 'Literal') {
                     processString(key);
                 }
-                let oValue = str.slice(value.start, value.end);
+                let oValue = str.substring(value.start, value.end);
                 if (node.shorthand) {
                     modifiers.push({
                         start: node.end,
@@ -146,7 +118,7 @@ module.exports = {
                     modifiers.push({
                         start: key.start - 1,
                         end: key.end + 1,
-                        value: endChar + '",' + str.slice(key.start, key.end) + ',"' + startChar
+                        value: endChar + '",' + str.substring(key.start, key.end) + ',"' + startChar
                     });
                 } else if (value.type == 'Identifier' ||
                     value.type == 'MemberExpression') {
@@ -161,7 +133,7 @@ module.exports = {
                 for (let e of node.elements) {
                     if (e.type == 'Identifier' ||
                         e.type == 'MemberExpression') {
-                        let oValue = str.slice(e.start, e.end);
+                        let oValue = str.substring(e.start, e.end);
                         modifiers.push({
                             start: e.start,
                             end: e.end,
@@ -177,7 +149,7 @@ module.exports = {
         });
         for (let i = modifiers.length - 1, m; i >= 0; i--) {
             m = modifiers[i];
-            str = str.slice(0, m.start) + m.value + str.slice(m.end);
+            str = str.substring(0, m.start) + m.value + str.substring(m.end);
         }
         return '"' + startChar + str.slice(1, -1) + '"';
     }

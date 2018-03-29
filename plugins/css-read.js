@@ -35,7 +35,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
         }
         sass.render(cssCompileConfigs, (err, result) => {
             if (err) {
-                slog.ever(ext.slice(1) + ' error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
+                slog.ever(ext.substring(1) + ' error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
                 return reject(err);
             }
             let map = sourceMap(result.map ? result.map.toString() : '', file, {
@@ -90,7 +90,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
 module.exports = (file, e, source, ext, refInnerStyle) => {
     return new Promise((done, reject) => {
         let info = e.contentInfo;
-        let shortFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+        let shortFile = file.replace(configs.moduleIdRemovedPath, '').substring(1);
         let resolve = info => {
             if (info.exists) {
                 let inner = configs.autoprefixer ? cssAutoprefixer(info.content) : Promise.resolve(info.content);

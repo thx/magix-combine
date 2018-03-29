@@ -16,12 +16,10 @@ let slog = require('./util-log');
 let regexp = require('./util-rcache');
 let md5 = require('./util-md5');
 let jsGeneric = require('./js-generic');
-let tmplCmdReg = /<%([@=!:~#])?([\s\S]*?)%>|$/g;
+let tmplCmdReg = /<%([@=!:~])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
 let bindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
 let bindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
-let ssKeyReg = /\s*<%#([\s\S]*?)%>\s*/g;
-let ssKeyMatchReg = /^([^'"]+?)?(?:\s*,?\s*(['"])([^\[\]"']+)\2)?$/;
 let pathReg = /<%~([\s\S]+?)%>/g;
 let textaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let mxViewAttrReg = /(?:\b|\s|^)mx-view\s*=\s*(['"])([^'"]+?)\1/g;
@@ -32,14 +30,12 @@ let vphGlb = String.fromCharCode(0x5168); //全
 let creg = /[\u7528\u58f0\u56fa\u5168]/g;
 let hreg = /([\u0001\u0002])\d+/g;
 let compressVarReg = /\u0001\d+[a-zA-Z\_$]+/g;
-let tmplStringReg = /\u0017([^\u0017]*?)\u0017/g;
 let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/;
 let artCtrlsReg = /<%'\x17\d+\x11([^\x11]+)\x11\x17'%>(<%[\s\S]+?%>)/g;
-let radioCheckboxReg = /\btype\s*=\s*(['"])(?:radio|checkbox)\1/;
 let cmap = {
     [vphUse]: '\u0001',
     [vphDcd]: '\u0002',
@@ -72,31 +68,19 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:us
     }
     let oExpr = expr;
     let fns = '';
-    let evts = '';
 
     let m = expr.match(bindEventParamsReg);
     if (m) {
-        evts = m[1].split(',');
         expr = expr.replace(bindEventParamsReg, '');
     }
     let firstComma = expr.indexOf(',');
     if (firstComma > -1) {
         fns = expr.slice(firstComma + 2, -1);
-        expr = expr.slice(0, firstComma);
-        fns = fns.replace(leftOuputReg, '\'<%=').replace(rightOutputReg, '%>\'');
-    }
-    if (!evts) {
-        evts = configs.tmplBindEvents.slice();
-    }
-    if (evts.indexOf('focusout') == -1) {
-        evts.push('focusout');
-    }
-    if (evts.indexOf('focusin') == -1) {
-        evts.push('focusin');
+        expr = expr.substring(0, firstComma);
+        fns = fns.replace(leftOuputReg, '\'<%@').replace(rightOutputReg, '%>\'');
     }
     return (efCache[oExpr] = {
         expr,
-        evts,
         fns
     });
 };
@@ -188,7 +172,7 @@ module.exports = {
                     content = '(' + content + ')';
                 }
             }
-            let source = tmpl.slice(index, offset + start);
+            let source = tmpl.substring(index, offset + start);
             let key = htmlKey + (htmlIndex++) + htmlKey;
             htmlStore[key] = source;
             index = offset + match.length - 2;
@@ -203,6 +187,7 @@ module.exports = {
             ast = acorn.parse(fn);
         } catch (ex) {
             slog.ever('parse html cmd ast error:', chalk.red(ex.message));
+            slog.ever('current state:', fn);
             reject(ex);
         }
         let globalExists = Object.assign(Object.create(null), extInfo.tmplScopedGlobalVars);
@@ -222,7 +207,7 @@ module.exports = {
                 let str = stringStore[c].slice(1, -1); //获取源字符串
                 let result;
                 if (str.charAt(0) == '\x17') { //如果是\x17，这个是绑定时的特殊字符串
-                    result = q + str.slice(1) + q;
+                    result = q + str.substring(1) + q;
                 } else { //其它情况再使用\x17包裹
                     result = q + '\x17' + str + '\x17' + q;
                 }
@@ -237,7 +222,7 @@ module.exports = {
         let compressVarToOriginal = Object.create(null);
         let constVars = Object.assign(Object.create(null), extInfo.tmplScopedConstVars);
         let patternChecker = node => {
-            let msg = 'unpupport ' + fn.slice(node.start, node.end);
+            let msg = 'unpupport ' + fn.substring(node.start, node.end);
             slog.ever(chalk.red(msg), 'at', chalk.grey(sourceFile));
             throw new Error(msg);
         };
@@ -256,7 +241,7 @@ module.exports = {
                     constVars[vname] = 1;
                 } else {
                     //以下是记录，如user.name.get('key');某个方法在深层对象中，需要把整个路径给还原出来。
-                    vname = fn.slice(callee.start, callee.end);
+                    vname = fn.substring(callee.start, callee.end);
                     //let vpath = [];
                     //let start = callee;
                     //console.log(callee);
@@ -357,7 +342,7 @@ module.exports = {
         modifiers.sort((a, b) => a.start - b.start);
         for (let i = modifiers.length - 1, m; i >= 0; i--) {
             m = modifiers[i];
-            fn = fn.slice(0, m.start) + m.name + fn.slice(m.end);
+            fn = fn.substring(0, m.start) + m.name + fn.substring(m.end);
         }
         modifiers = [];
         ast = acorn.parse(fn);
@@ -733,7 +718,7 @@ module.exports = {
         }
         for (let i = modifiers.length - 1, m; i >= 0; i--) {
             m = modifiers[i];
-            fn = fn.slice(0, m.start) + m.key + m.name + fn.slice(m.end);
+            fn = fn.substring(0, m.start) + m.key + m.name + fn.substring(m.end);
         }
         //modifiers = [];
         //console.log(fn,compressVarToOriginal,modifiers);
@@ -762,7 +747,7 @@ module.exports = {
                     let value = null;
                     if (node.init) { //如果有赋值
                         hasValue = true;
-                        value = stripChar(fn.slice(node.init.start, node.init.end));
+                        value = stripChar(fn.substring(node.init.start, node.init.end));
                     }
                     globalTracker[key].push({
                         pos: pos | 0,
@@ -777,7 +762,7 @@ module.exports = {
                 //  i.ae = true;
                 //}
                 let key = '\x01' + node.left.name;
-                let value = stripChar(fn.slice(node.right.start, node.right.end));
+                let value = stripChar(fn.substring(node.right.start, node.right.end));
                 if (!globalTracker[key]) {
                     globalTracker[key] = [];
                 }
@@ -1031,45 +1016,6 @@ module.exports = {
                 result
             };
         };
-        /*
-            ssid
-            <%#[datakey1,datakey2],"scrollTop"%>
-        */
-        let ssCount = 0;
-        let genSSId = (vars, props) => {
-            vars = vars.trim();
-            props = props.trim();
-            let r = [];
-            if (vars.length) {
-                let es = null;
-                if (vars.charAt(0) === '[' &&
-                    vars.charAt(vars.length - 1) === ']') {
-                    es = vars.slice(1, -1).split(',');
-                } else {
-                    es = [vars];
-                }
-                for (let e of es) {
-                    if (e) {
-                        if (e.charAt(0) != '\x03') {
-                            let result = find(e);
-                            e = '\x03';
-                            for (let r of result) {
-                                if (r.charAt(0) == '[') {
-                                    e += r;
-                                } else {
-                                    e += '.' + r;
-                                }
-                            }
-                        }
-                        r.push('<%@' + e + '%>');
-                    }
-                }
-            }
-            if (props.length) {
-                r.push('[' + props.replace(tmplStringReg, '$1') + ']');
-            }
-            return r.join('\x1e');
-        };
         let findRoot = expr => {
             let ps = jsGeneric.splitExpr(expr);
             let head = ps[0];
@@ -1112,7 +1058,7 @@ module.exports = {
         fn = tmplCmd.store(fn, cmdStore); //存储代码，只分析模板
         //textarea情况：<textarea><%:taValue%></textarea>处理成=><textarea <%:taValue%>><%=taValue%></textarea>
         let findIndex = (offset, expr) => {
-            let temp = fn.slice(0, offset);
+            let temp = fn.substring(0, offset);
             temp = tmplCmd.recover(temp, cmdStore);
             let c = -1;
             let count = 0;
@@ -1160,227 +1106,54 @@ module.exports = {
             attr = tmplCmd.store(attr, cmdStore);
             return '<textarea' + attr + '>' + content + '</textarea>';
         });
+        let mxeCount = 0;
         fn = fn.replace(tagReg, (match, tag, attrs) => {
-            let isCheckboxOrRadio = radioCheckboxReg.test(attrs);
-            let bindEvents = configs.tmplBindEvents.slice();
-            let oldEvents = Object.create(null);
-            let e;
             let hasMagixView = mxViewAttrReg.test(attrs); //是否有mx-view属性
             //console.log(cmdStore, attrs);
             attrs = tmplCmd.recover(attrs, cmdStore, recoverString); //还原
-            let replacement = (m, name, params) => {
-                name = name.replace(revisableReg, m => {
-                    return md5(m, 'revisableString', configs.revisableStringPrefix);
-                });
-                let now = ',m:\'' + name + '\',a:' + (params || '{}');
-                let old = m; //tmplCmd.recover(m, cmdStore);
-                oldEvents[e] = {
-                    old: old,
-                    now: now
-                };
-                return old;
-            };
-            let storeUserEvents = () => { //存储用户的事件
-                for (let i = 0; i < bindEvents.length; i++) {
-                    e = bindEvents[i];
-                    let reg = genEventReg(e);
-                    attrs = attrs.replace(reg, replacement);
-                }
-            };
             let findCount = 0;
+            let mxeInfo = [];
             let syncPaths = {};
-            if (configs.tmplMultiBindEvents) {
-                let bindStructs = {};
-                let transformEvent = (exprInfo, source/*, attrName*/) => { //转换事件
-                    bindEvents = exprInfo.evts;
-                    storeUserEvents(); //存储用户的事件
-                    let expr = exprInfo.expr;
-                    expr = analyseExpr(expr, source); //分析表达式
-                    syncPaths[expr.result] = 1;
-                    let info;
-                    if (!bindStructs.__) {
-                        bindStructs.__ = [];
-                    }
-                    if (expr.host && bindStructs.__.indexOf(expr.host) === -1) {
-                        bindStructs.__.push.apply(bindStructs.__, expr.host);
-                    }
-                    for (let be of bindEvents) {
-                        info = oldEvents[be];
-                        if (!bindStructs[be]) {
-                            bindStructs[be] = {
-                                old: info ? info.now : ''
-                            };
-                        }
-                        //let viewParams = attrName && attrName.indexOf('view-') === 0;
-                        let c = {
-                            p: expr.result,//sync path
-                            f: exprInfo.fns//,//flags
-                            //n: viewParams ? attrName.slice(5) : ''//view name
-                        };
-                        if (!bindStructs[be].c) {
-                            bindStructs[be].c = [];
-                        }
-                        let t = ['{p:\'' + c.p + '\''];
-                        if (c.f) {
-                            t.push(',f:' + c.f);
-                            bindStructs.__.be = true;
-                        }
-                        if (c.n) {
-                            t.push(',n:\'' + c.n + '\'');
-                        }
-                        t.push('}');
-                        bindStructs[be].c.push(t.join(''));
-                    }
-                };
-                attrs.replace(bindReg, (m, name, q, expr) => {
-                    expr = expr.trim();
-                    let exprInfo = extractFunctions(expr);
-                    transformEvent(exprInfo, m, name);
-                }).replace(bindReg2, (m, expr) => {
-                    expr = expr.trim();
-                    let exprInfo = extractFunctions(expr);
-                    transformEvent(exprInfo, m);
-                });
-
-                let t = [],
-                    info;
-                for (let bs in bindStructs) {
-                    if (bs != '__') {
-                        info = bindStructs[bs];
-                        let c = '';
-                        let old = info.old;
-                        if (bs != 'focusin' && bs != 'focusout') {
-                            c += 'c:[' + info.c + ']';
-                        } else {
-                            old = old.slice(1);
-                        }
-                        if (old) {
-                            c += old;
-                        }
-                        if (c) {
-                            c = '{' + c + '}';
-                        }
-                        t.push(' mx-' + bs + '="' + configs.tmplBindName + '(' + c + ')" ');
-                    }
+            let transformEvent = (exprInfo, source/*, attrName*/) => { //转换事件
+                let expr = exprInfo.expr;
+                expr = analyseExpr(expr, source); //分析表达式
+                syncPaths[expr.result] = 1;
+                let e = `{p:'${expr.result}'`;
+                if (exprInfo.fns) {
+                    e += `,f:` + exprInfo.fns;
                 }
-                t = t.join('');
-                let host = bindStructs.__;
-                if (host && host.be) {
-                    t = ' <%#[' + host.join(',') + ']%> ' + t;
+                e += '}';
+                mxeInfo.push(e);
+            };
+            attrs.replace(bindReg, (m, name, q, expr) => {
+                expr = expr.trim();
+                let exprInfo = extractFunctions(expr);
+                transformEvent(exprInfo, m, name);
+            }).replace(bindReg2, (m, expr) => {
+                expr = expr.trim();
+                let exprInfo = extractFunctions(expr);
+                transformEvent(exprInfo, m);
+            });
+            attrs = attrs.replace(bindReg, (m, name, q, expr) => {
+                findCount++;
+                let replacement = '<%=';
+                if (hasMagixView && name.indexOf('view-') === 0) {
+                    replacement = '<%@';
                 }
-                attrs = attrs.replace(bindReg, (m, name, q, expr) => {
-                    findCount++;
-                    let replacement = '<%=';
-                    if (hasMagixView && name.indexOf('view-') === 0) {
-                        replacement = '<%@';
-                    }
-                    let exprInfo = extractFunctions(expr);
-                    let artExpr = getOriginalArtCtrl(exprInfo.expr);
-                    m = name + '=' + q + artExpr + replacement + exprInfo.expr + '%>' + q;
-                    if (findCount == 1) {
-                        return m + t;
-                    }
-                    return m;
-                }).replace(bindReg2, (m, expr) => {
-                    findCount++;
-                    let exprInfo = extractFunctions(expr);
-                    getOriginalArtCtrl(exprInfo.expr);
-                    if (findCount == 1) {
-                        return t;
-                    }
-                    return '';
-                });
-            } else {
-                let transformEvent = (exprInfo, source) => { //转换事件
-                    bindEvents = exprInfo.evts;
-                    storeUserEvents(); //存储用户的事件
-                    let expr = exprInfo.expr;
-
-                    let f = '';
-                    let fns = exprInfo.fns;
-                    let ssKey = '';
-                    let rexpr = analyseExpr(expr, source); //分析表达式
-                    syncPaths[rexpr.result] = 1;
-                    if (fns.length) { //传递的参数
-                        f = ',f:' + fns;//flags
-                        ssKey = '<%#[' + rexpr.host.join(',') + ']%>';
-                    }
-
-                    let now = '',
-                        info;
-                    for (let i = 0; i < bindEvents.length; i++) {
-                        e = bindEvents[i];
-                        info = oldEvents[e];
-                        let c = '';
-                        let old = info ? info.now : '';
-                        if (e == 'focusin' || e == 'focusout') {
-                            old = old.slice(1);
-                        } else {
-                            c = 'p:\'' + rexpr.result + '\'';//sync path
-                        }
-                        if (old) {
-                            c += old;
-                        }
-                        if (f && e != 'focusin' && e != 'focusout') {
-                            c += f;
-                        }
-                        if (c) {
-                            c = '{' + c + '}';
-                        }
-                        now += '  mx-' + e + '="' + configs.tmplBindName + '(' + c + ')" '; //最后的空格不能删除！！！，如 <%:user%> mx-keydown="abc"  =>  mx-change="sync({p:'user'})" mx-keydown="abc"
-                    }
-                    return ssKey + now;
-                };
-                attrs = attrs.replace(bindReg, (m, name, q, expr) => {
-                    expr = expr.trim();
-                    if (findCount > 0) {
-                        slog.ever(chalk.red('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')), 'at', chalk.grey(sourceFile));
-                        return '';
-                    }
-                    findCount++;
-                    let exprInfo = extractFunctions(expr);
-                    let now = transformEvent(exprInfo, m, name);
-                    let artExpr = getOriginalArtCtrl(exprInfo.expr);
-
-                    let replacement = '<%=';
-                    if (hasMagixView && name.indexOf('view-') === 0) {
-                        replacement = '<%@';
-                    }
-                    m = name + '=' + q + artExpr + replacement + exprInfo.expr + '%>' + q;
-                    return m + now;
-                }).replace(bindReg2, (m, expr) => {
-                    expr = expr.trim();
-                    if (findCount > 0) {
-                        slog.ever(chalk.red('unsupport multi bind:' + toOriginalExpr(tmplCmd.recover(match, cmdStore, recoverString)).replace(removeTempReg, '')), 'at', chalk.grey(sourceFile));
-                        return '';
-                    }
-                    findCount++;
-                    let exprInfo = extractFunctions(expr);
-                    getOriginalArtCtrl(exprInfo.expr)
-                    let now = transformEvent(exprInfo, m);
-                    return now;
-                });
-            }
-            let ssIdExpr = [];
-            attrs = attrs.replace(ssKeyReg, (m, expr) => {
-                m = expr.match(ssKeyMatchReg);
-                let ssId = genSSId(m[1] || '', m[3] || '');
-                ssIdExpr.push(ssId);
+                let exprInfo = extractFunctions(expr);
+                let artExpr = getOriginalArtCtrl(exprInfo.expr);
+                m = name + '=' + q + artExpr + replacement + exprInfo.expr + '%>' + q;
+                return m;
+            }).replace(bindReg2, (m, expr) => {
+                findCount++;
+                let exprInfo = extractFunctions(expr);
+                getOriginalArtCtrl(exprInfo.expr);
                 return '';
             });
-            if (ssIdExpr.length) {
-                let ssId = '\x1f' + (ssCount++).toString(16) + ssIdExpr.join('\x1e');
-                attrs = ' mx-ssid="' + ssId + '" ' + attrs;
-            }
+
             if (findCount > 0) {
-                for (let old in oldEvents) {
-                    let info = oldEvents[old];
-                    attrs = attrs.replace(info.old, '');
-                }
-                if (isCheckboxOrRadio) {
-                    let keys = Object.keys(syncPaths).join('\x1e');
-                    attrs = ' mxe="' + keys + '"' + attrs;
-                }
+                attrs = ' mxe="\x1f_' + (mxeCount.toString(16)) + ',' + Object.keys(syncPaths).join(',') + '" mxc="[' + mxeInfo.join(',') + ']"' + attrs;
+                mxeCount++;
             }
             if (configs.magixUpdaterIncrement) {
                 let keys = extractMxViewRootKeys(attrs);

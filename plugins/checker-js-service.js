@@ -243,7 +243,7 @@ module.exports = (node, comments, tmpl, e) => {
                 let start = expr;
                 let values = [];
                 while (start.object) {
-                    values.push(tmpl.slice(start.property.start, start.property.end));
+                    values.push(tmpl.substring(start.property.start, start.property.end));
                     start = start.object;
                 }
                 if (start.name) {
@@ -363,7 +363,7 @@ module.exports = (node, comments, tmpl, e) => {
             let start = iexpr;
             let keys = [];
             while (start.object) {
-                keys.push(tmpl.slice(start.property.start, start.property.end));
+                keys.push(tmpl.substring(start.property.start, start.property.end));
                 start = start.object;
             }
             let p = varTracker[start.name];
@@ -446,8 +446,8 @@ module.exports = (node, comments, tmpl, e) => {
                         //形如 bag.get('xxx')的情况，这种要提示用户
                         if (isMissingDefaultValueBagCall(expr)) {
                             let nearRN = findLeftRNIndex(tmpl, expr.start);
-                            let part = tmpl.slice(expr.start, expr.end);
-                            let near = (tmpl.slice(nearRN, expr.start) + part).trim();
+                            let part = tmpl.substring(expr.start, expr.end);
+                            let near = (tmpl.substring(nearRN, expr.start) + part).trim();
                             let replacement = near.slice(0, -1) + ',defaultValue)';
                             maybeError.push({
                                 type: 'bc',
@@ -468,10 +468,10 @@ module.exports = (node, comments, tmpl, e) => {
                         if (info.missingDefault && info.power) {
                             let left = findLeftRNIndex(tmpl, expr.start);
                             let right = findRightRNIndex(tmpl, expr.end);
-                            let near = tmpl.slice(left, right).trim();
+                            let near = tmpl.substring(left, right).trim();
                             memberExpressions.push({
                                 type: 'bc',
-                                part: tmpl.slice(expr.start, expr.end),
+                                part: tmpl.substring(expr.start, expr.end),
                                 near: near,
                                 start: expr.start,
                                 end: expr.end
@@ -481,7 +481,7 @@ module.exports = (node, comments, tmpl, e) => {
                         let start = expr;
                         let values = [];
                         while (start.object) {
-                            values.push(tmpl.slice(start.property.start, start.property.end));
+                            values.push(tmpl.substring(start.property.start, start.property.end));
                             start = start.object;
                         }
                         if (start.name) {
@@ -506,14 +506,14 @@ module.exports = (node, comments, tmpl, e) => {
                                 }
                                 let left = findLeftRNIndex(tmpl, expr.start);
                                 let right = findRightRNIndex(tmpl, expr.end);
-                                let near = tmpl.slice(left, right).trim();
+                                let near = tmpl.substring(left, right).trim();
                                 let uc = uncheck(expr.end);
                                 if (!uc) {
                                     memberExpressions.push({
                                         values: values,
                                         start: expr.start,
                                         near: near,
-                                        part: tmpl.slice(expr.start, expr.end),
+                                        part: tmpl.substring(expr.start, expr.end),
                                         end: expr.end
                                     });
                                 }
@@ -549,10 +549,10 @@ module.exports = (node, comments, tmpl, e) => {
                     if (start.name && varTracker[start.name]) {
                         let left = findLeftRNIndex(tmpl, expr.start);
                         let right = findRightRNIndex(tmpl, expr.end);
-                        let near = tmpl.slice(left, right).trim();
+                        let near = tmpl.substring(left, right).trim();
                         maybeError.push({
                             type: 'ao',
-                            part: tmpl.slice(expr.start, expr.end),
+                            part: tmpl.substring(expr.start, expr.end),
                             near,
                             pos: expr.start
                         });

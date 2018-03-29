@@ -10,7 +10,7 @@ module.exports = {
         tmpl.replace(pureTagReg, match => {
             match.replace(attrsNameValueReg, (m, key) => {
                 if (eventReg.test(key)) {
-                    map[key.slice(3)] = 1;
+                    map[key.substring(3)] = 1;
                 }
             });
         });

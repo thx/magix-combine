@@ -7,7 +7,7 @@ module.exports = {
         try {
             ast = acorn.parse(tmpl);
         } catch (ex) {
-            slog.ever(chalk.red('parse js error at js-module-parser'), ex.message);
+            slog.ever(chalk.red('parse js error at js-module-parser'), ex.message, 'near', tmpl.substring(Math.max(0, ex.pos - 20), Math.min(ex.pos + 20, tmpl.length)));
             throw ex;
         }
         let modules = [];
@@ -18,7 +18,7 @@ module.exports = {
                         type: 'import',
                         start: node.start,
                         end: node.end,
-                        raw: tmpl.slice(node.start, node.end),
+                        raw: tmpl.substring(node.start, node.end),
                         module: node.source.value,
                         moduleStart: node.source.start,
                         moduleEnd: node.source.end
@@ -33,7 +33,7 @@ module.exports = {
                             type: 'require',
                             start: node.start,
                             end: node.end,
-                            raw: tmpl.slice(node.start, node.end),
+                            raw: tmpl.substring(node.start, node.end),
                             module: a0.value,
                             moduleStart: a0.start,
                             moduleEnd: a0.end

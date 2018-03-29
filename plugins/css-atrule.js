@@ -18,8 +18,30 @@ let genCssContentReg = key => {
     return regexp.get('\\b(font-family|animation|animation-name)\\s*:([^\\{\\}:\\r\\n\\(\\)]*?)([\'"])?' + regexp.escape(key) + '\\3(?=[,\\s;])', 'g');
 };
 let globalContents = {};
+let extractRules = fileContent => {
+    let rules = [];
+    fileContent.replace(keyframesReg, (m, head, keyframe, q, name) => {
+        if (rules.indexOf(name) == -1) {
+            rules.push(name);
+        }
+    }).replace(fontfaceReg, (match, content) => {
+        let rules = content.split(ruleEndReg);
+        for (let rule of rules) {
+            let parts = rule.split(':');
+            if (parts.length && parts[0].trim() === 'font-family') {
+                let fname = parts[1].trim();
+                fname = fname.replace(trimQ, '');
+                if (rules.indexOf(fname) == -1) {
+                    rules.push(fname);
+                }
+                break;
+            }
+        }
+    });
+    return rules;
+};
 //css @规则的处理
-let processor = (fileContent, cssNamesKey, addToGlobal) => {
+let processor = (fileContent, cssNamesKey, addToGlobal, gInfo) => {
     let contents = [];
     //先处理keyframes
     fileContent = fileContent.replace(keyframesReg, (m, head, keyframe, q, name) => {
@@ -27,7 +49,7 @@ let processor = (fileContent, cssNamesKey, addToGlobal) => {
         if (contents.indexOf(name) == -1) {
             contents.push(name);
         }
-        let tname = genCssSelector(name, cssNamesKey, 'md5CssSelectorResult@rule');
+        let tname = genCssSelector(name, cssNamesKey, gInfo.globalReservedMap, 'md5CssSelectorResult@rule');
         q = q || '';
         //增加前缀
         return head + keyframe + ' ' + q + tname + q;
@@ -72,7 +94,7 @@ let processor = (fileContent, cssNamesKey, addToGlobal) => {
             reg, tn;
         if (util.isString(t)) {
             reg = genCssContentReg(t);
-            tn = genCssSelector(t, cssNamesKey, 'md5CssSelectorResult@rule');
+            tn = genCssSelector(t, cssNamesKey, gInfo.globalReservedMap, 'md5CssSelectorResult@rule');
             if (addToGlobal) {
                 globalContents[t] = tn;
             }
@@ -88,4 +110,5 @@ let processor = (fileContent, cssNamesKey, addToGlobal) => {
 processor.reset = () => {
     globalContents = {};
 };
+processor.extractRules = extractRules;
 module.exports = processor;

@@ -8,11 +8,12 @@ module.exports = (tmpl, file) => {
     // Compile the template source, escaping string literals appropriately.
     let index = 0;
     let source = `$p+='`;
+    let hasAtRule = false;
     tmpl.replace(mathcer, (match, operate, content, offset) => {
-        source += tmpl.slice(index, offset).replace(escapeSlashRegExp, `\\$&`).replace(escapeBreakReturnRegExp, `\\n`);
+        source += tmpl.substring(index, offset).replace(escapeSlashRegExp, `\\$&`).replace(escapeBreakReturnRegExp, `\\n`);
         index = offset + match.length;
         if (configs.debug) {
-            let expr = tmpl.slice(index - match.length + 2 + (operate ? 1 : 0), index - 2);
+            let expr = tmpl.substring(index - match.length + 2 + (operate ? 1 : 0), index - 2);
             let artReg = /^'(\d+)\x11([^\x11]+)\x11'$/;
             let artM = expr.match(artReg);
             let art = '';
@@ -25,6 +26,7 @@ module.exports = (tmpl, file) => {
                 expr = expr.replace(escapeSlashRegExp, `\\$&`).replace(escapeBreakReturnRegExp, `\\n`);
             }
             if (operate == `@`) {
+                hasAtRule = true;
                 source += `';$expr='<%` + operate + expr + `%>';$p+=$i(` + content + `);$p+='`;
             } else if (operate == `=`) {
                 source += `'+($expr='<%` + operate + expr + `%>',$e(` + content + `))+'`;
@@ -44,6 +46,7 @@ module.exports = (tmpl, file) => {
             }
         } else {
             if (operate == `@`) {
+                hasAtRule = true;
                 source += `';$p+=$i(${content});$p+='`;
             } else if (operate == `=`) {
                 source += `'+$e(${content})+'`;
@@ -62,8 +65,18 @@ module.exports = (tmpl, file) => {
         source = `let $expr,$art,$line;try{${source}}catch(ex){setTimeout(()=>{let msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;},0)}`;
     }
     source = source.replace(viewIdReg, `'+$viewId+'`);
-    source = `let $g='\x1e',$t,$p='',$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=v=>''+(v==null?'':v),$ef=m=>\`&\${$em[m]};\`,$e=v=>$n(v).replace($er,$ef),$i=(v,k,f,b)=>{if($primivite&&$primivite(v)){b=1;k=v;}else{for(f=$$[$g];--f;){if($$[k=$g+f]===v){b=1;break;}}}if(!b){$$[k=$g+$$[$g]++]=v;}return k;},$um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=m=>$um[m],$uq=/[!')(*]/g,$eu=v=>encodeURIComponent($n(v)).replace($uq,$uf),$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&');${source}return $p`;
-    source = configs.compileTmplCommand(`($$,$viewId,$primivite)=>{$viewId=$viewId||'\x1f';${source}}`, configs);
+
+    let atRule = hasAtRule ? `,$i=(v,k,f)=>{for(f=$$[$g];--f;)if($$[k=$g+f]===v)return k;$$[k=$g+$$[$g]++]=v;return k;}` : '';
+
+    let encode = `,$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=v=>''+(v==null?'':v),$ef=m=>\`&\${$em[m]};\`,$e=v=>$n(v).replace($er,$ef)`;
+
+    let encodeURIMore = `,$um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=m=>$um[m],$uq=/[!')(*]/g,$eu=v=>encodeURIComponent($n(v)).replace($uq,$uf)`;
+
+    let encodeQuote = `,$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&')`;
+
+    source = `let $g='\x1e',$p=''${encode}${encodeURIMore}${encodeQuote}${atRule};${source}return $p`;
+
+    source = configs.compileTmplCommand(`($$,$viewId)=>{${source}}`, configs);
     if (source.startsWith('(')) {
         source = source.substring(1).replace(closeReg, '');
     }

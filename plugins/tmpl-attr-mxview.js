@@ -130,11 +130,11 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
         let testCmd = (m, q, content) => {
             q = content.indexOf('?');
             if (q >= 0) {
-                content.slice(q + 1).replace(cmdReg, cm => {
+                content.substring(q + 1).replace(cmdReg, cm => {
                     let cmd = refTmplCommands[cm];
                     if (cmd) {
                         cmd = cmd.replace(dOutCmdReg, (m, o, c) => {
-                            tmplChecker.checkMxViewParamsEscape(o, toSrc(m), content.slice(0, q), e);
+                            tmplChecker.checkMxViewParamsEscape(o, toSrc(m), content.substring(0, q), e);
                             return '<%!$eu(' + c + ')%>';
                         });
                         refTmplCommands[cm] = cmd;

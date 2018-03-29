@@ -63,7 +63,7 @@ module.exports = {
                     resolve();
                 } else {
                     let ext = path.extname(from);
-                    let tmplContent = processTmpl(content, shortFrom, ext.slice(1));
+                    let tmplContent = processTmpl(content, shortFrom, ext.substring(1));
                     if (tmplContent != content) {
                         fd.write(from, tmplContent);
                     }

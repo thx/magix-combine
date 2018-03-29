@@ -24,9 +24,7 @@ module.exports = {
                     m = toSrc(m);
                     let i = tmplCmd.extactCmd(m, ['@', '!']);
                     if (i) {
-                        if (i.operate === '@') {
-                            slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile));
-                        } else if (i.operate == '!') {
+                        if (i.operate == '!') {
                             let reg = regexp.get(i.open + '!', 'g');
                             slog.ever(chalk.red('avoid use ' + m), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.magenta(m.replace(reg, i.open + '=')), 'instead');
                         }

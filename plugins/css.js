@@ -78,6 +78,7 @@ module.exports = (e, inwatch) => {
                         let { file,
                             scopedStyle,
                             shortCssFile,
+                            globalStyle,
                             markUsedFiles } = info;
                         let fileName = path.basename(file);
                         let r = cssContentCache[file];
@@ -96,7 +97,7 @@ module.exports = (e, inwatch) => {
                             fileContent = cssComment.recover(fileContent, store);
                         }
                         cssNamesKey = genCssNamesKey(file);
-                        if (scopedStyle) {
+                        if (scopedStyle || globalStyle) {
                             cssNamesMap = gCSSNamesMap;
                         } else {
                             cssNamesMap = Object.create(null);
@@ -130,7 +131,7 @@ module.exports = (e, inwatch) => {
                                         reject(ex);
                                     }
                                     //@规则处理
-                                    fileContent = cssAtRule(fileContent, cssNamesKey);
+                                    fileContent = cssAtRule(fileContent, cssNamesKey, false, gInfo);
                                     //if (addToGlobalCSS) {
                                     r.cssNames = cssNamesMap;
                                     r.fileContent = fileContent;
@@ -178,6 +179,7 @@ module.exports = (e, inwatch) => {
                                         }
                                         cloneAssign(gCSSNamesMap, cssNamesMap);
                                         cloneAssign(gCSSTagToFiles, cssTagsToFiles);
+                                        cssGlobal.addReserved(cssNamesMap);
                                         checker.CSS.fileToSelectors(file, cssNamesMap, inwatch);
                                         checker.CSS.fileToTags(file, cssTagsMap, inwatch);
                                     }
@@ -261,6 +263,7 @@ module.exports = (e, inwatch) => {
                     count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
 
                     let scopedStyle = false;
+                    let globalStyle = false;
                     let refInnerStyle = e.contentInfo && name == 'style';
                     let shortCssFile;
                     let markUsedFiles;
@@ -272,6 +275,14 @@ module.exports = (e, inwatch) => {
                             deps.addFileDepend(sc, e.from, e.to);
                         });
                         markUsedFiles = configs.scopedCss;
+                    } else if (name == 'global' && ext == '.style') {
+                        file = name + ext;
+                        shortCssFile = file;
+                        globalStyle = true;
+                        configs.globalCss.forEach(sc => {
+                            deps.addFileDepend(sc, e.from, e.to);
+                        });
+                        markUsedFiles = configs.globalCss;
                     } else {
                         name = atpath.resolveName(name, e.moduleId); //先处理名称
                         if (refInnerStyle) {
@@ -281,11 +292,12 @@ module.exports = (e, inwatch) => {
                             e.fileDeps[file] = 1;
                         }
                         markUsedFiles = file;
-                        shortCssFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+                        shortCssFile = file.replace(configs.moduleIdRemovedPath, '').substring(1);
                     }
                     tempMatchToFile[match] = {
                         markUsedFiles,
                         scopedStyle,
+                        globalStyle,
                         file,
                         shortCssFile
                     };
@@ -297,6 +309,12 @@ module.exports = (e, inwatch) => {
                                 exists: true,
                                 content: gInfo.scopedStyle,
                                 styles: gInfo.scopedStyles
+                            });
+                        } else if (globalStyle) {
+                            promise = Promise.resolve({
+                                exists: true,
+                                content: gInfo.globalStyle,
+                                styles: gInfo.globalStyles
                             });
                         } else {
                             promise = cssFileRead(file, e, match, ext, refInnerStyle);
@@ -353,6 +371,9 @@ module.exports = (e, inwatch) => {
                     let file = path.resolve(folder + sep + name + ext);
                     if (configs.scopedCssMap[file]) {
                         name = 'scoped';
+                        ext = '.style';
+                    } else if (configs.globalCssMap[file]) {
+                        name = 'global';
                         ext = '.style';
                     }
                     tasks.push([m, name, ext, file]);

@@ -83,10 +83,7 @@ module.exports = {
     tmplAddViewsToDependencies: false, //是否把模板中的view做为依赖提前加载
     tmplOutputWithEvents: false, //输出事件
     tmplCompressVariable: true, //是否压缩模板中的变量
-    tmplMultiBindEvents: false, //是否支持多个绑定
     tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
-    tmplBindEvents: ['change'], //绑定表达式<%:expr%>绑定的事件
-    tmplBindName: '@{sync.value.from.ui}', //绑定表达式<%:expr%>绑定的处理名称
     tmplStaticAnalyze: true,//模板静态节点分析
     tmplArtCommand: /\{\{[\s\S]*?\}\}(?!\})/g,//art模板
     tmplCommand: /<%[\s\S]*?%>/g,

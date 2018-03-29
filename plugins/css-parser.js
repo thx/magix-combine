@@ -141,7 +141,7 @@ let parse = (css, file) => {
         if (overSelectors > 0) { //1 标签　　100属性　10000类　1000000　id
             //debugger;
             if (!offset) offset = 0;
-            let s = css.slice(selectorStart, current + offset).trim(); //
+            let s = css.substring(selectorStart, current + offset).trim(); //
             if (nonEmptyReg.test(s)) { //无空格写法　如a.b.c  a[text][href] a.span.red
                 if (overSelectors < 300) { //3*ATTR;
                     return;
@@ -325,7 +325,7 @@ let parse = (css, file) => {
             } else {
                 skipAtRule();
                 if (name == 'import') {
-                    nests.push(css.slice(start, current - 1));
+                    nests.push(css.substring(start, current - 1));
                 }
             }
         } else {

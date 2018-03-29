@@ -24,11 +24,16 @@ let globalCssNamesInFiles = Object.create(null);
 let globalCssTagsInFiles = Object.create(null);
 let scopedStyle = '';
 let scopedStyles = [];
+let globalStyle = '';
+let globalStyles = [];
+let globalReservedMap = Object.create(null);
 let globalPromise;
 let processGlobal = ctx => { //处理全局样式，因全局样式过于自由，不建议使用
     globalCssNamesMap = Object.create(null); //样式名映射，原始到压缩的映射
     globalCssNamesInFiles = Object.create(null); //样式名到文件的映射
     globalCssTagsInFiles = Object.create(null); //标签名到样式的映射
+    globalStyle = '';
+    globalStyles = [];
     let globalGuid = Date.now(); //guid
     /*
         guid 2种情况
@@ -47,10 +52,11 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
                 if (info.exists && info.content) {
                     let cmtStore = Object.create(null);
                     let currentFile = info.file;
+                    let cssNamesKey = genCssNamesKey(configs.debug ? currentFile : 'scoped.style');
                     let css = cssComment.store(info.content, cmtStore);//.replace(cssCommentReg, '');
                     try {
                         cssNameGlobalProcessor(css, {
-                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1), //短文件名
+                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').substring(1), //短文件名
                             globalGuid: globalGuid,
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
@@ -62,9 +68,21 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
                     } catch (e) {
                         reject(e);
                     }
+                    Object.assign(globalReservedMap, cssNamesMap);
+                    let rules = cssAtRule.extractRules(css);
+                    for (let r of rules) {
+                        globalReservedMap[r] = 1;
+                    }
+                    css = cssComment.recover(css, cmtStore);
                     //添加到检测信息中，编译完成时统一检测
                     checker.CSS.fileToTags(currentFile, fileTags, ctx.inwatch);
                     checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
+                    globalStyle += css;
+                    globalStyles.push({
+                        css,
+                        map: info.map,
+                        key: cssNamesKey
+                    });
                 }
             };
             let ps = [];
@@ -107,11 +125,11 @@ let processScope = ctx => {
                     let cmtStore = Object.create(null);
                     let c = cssComment.store(i.content, cmtStore);//.replace(cssCommentReg, '');
                     c = c.replace(cssRefReg, (m, q, file, ext, selector) => {
-                        return refProcessor(i.file, file, ext, selector);
+                        return refProcessor(i.file, file, ext, selector, globalReservedMap);
                     });
                     try {
                         c = cssNameNewProcessor(c, {
-                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').slice(1),
+                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').substring(1),
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
                             namesKey: cssNamesKey,
@@ -125,7 +143,9 @@ let processScope = ctx => {
                     } catch (e) {
                         reject(e);
                     }
-                    c = cssAtRule(c, cssNamesKey, true);
+                    c = cssAtRule(c, cssNamesKey, true, {
+                        globalReservedMap
+                    });
                     c = cssComment.recover(c, cmtStore);
                     checker.CSS.fileToSelectors(currentFile, cssNamesMap, ctx.inwatch);
                     checker.CSS.fileToTags(currentFile, cssTagsMap, ctx.inwatch);
@@ -166,7 +186,7 @@ let processScope = ctx => {
                         namesToFiles[p + '!r'] = values;
                         let key = '';
                         if (!configs.debug) { //压缩
-                            key = genCssSelector(p, genCssNamesKey(values[0]));
+                            key = genCssSelector(p, genCssNamesKey(values[0]), globalReservedMap);
                         } else { //非压缩时，采用这个重名在这几个文件中的路径做为key,如 mx-app-snippets-list-and-app-snippets-form
                             let keys = [],
                                 k;
@@ -174,7 +194,7 @@ let processScope = ctx => {
                                 k = genCssNamesKey(values[i], i);
                                 keys.push(k);
                             }
-                            key = genCssSelector(p, keys.join('-and-'));
+                            key = genCssSelector(p, keys.join('-and-'), globalReservedMap);
                         }
                         namesMap[p] = key;
                         for (let z in sameSelectors) {
@@ -188,7 +208,7 @@ let processScope = ctx => {
                     let id = token.name;
                     if (token.type == 'class') {
                         if (sToKeys[id]) { //修改样式，只处理重名的，因为要对重名的样式重新命名
-                            scopedStyle = scopedStyle.slice(0, token.start) + sToKeys[id] + scopedStyle.slice(token.end);
+                            scopedStyle = scopedStyle.substring(0, token.start) + sToKeys[id] + scopedStyle.substring(token.end);
                         }
                     }
                 }
@@ -203,15 +223,21 @@ module.exports = {
             globalPromise = Promise.resolve(info);
             globalPromise = globalPromise.then(processGlobal).then(processScope).then(() => {
                 return {
+                    globalReservedMap,
+                    globalStyle,
+                    globalStyles,
                     globalCssNamesMap,
                     globalCssNamesInFiles,
                     globalCssTagsInFiles,
                     scopedStyle,
-                    scopedStyles: configs.debug && configs.sourceMapCss ? scopedStyle : null
+                    scopedStyles
                 };
             });
         }
         return globalPromise;
+    },
+    addReserved(reserved) {
+        Object.assign(globalReservedMap, reserved);
     },
     reset(file) {
         let { globalCssMap, scopedCssMap } = configs;

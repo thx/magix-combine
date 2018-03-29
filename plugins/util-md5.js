@@ -17,7 +17,7 @@ let variable = (count, withNumber) => { //压缩变量
 };
 let counter = Object.create(null);
 let cache = Object.create(null);
-let md5 = (text, configKey, prefix, withNumber) => {
+let md5 = (text, configKey, prefix, withNumber, reserved) => {
     text += '';
     if (configKey == 'revisableString') {
         let temp = text.split('#');
@@ -35,13 +35,15 @@ let md5 = (text, configKey, prefix, withNumber) => {
     if (rstr) {
         return rstr;
     }
-    let c = counter[configKey];
-    rstr = variable(c, withNumber);
-    counter[configKey] = ++c;
-    if (prefix) {
-        rstr = prefix + rstr;
-    }
-    cache[configKey][text] = rstr;
+    do {
+        let c = counter[configKey];
+        rstr = variable(c, withNumber);
+        counter[configKey] = ++c;
+        if (prefix) {
+            rstr = prefix + rstr;
+        }
+        cache[configKey][text] = rstr;
+    } while (reserved && reserved[rstr]);
     return rstr;
 };
 md5.byNum = variable;

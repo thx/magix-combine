@@ -235,21 +235,9 @@ declare module "magix-combine" {
          */
         addTmplViewsToDependencies?: boolean
         /**
-         * 是否支持多绑定，默认false
-         */
-        tmplMultiBindEvents?: boolean
-        /**
          * 是否增加事件前缀，开启该选项有利于提高magix查找vframe的效率。默认为true
          */
         tmplAddEventPrefix?: boolean
-        /**
-         * 绑定表达式<%:expr%>绑定的事件名称。默认为["change"]
-         */
-        tmplBindEvents?: string[]
-        /**
-         * 绑定表达式<%:expr%>绑定的事件处理名称。默认为"@{sync.value.from.ui}"
-         */
-        tmplBindName?: string
         /**
          * 模板中静态节点分析，只有在magixUpdaterIncrease启用的情况下该配置项才生效，默认true
          */

@@ -64,7 +64,7 @@ let vdMatchId = (tmpl, tmplCommands) => {
 let getContentExceptTags = (tmpl, nodes) => {
     for (let i = nodes.length; i--;) {
         let t = nodes[i];
-        tmpl = tmpl.slice(0, t.start) + tmpl.slice(t.end);
+        tmpl = tmpl.substring(0, t.start) + tmpl.substring(t.end);
     }
     return tmpl;
 };
@@ -92,7 +92,7 @@ let getContentWithoutGuid = (n, tmpl) => {
         return b.start - a.start;
     });
     for (let r of removed) {
-        tmpl = tmpl.slice(0, r.start) + tmpl.slice(r.end);
+        tmpl = tmpl.substring(0, r.start) + tmpl.substring(r.end);
     }
     return tmpl;
 };
@@ -145,7 +145,7 @@ module.exports = {
             let removedGuids = [];
             let walk = nodes => {
                 for (let n of nodes) {
-                    let attrs = n.hasAttrs ? tmpl.slice(n.attrsStart, n.attrsEnd) : '';
+                    let attrs = n.hasAttrs ? tmpl.substring(n.attrsStart, n.attrsEnd) : '';
                     if (n.hasContent) {
                         if (n.children) {
                             walk(n.children);
@@ -161,7 +161,7 @@ module.exports = {
                         }
                         if (special) { //mx-view特殊处理
                             collectGuids(n.children, removedGuids); //子节点不能有guid
-                            content = tmpl.slice(n.contentStart, n.contentEnd);
+                            content = tmpl.substring(n.contentStart, n.contentEnd);
                         } else {
                             //获取所有除了guid之外的节点内容
                             content = getContentWithoutGuid(n, tmpl);

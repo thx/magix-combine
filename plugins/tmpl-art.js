@@ -294,7 +294,11 @@ let syntax = (code, stack, e, lineNo, refMap) => {
 };
 module.exports = (tmpl, e, refMap) => {
     let result = [];
-    tmpl = tmpl.replace(configs.tmplMxEventReg, m => m.replace(eventLeftReg, '\x12').replace(eventRightReg, '\x12'));
+    tmpl = tmpl.replace(configs.tmplMxEventReg, m => {
+        let hasLeft = eventLeftReg.test(m);
+        return m.replace(eventLeftReg, '\x12')
+            .replace(eventRightReg, hasLeft ? '\x12' : '$&');
+    });
     let lines = tmpl.split(brReg);
     let ls = [], lc = 0;
     for (let line of lines) {

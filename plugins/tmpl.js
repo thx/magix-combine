@@ -117,6 +117,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         e.refLeakGlobal = {
             reassigns: []
         };
+
         if (magixTmpl) {
             fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
         }
@@ -134,7 +135,6 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             temp.events = tmplEvents;
         }
         fileContent = tmplAttr.process(fileContent, e, refTmplCommands);
-
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
@@ -205,7 +205,7 @@ module.exports = e => {
                 let lang = singleFile ? e.contentInfo.templateLang : ext;
                 e.htmlModuleId = utils.extractModuleId(file);
                 e.srcHTMLFile = file;
-                e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+                e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').substring(1);
                 if (ext != lang) {
                     slog.ever(chalk.red('conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
                 }

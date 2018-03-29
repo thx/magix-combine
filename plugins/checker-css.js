@@ -212,7 +212,7 @@ module.exports = {
                 outCss = true;
                 let info = fileGlobals[p];
                 let keys = Object.keys(info);
-                let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                let short = p.replace(configs.moduleIdRemovedPath, '').substring(1);
                 slog.ever(chalk.grey(short) + ' avoid use ' + chalk.red(keys + ''));
             }
             if (outCss) {
@@ -222,8 +222,8 @@ module.exports = {
             if (existsSelectors.length) {
                 outCss = true;
                 existsSelectors.forEach(item => {
-                    let cShort = item.current.replace(configs.moduleIdRemovedPath, '').slice(1);
-                    let pShort = item.prev.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    let cShort = item.current.replace(configs.moduleIdRemovedPath, '').substring(1);
+                    let pShort = item.prev.replace(configs.moduleIdRemovedPath, '').substring(1);
                     slog.ever('css:already exists', chalk.red(item.name), 'file', chalk.grey(cShort), 'prev files', chalk.blue(pShort));
                 });
                 existsSelectors = [];
@@ -236,9 +236,9 @@ module.exports = {
                 keys = Object.keys(unexists[p]);
                 if (keys.length) {
                     outCss = true;
-                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    let short = p.replace(configs.moduleIdRemovedPath, '').substring(1);
                     keys = keys.map(key => {
-                        return key.replace(configs.moduleIdRemovedPath, '').slice(1);
+                        return key.replace(configs.moduleIdRemovedPath, '').substring(1);
                     });
                     slog.ever(chalk.grey(short) + ' can not find', chalk.red(keys.reverse().join(',')));
                 }
@@ -249,7 +249,7 @@ module.exports = {
                 keys = Object.keys(filesToTags[p]);
                 if (keys.length) {
                     outCss = true;
-                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    let short = p.replace(configs.moduleIdRemovedPath, '').substring(1);
                     composeTagsAndSelectors[short] = '"' + keys.reverse().join('","') + '"';
                 }
             }
@@ -257,7 +257,7 @@ module.exports = {
                 keys = Object.keys(filesToSelectors[p]);
                 if (keys.length) {
                     outCss = true;
-                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    let short = p.replace(configs.moduleIdRemovedPath, '').substring(1);
                     if (composeTagsAndSelectors[short]) {
                         composeTagsAndSelectors[short] += ',".' + keys.reverse().join('",".') + '"';
                     } else {
@@ -276,7 +276,7 @@ module.exports = {
             for (p in filesUndeclared) {
                 keys = Object.keys(filesUndeclared[p]);
                 if (keys.length) {
-                    let short = p.replace(configs.moduleIdRemovedPath, '').slice(1);
+                    let short = p.replace(configs.moduleIdRemovedPath, '').substring(1);
                     slog.ever(chalk.grey(short) + ' never declared', chalk.red('.' + keys.join(' .')));
                 }
             }

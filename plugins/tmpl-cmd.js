@@ -54,7 +54,7 @@ module.exports = {
             tmpl = tmpl.replace(bindReg2, (m, left, expr, right) => {
                 let leftBrace = expr.indexOf('{');
                 if (leftBrace > 0) {
-                    let fns = expr.slice(leftBrace).trim();
+                    let fns = expr.substring(leftBrace).trim();
                     if (fns[fns.length - 1] == ')') {
                         fns = fns.slice(0, -1);
                     }
@@ -63,7 +63,7 @@ module.exports = {
                     } catch (ex) {
                         slog.ever(chalk.red('check:' + fns));
                     }
-                    expr = expr.slice(0, leftBrace).trim();
+                    expr = expr.substring(0, leftBrace).trim();
                     if (expr[expr.length - 1] == '(') {
                         expr = expr.slice(0, -1);
                     }
@@ -82,7 +82,7 @@ module.exports = {
                     start = 3;
                     content = '(' + content + ')';
                 }
-                let source = tmpl.slice(index, offset + start);
+                let source = tmpl.substring(index, offset + start);
                 let key = '\u0005' + (htmlIndex++) + '\u0005';
                 htmlStore[key] = source;
                 index = offset + match.length - 2;
@@ -136,7 +136,7 @@ module.exports = {
                 let tokens = tmplParser(tmpl);
                 let modifiers = [];
                 let recordContent = n => {
-                    let c = tmpl.slice(n.contentStart, n.contentEnd);
+                    let c = tmpl.substring(n.contentStart, n.contentEnd);
                     if (c) {
                         let current = {
                             start: n.contentStart
@@ -172,7 +172,7 @@ module.exports = {
                 modifiers.sort((a, b) => a.start - b.start);
                 for (let m, i = modifiers.length; i--;) {
                     m = modifiers[i];
-                    let c = tmpl.slice(m.start, m.end);
+                    let c = tmpl.substring(m.start, m.end);
                     c = c.replace(continuedCmdReg, m => {
                         m = m.replace(phCmdReg, n => stores[n]) //命令还原
                             .replace(bwSpaceCmdReg, ';')
@@ -180,7 +180,7 @@ module.exports = {
                             .replace(continuedSemicolonReg, ';'); //删除中间的%><%及分号
                         return m;
                     });
-                    tmpl = tmpl.slice(0, m.start) + c + tmpl.slice(m.end);
+                    tmpl = tmpl.substring(0, m.start) + c + tmpl.substring(m.end);
                 }
                 tmpl = tmpl.slice(10, -11);
                 //console.log(JSON.stringify(tmpl));

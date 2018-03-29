@@ -127,7 +127,7 @@ module.exports = {
         if (e.checker.tmplAttrMxView) {
             upperCaseReg.lastIndex = 0;
             if (upperCaseReg.test(paramName)) {
-                slog.ever(chalk.red('avoid use view-' + paramName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red('view-' + hname), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
+                slog.ever(chalk.red('avoid use view-' + paramName + ' or ' + paramName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red('view-' + hname + ' or ' + hname), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
             }
         }
         paramName = hname;

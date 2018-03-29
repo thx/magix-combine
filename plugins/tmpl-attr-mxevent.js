@@ -55,7 +55,13 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
         return k;
     }) + ')';
     //console.log(JSON.stringify(params));
-    let ast = acorn.parse(params);
+    let ast;
+    try {
+        ast = acorn.parse(params);
+    } catch (ex) {
+        slog.ever(chalk.red('encode mx-event params error'), 'parse origin', chalk.magenta(params.substring(1, params.length - 1).replace(cmdPHReg, m => store[m]).replace(cmdReg, m => refTmplCommands[m])));
+        throw ex;
+    }
     let modifiers = [];
     let processString = node => { //存储字符串，减少分析干扰
         if (stringReg.test(node.raw)) {
@@ -129,7 +135,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     });
     for (let i = modifiers.length - 1, m; i >= 0; i--) {
         m = modifiers[i];
-        params = params.slice(0, m.start) + m.content + params.slice(m.end);
+        params = params.substring(0, m.start) + m.content + params.substring(m.end);
     }
     params = params.replace(cmdPHReg, m => store[m]);
     return params.slice(1, -1);
@@ -160,14 +166,14 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                             break;
                         }
                     } while (idx < m.length);
-                    return m.slice(0, idx) + holder + magixHolder + m.slice(idx);
+                    return m.substring(0, idx) + holder + magixHolder + m.substring(idx);
                 } else {
                     let left = m.indexOf('(');
                     let right = m.lastIndexOf(')');
                     if (left > -1 && right > -1) {
-                        let params = m.slice(left + 1, right).trim();
-                        left = m.slice(0, left + 1);
-                        right = m.slice(right);
+                        let params = m.substring(left + 1, right).trim();
+                        left = m.substring(0, left + 1);
+                        right = m.substring(right);
                         if (cmdReg.test(left) || cmdReg.test(right)) {
                             right = params + right;
                         } else if (params) {
@@ -185,8 +191,8 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                         c = left.charAt(start);
                         start++;
                     } while (c != '"' && c != '\'');
-                    let rest = left.slice(start) + right;
-                    return left.slice(0, start) + holder + magixHolder + rest;
+                    let rest = left.substring(start) + right;
+                    return left.substring(0, start) + holder + magixHolder + rest;
                 }
             }
             return m;

@@ -58,8 +58,8 @@ module.exports = (tmpl, file) => {
                         walk(n.children);
                     }
                 }
-                let html = tmpl.slice(n.start, n.end).replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '');
-                let attr = tmpl.slice(n.attrsStart, n.attrsEnd).trim();
+                let html = tmpl.substring(n.start, n.end).replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '');
+                let attr = tmpl.substring(n.attrsStart, n.attrsEnd).trim();
                 attr = attr.replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').trim();
                 let removeStaticKey = false;
                 keysMap[' _mxs="' + n.mxsKey + '"'] = html;

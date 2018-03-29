@@ -7,7 +7,7 @@ module.exports = {
         if (temp) {
             lang = temp[2];
             if (lang.indexOf('text/') === 0) {
-                lang = lang.slice(5);
+                lang = lang.substring(5);
             }
         } else {
             temp = src.match(langReg);

@@ -62,12 +62,12 @@ let splitAttrs = (tag, attrs) => {
             !key.startsWith('mx-') &&
             !key.startsWith('data-')) {
             if (key.startsWith('@view-')) {
-                key = 'view-@' + key.slice(6);
+                key = 'view-@' + key.substring(6);
             } else if (!key.startsWith('view-')) {
                 key = 'view-' + key;
             }
             viewAttrs += ' ' + key + '="' + content + '"';
-            viewAttrsMap[key.slice(5)] = content;
+            viewAttrsMap[key.substring(5)] = content;
             return '';
         }
         return m;
@@ -131,7 +131,7 @@ let toNative = (result, cmdStore, e) => {
 let innerView = (result, info, gRoot, map, extInfo) => {
     if (info) {
         result.mxView = gRoot + info.path;
-        result.seprateAttrs = tag => splitAttrs(info.tag || tag, result.attrs);
+        result.seprateAttrs = tag => splitAttrs(info.tag || tag || 'div', result.attrs);
     }
     if (util.isObject(info) && util.isFunction(info.processor)) {
         return info.processor(result, map, extInfo) || '';
@@ -164,7 +164,7 @@ let innerView = (result, info, gRoot, map, extInfo) => {
             }
         }
         if (key.startsWith('@view-')) {
-            return ' view-@' + key.slice(6) + '=' + q + value + q;
+            return ' view-@' + key.substring(6) + '=' + q + value + q;
         }
         if (!allAttrs.hasOwnProperty(key) &&
             key.indexOf('view-') !== 0 &&
@@ -238,9 +238,9 @@ let innerInclude = (result, info) => {
             return result.content;
         });
         try {
-            info.templateLang = path.extname(file).slice(1);
+            info.templateLang = path.extname(file).substring(1);
             info.srcHTMLFile = file;
-            info.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').slice(1);
+            info.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').substring(1);
             info.includeSnippet = true;
             content = configs.compileTmplStart(content, info);
             content = configs.compileTmplEnd(content, info);
@@ -291,15 +291,15 @@ module.exports = {
             let content = '',
                 attrs = '';
             if (n.hasAttrs) {
-                attrs = tmpl.slice(n.attrsStart, n.attrsEnd);
+                attrs = tmpl.substring(n.attrsStart, n.attrsEnd);
             }
             if (n.hasContent) {
-                content = tmpl.slice(n.contentStart, n.contentEnd);
+                content = tmpl.substring(n.contentStart, n.contentEnd);
             }
             let tag = n.tag;
             let oTag = tag;
             if (n.pfx) {
-                tag = tag.slice(n.pfx.length + 1);
+                tag = tag.substring(n.pfx.length + 1);
             }
             let tags = tag.split('.');
             let mainTag = tags.shift();
@@ -331,7 +331,7 @@ module.exports = {
             }
             if (content != customContent) {
                 content = customContent;
-                tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+                tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
         };
@@ -339,7 +339,7 @@ module.exports = {
             let result = getTagInfo(n);
             let content = result.content;
             content = toNative(result, cmdCache, extInfo);
-            tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+            tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
             updateOffset(n.start, content.length - (n.end - n.start));
         };
         let processGalleryTag = (n, map) => {
@@ -423,7 +423,7 @@ module.exports = {
                 update = true;
             }
             if (update) {
-                tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+                tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
         };
@@ -438,7 +438,7 @@ module.exports = {
                     let cmdContent = tmplCmd.extractCmdContent(content, cmdCache);
                     if (cmdContent.succeed) {
                         update = true;
-                        m = m.trim().slice(1);
+                        m = m.trim().substring(1);
                         return ' <%if(' + cmdContent.content + '){%>' + m + '<%}%> ';
                     } else {
                         let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
@@ -460,7 +460,7 @@ module.exports = {
                     html += `</${tag}>`;
                 }
                 content = html;
-                tmpl = tmpl.slice(0, n.start) + content + tmpl.slice(n.end);
+                tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
         };
@@ -469,7 +469,7 @@ module.exports = {
                 if (!map) map = nodes.__map;
                 for (let n of nodes) {
                     if (e.checker.checkTmplDuplicateAttr && n.attrs && n.attrs.length) {
-                        duAttrChecker(n, e, cmdCache, tmpl.slice(n.attrsStart, n.attrsEnd));
+                        duAttrChecker(n, e, cmdCache, tmpl.substring(n.attrsStart, n.attrsEnd));
                     }
                     walk(n.children, map);
                     if (n.customTag) {

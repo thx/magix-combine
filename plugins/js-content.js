@@ -72,8 +72,8 @@ let processContent = (from, to, content, inwatch) => {
         moduleId,
         debug: configs.debug,
         pkgName: moduleId.slice(0, moduleId.indexOf('/')),
-        moduleFileName: moduleId.slice(moduleId.lastIndexOf('/') + 1),
-        shortFrom: from.replace(configs.moduleIdRemovedPath, '').slice(1),
+        moduleFileName: moduleId.substring(moduleId.lastIndexOf('/') + 1),
+        shortFrom: from.replace(configs.moduleIdRemovedPath, '').substring(1),
         addWrapper: headers.addWrapper,
         checker: headers.checkerCfg,
         loader: headers.loader || configs.loaderType,
@@ -186,7 +186,7 @@ let processContent = (from, to, content, inwatch) => {
                 if (raw.charAt(i) == '@' && raw.indexOf('/') > 0) {
                     //如果是2个@@开头则是转义
                     if (raw.charAt(i + 1) == '@' && raw.lastIndexOf('@') == i + 1) {
-                        node.raw = raw.slice(0, i) + raw.slice(i + 1);
+                        node.raw = raw.substring(0, i) + raw.substring(i + 1);
                         add = true;
                     } else if (raw.lastIndexOf('@') == i) { //只有一个，路径转换
                         if (tl) {
@@ -254,7 +254,7 @@ let processContent = (from, to, content, inwatch) => {
         });
         for (let i = modifiers.length - 1, m; i >= 0; i--) {
             m = modifiers[i];
-            tmpl = tmpl.slice(0, m.start) + m.content + tmpl.slice(m.end);
+            tmpl = tmpl.substring(0, m.start) + m.content + tmpl.substring(m.end);
         }
         if (toTops.length) {
             tmpl = toTops.join(';\r\n') + '\r\n' + tmpl;
@@ -288,7 +288,7 @@ let processContent = (from, to, content, inwatch) => {
             if (configs.tmplAddViewsToDependencies) {
                 for (let v of mxViews) {
                     let i = v.indexOf('/');
-                    let mName = i === -1 ? null : v.slice(0, i);
+                    let mName = i === -1 ? null : v.substring(0, i);
                     let p;
                     if (mName === e.pkgName) {
                         p = atpath.resolvePath('"@' + v + '"', e.moduleId);

@@ -130,7 +130,7 @@ module.exports = (node, tmpl, e, ref) => {
     walk(node.body.body);
     let msg = ref.settingsAlias ? 'global settings is: ' : 'prev you used: ';
     exprs.forEach(expr => {
-        let part = tmpl.slice(expr.start, expr.end);
+        let part = tmpl.substring(expr.start, expr.end);
         slog.ever(chalk.red(expr.tip), 'at', chalk.grey(e.shortFrom), 'near', chalk.magenta(part), expr.prev ? msg + chalk.red(expr.prev) : '');
     });
 };

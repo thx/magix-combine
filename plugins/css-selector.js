@@ -38,20 +38,22 @@ let genCssNamesKey = (file, ignorePrefix) => {
     }
     return cssId;
 };
-let genCssSelector = (selector, cssNameKey, key) => {
+let genCssSelector = (selector, cssNameKey, reservedNames, key) => {
     let mappedName = selector;
     if (configs.debug) { //压缩，我们采用md5处理，同样的name要生成相同的key
         if (cssNameKey) {
             mappedName = cssNameKey + '-' + mappedName;
         }
     } else {
-        mappedName = configs.projectName + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult');
+        mappedName = configs.projectName + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult', null, false, reservedNames);
     }
     return mappedName;
 };
 
 let refProcessor = (relateFile, file, ext, name, e) => {
-    if (file == 'scoped' && ext == '.style') {
+    if (file == 'global' && ext == '.style') {
+        return name;
+    } else if (file == 'scoped' && ext == '.style') {
         if (e) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
@@ -77,6 +79,9 @@ let refProcessor = (relateFile, file, ext, name, e) => {
             b good a
         */
         file = path.resolve(path.dirname(relateFile) + sep + file + ext);
+        if (e && configs.globalCssMap[file]) {
+            return name;
+        }
         if (e && configs.scopedCssMap[file]) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
@@ -179,7 +184,7 @@ let cssNameNewProcessor = (css, ctx) => {
     }
     for (let i = modifiers.length; i--;) {
         let m = modifiers[i];
-        css = css.slice(0, m.start) + m.content + css.slice(m.end);
+        css = css.substring(0, m.start) + m.content + css.substring(m.end);
     }
     return css;
 };
