@@ -188,6 +188,7 @@ module.exports = {
         } catch (ex) {
             slog.ever('parse html cmd ast error:', chalk.red(ex.message));
             slog.ever('current state:', fn);
+            slog.ever('prev state:' + fn.replace(htmlHolderReg, m => htmlStore[m]));
             reject(ex);
         }
         let globalExists = Object.assign(Object.create(null), extInfo.tmplScopedGlobalVars);

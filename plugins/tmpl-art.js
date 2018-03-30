@@ -65,7 +65,6 @@ let eventLeftReg = /\(\s*\{/g;
 let eventRightReg = /\}\s*\)/g;
 let mxEventHolderReg = /\x12([^\x12]+?)\x12/g;
 let openTag = '{{';
-let closeTag = /\}{2}(?!\})/;
 let ctrls = {
     'if'(stack, ln) {
         stack.push({
@@ -292,6 +291,54 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         return `${src}<%${code}%>`;
     }
 };
+let findBestCode = (str, e, line) => {
+    let left = '',
+        right = '';
+    let leftCount = 0,
+        rightCount = 0,
+        maybeCount = 0,//maybe是兼容以前正则的逻辑 /\}{2}(?!\})/
+        maybeAt = -1,
+        find = false;
+    for (let i = 0; i < str.length; i++) {
+        let c = str.charAt(i);
+        if (c != '}') {
+            if (maybeCount >= 2 && maybeAt == -1) {
+                maybeAt = i;
+            }
+            maybeCount = 0;
+            rightCount = 0;
+        }
+        if (c == '{') {
+            leftCount++;
+        } else if (c == '}') {
+            maybeCount++;
+            if (!leftCount) {
+                rightCount++;
+                if (rightCount == 2) {
+                    find = true;
+                    left = str.substring(0, i - 1);
+                    right = str.substring(i + 1);
+                    break;
+                }
+            } else {
+                leftCount--;
+            }
+        }
+    }
+    if (!find && maybeCount >= 2 && maybeAt == -1) {
+        maybeAt = str.length;
+    }
+    if (!find) {
+        if (maybeAt == -1) {
+            slog.ever(chalk.red('bad partial art: {{' + str.trim() + ' at line:' + line), 'at file', chalk.magenta(e.shortHTMLFile));
+            throw new Error('bad partial art: {{' + str.trim() + ' at line:' + line + ' at file:' + e.shortHTMLFile);
+        } else {
+            left = str.substring(0, maybeAt - 1);
+            right = str.substring(maybeAt + 1);
+        }
+    }
+    return [left, right];
+};
 module.exports = (tmpl, e, refMap) => {
     let result = [];
     tmpl = tmpl.replace(configs.tmplMxEventReg, m => {
@@ -310,7 +357,7 @@ module.exports = (tmpl, e, refMap) => {
     for (let part of parts) {
         let lni = part.match(lineNoReg);
         if (lni) {
-            let codes = lni[2].split(closeTag);
+            let codes = findBestCode(lni[2], e, lni[1]);
             result.push(syntax(codes[0], stack, e, lni[1], refMap), codes[1]);
         } else {
             result.push(part);

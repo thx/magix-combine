@@ -100,6 +100,27 @@ module.exports = {
                 });
             }
         };
+        let pushExpressions = e => {
+            if (e.type == 'Identifier' ||
+                e.type == 'MemberExpression' ||
+                e.type == 'CallExpression' ||
+                e.type == 'FunctionExpression' ||
+                e.type == 'ConditionalExpression' ||
+                e.type == 'BinaryExpression' ||
+                e.type == 'ArrowFunctionExpression' ||
+                e.type == 'LogicalExpression' ||
+                e.type == 'UnaryExpression' ||
+                e.type == 'ThisExpression' ||
+                e.type == 'NewExpression' ||
+                e.type == 'UpdateExpression') {
+                let oValue = str.substring(e.start, e.end);
+                modifiers.push({
+                    start: e.start,
+                    end: e.end,
+                    value: endChar + '",' + oValue + ',"' + startChar
+                });
+            }
+        };
         acorn.walk(ast, {
             Property(node) {
                 let key = node.key;
@@ -107,12 +128,11 @@ module.exports = {
                 if (key.type == 'Literal') {
                     processString(key);
                 }
-                let oValue = str.substring(value.start, value.end);
                 if (node.shorthand) {
                     modifiers.push({
                         start: node.end,
                         end: node.end,
-                        value: ':' + endChar + '",' + oValue + ',"' + startChar
+                        value: ':' + endChar + '",' + str.substring(value.start, value.end) + ',"' + startChar
                     });
                 } else if (node.computed) {
                     modifiers.push({
@@ -120,26 +140,13 @@ module.exports = {
                         end: key.end + 1,
                         value: endChar + '",' + str.substring(key.start, key.end) + ',"' + startChar
                     });
-                } else if (value.type == 'Identifier' ||
-                    value.type == 'MemberExpression') {
-                    modifiers.push({
-                        start: value.start,
-                        end: value.end,
-                        value: endChar + '",' + oValue + ',"' + startChar
-                    });
+                } else {
+                    pushExpressions(value);
                 }
             },
             ArrayExpression(node) {
                 for (let e of node.elements) {
-                    if (e.type == 'Identifier' ||
-                        e.type == 'MemberExpression') {
-                        let oValue = str.substring(e.start, e.end);
-                        modifiers.push({
-                            start: e.start,
-                            end: e.end,
-                            value: endChar + '",' + oValue + ',"' + startChar
-                        });
-                    }
+                    pushExpressions(e);
                 }
             },
             Literal: processString
@@ -147,7 +154,17 @@ module.exports = {
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });
-        for (let i = modifiers.length - 1, m; i >= 0; i--) {
+        for (let i = modifiers.length, m, pm, offset; i-- > 0;) {
+            m = modifiers[i];
+            offset = m.value.length - m.end + m.start;
+            for (let j = i; j--;) {
+                pm = modifiers[j];
+                if (pm.end > m.end) {
+                    pm.end += offset;
+                }
+            }
+        }
+        for (let i = modifiers.length, m; i--;) {
             m = modifiers[i];
             str = str.substring(0, m.start) + m.value + str.substring(m.end);
         }
