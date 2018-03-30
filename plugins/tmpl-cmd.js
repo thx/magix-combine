@@ -29,11 +29,6 @@ let outPhKey = '\u0001';
 let borderChars = /^\s*<%[\{\}\(\)\[\];\s]+%>\s*$/;
 
 let bindReg2 = /(\s*)<%:([\s\S]+?)%>(\s*)/g;
-//support {{:[input,change]lang{refresh:true}}}
-let bindEventsReg = /^\s*\[([^\[\]]+)\]\s*/;
-//support {{:lang<change,input>{refresh:true}}}
-let bindEventsReg2 = /^([^<>]+)<([^>]+)>/;
-
 
 let extractReg = /<%([@!~=:])?([\s\S]+?)%>/;
 let extractArtReg = /\{\{([@!~=:])?([\s\S]+?)\}\}(?!\})/;
@@ -68,11 +63,11 @@ module.exports = {
                         expr = expr.slice(0, -1);
                     }
                     expr += fns;
-                }
-                if (bindEventsReg.test(expr)) {
-                    expr = expr.replace(bindEventsReg, '"\u0017$1",');
-                } else if (bindEventsReg2.test(expr)) {
-                    expr = expr.replace(bindEventsReg2, '"\u0017$2",$1');
+                } else {
+                    let temp = expr.split('&');
+                    if (temp.length > 1) {
+                        expr = temp[0] + ',"\u0017\u0018",' + temp[1] + ',"\u0017"';
+                    }
                 }
                 return (left || '') + '<%:' + expr + '%>' + (right || '');
             });

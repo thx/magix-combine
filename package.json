@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "3.10.1",
+  "version": "3.10.2",
   "description": "合并Magix View的html,js,css成一个js文件，并检测html,js,css中可能存在的问题",
   "main": "index.js",
   "types": "index.d.ts",

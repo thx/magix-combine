@@ -55,9 +55,6 @@ let stripNum = str => str.replace(hreg, '$1');
     find: 1,
     each: 1
 };*/
-let genEventReg = type => { //获取事件正则，做绑定时，当原来已经存在如change,input等事件时，原来的事件仍需调用
-    return regexp.get('\\bmx-' + type + '\\s*=\\s*"([^\\(]+)\\(([\\s\\S]*?)\\)"');
-};
 let leftOuputReg = /\u0018",/g;
 let rightOutputReg = /,"/g;
 let efCache = Object.create(null);
