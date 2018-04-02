@@ -219,7 +219,7 @@ let syntax = (code, stack, e, lineNo, refMap) => {
     if (configs.debug) {
         src = `<%'${lineNo}\x11${code.replace(slashReg, '\\$&')}\x11'%>`;
         if (code[0] === ':') {//绑定的不处理
-            let match = code.slice(1).match(/^[^<({]+/);
+            let match = code.slice(1).match(/^[^<({&]+/);
             if (!match) {
                 slog.ever(chalk.red(`bad art {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
                 return;
@@ -292,6 +292,7 @@ let syntax = (code, stack, e, lineNo, refMap) => {
     }
 };
 let findBestCode = (str, e, line) => {
+    debugger;
     let left = '',
         right = '';
     let leftCount = 0,

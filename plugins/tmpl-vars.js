@@ -183,7 +183,7 @@ module.exports = {
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
-            slog.ever('parse html cmd ast error:', chalk.red(ex.message));
+            slog.ever('parse html cmd ast error:', chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             slog.ever('current state:', fn);
             slog.ever('prev state:' + fn.replace(htmlHolderReg, m => htmlStore[m]));
             reject(ex);
@@ -984,33 +984,21 @@ module.exports = {
             //expr = jsGeneric.splitSafeguardExpr(expr).pop();
             //}
             let result = find(expr, source); //获取表达式信息
-            let host = [];
+            let vars = [];
             //slog.ever('result', result);
             //把形如 ["user","[name]","[key[value]"]=> user.<%=name%>.<%=key[value]%>
             for (let i = 0, one; i < result.length; i++) {
                 one = result[i];
                 if (one.charAt(0) == '[' && one.charAt(one.length - 1) == ']') {
-                    host.push(stripNum(one));
                     one = '<%=' + one.slice(1, -1) + '%>';
-                } else {
-                    host.push((i === 0 ? '' : '.') + stripNum(one));
+                    vars.push(one);
                 }
                 //one = stripNum(one);
                 result[i] = one;
             }
-            let last = host.pop();
-            if (host.length) {
-                host[0] = '\x03.' + host[0];
-            }
-            if (last.charAt(0) === '[' &&
-                last.charAt(last.length - 1) === ']') {
-                host = [host.join(''), last.slice(1, -1)];
-            } else {
-                host = [host.join('')];
-            }
             result = result.join('.');
             return {
-                host,
+                vars,
                 result
             };
         };
@@ -1111,11 +1099,15 @@ module.exports = {
             attrs = tmplCmd.recover(attrs, cmdStore, recoverString); //还原
             let findCount = 0;
             let mxeInfo = [];
-            let syncPaths = {};
+            let syncPaths = [];
             let transformEvent = (exprInfo, source/*, attrName*/) => { //转换事件
                 let expr = exprInfo.expr;
                 expr = analyseExpr(expr, source); //分析表达式
-                syncPaths[expr.result] = 1;
+                for (let v of expr.vars) {
+                    if (syncPaths.indexOf(v) == -1) {
+                        syncPaths.push(v);
+                    }
+                }
                 let e = `{p:'${expr.result}'`;
                 if (exprInfo.fns) {
                     e += `,f:` + exprInfo.fns;
@@ -1150,7 +1142,11 @@ module.exports = {
             });
 
             if (findCount > 0) {
-                attrs = ' mxe="\x1f_' + (mxeCount.toString(16)) + ',' + Object.keys(syncPaths).join(',') + '" mxc="[' + mxeInfo.join(',') + ']"' + attrs;
+                let mxe = '\x1f_' + mxeCount.toString(16);
+                if (syncPaths.length) {
+                    mxe += '_' + syncPaths.join('_');
+                }
+                attrs = ' mxe="' + mxe + '" mxc="[' + mxeInfo.join(',') + ']"' + attrs;
                 mxeCount++;
             }
             if (configs.magixUpdaterIncrement) {

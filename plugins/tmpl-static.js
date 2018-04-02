@@ -76,18 +76,24 @@ module.exports = (tmpl, file) => {
                 } else if (n.children) {
                     let hasSubView = 0;
                     for (let c of n.children) {
-                        if (c.mxvKey || c.mxvAutoKey) {
+                        /*
+                            对于input textarea等，我们也利用mxv属性深入diff
+                            场景：<input value="{{=abc}}"/>
+                            updater.digest({abc:'abc'});
+                            然后用户删除了input中的abc修改成了123
+                            此时依然updater.digest({abc:'abc'}),问input中的值该显示abc还是123?
+                            该方案目的是显示abc
+                        */
+                        if (c.mxvKey ||
+                            c.mxvAutoKey ||
+                            c.tag == 'input' ||
+                            c.tag == 'textarea' ||
+                            c.tag == 'option') {
                             hasSubView = 1;
                             break;
                         }
                     }
                     if (!hasSubView) {
-                        keys.push(' _mxv="' + n.mxvAutoKey + '"');
-                        delete n.mxvAutoKey;
-                    }
-                } else if (n.hasMxView) {
-                    let query = n.mxView.split('?')[1];
-                    if (!query || !tmplCommandAnchorRegTest.test(query)) {
                         keys.push(' _mxv="' + n.mxvAutoKey + '"');
                         delete n.mxvAutoKey;
                     }

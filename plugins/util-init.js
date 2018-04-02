@@ -58,6 +58,10 @@ module.exports = () => {
             configs.tmplCompressVariable = false;
         }
 
+        if (configs.magixUpdaterIncrement) {
+            configs.tmplCompressVariable = false;
+        }
+
         if (configs.sassOptions) {
             configs.sass = configs.sassOptions;
         }

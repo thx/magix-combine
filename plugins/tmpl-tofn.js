@@ -62,7 +62,7 @@ module.exports = (tmpl, file) => {
     source += `';`;
 
     if (configs.debug) {
-        source = `let $expr,$art,$line;try{${source}}catch(ex){setTimeout(()=>{let msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;},0)}`;
+        source = `let $expr,$art,$line;try{${source}}catch(ex){let msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;}`;
     }
     source = source.replace(viewIdReg, `'+$viewId+'`);
 

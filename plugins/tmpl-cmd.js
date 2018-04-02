@@ -62,11 +62,22 @@ module.exports = {
                     if (expr[expr.length - 1] == '(') {
                         expr = expr.slice(0, -1);
                     }
+                    if (expr.endsWith('&')) {
+                        expr = expr.slice(0, -1);
+                    }
                     expr += fns;
                 } else {
                     let temp = expr.split('&');
                     if (temp.length > 1) {
-                        expr = temp[0] + ',"\u0017\u0018",' + temp[1] + ',"\u0017"';
+                        if (temp.length != 2) {
+                            throw new Error('unsupport ' + m);
+                        }
+                        let bind = temp[0].trim();
+                        let rule = temp[1].trim();
+                        if (rule.startsWith('(') && rule.endsWith(')')) {
+                            rule = rule.slice(1, -1);
+                        }
+                        expr = `${bind},"\u0017\u0018",${rule},"\u0017"`;
                     }
                 }
                 return (left || '') + '<%:' + expr + '%>' + (right || '');
