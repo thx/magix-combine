@@ -1100,7 +1100,7 @@ module.exports = {
             let findCount = 0;
             let mxeInfo = [];
             let syncPaths = [];
-            let transformEvent = (exprInfo, source/*, attrName*/) => { //转换事件
+            let transformEvent = (exprInfo, source, attrName) => { //转换事件
                 let expr = exprInfo.expr;
                 expr = analyseExpr(expr, source); //分析表达式
                 for (let v of expr.vars) {
@@ -1111,6 +1111,15 @@ module.exports = {
                 let e = `{p:'${expr.result}'`;
                 if (exprInfo.fns) {
                     e += `,f:` + exprInfo.fns;
+                }
+                /*
+                    对于view的绑定，如
+                    <mx-calendar.rangepicker start="{{:date.start}}" end="{{:date.end}}"/>
+                    不像input，只能读取value这唯一输入源。
+                    自定义的情况下，输入源可以有多个，那么当我们绑定时，需要知道当前绑定表达式对应的属性是什么，从而来确定如何从输入源中把数据取出来
+                */
+                if (attrName && attrName.startsWith('view-')) {
+                    e += `,a:'${attrName.substring(5)}'`;
                 }
                 e += '}';
                 mxeInfo.push(e);

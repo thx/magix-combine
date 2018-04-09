@@ -70,6 +70,7 @@ let tagsProps = {
         id: 'id',
         class: 'className',
         title: 'title',
+        slot: 'slot',
         dir: 'dir',
         accesskey: 'accessKey',
         contenteditable: 'contentEditable',

@@ -78,6 +78,10 @@ module.exports = (input, htmlFile) => {
                     token.mxvKey = a.value;
                 } else if (temp == '_mxa') {
                     token.mxsAttrKey = a.value;
+                } else if (temp == '_mxslot') {
+                    token.mxSlotKey = a.value;
+                } else if (temp == 'slot') {
+                    token.namedSlot = true;
                 } else if (temp == 'mx-static' || temp == 'mxs') {
                     token.userStaticKey = a.value || true;
                 } else if (temp.startsWith('@')) {

@@ -60,7 +60,8 @@ let splitAttrs = (tag, attrs) => {
     attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
         if (!attrsMap[key] &&
             !key.startsWith('mx-') &&
-            !key.startsWith('data-')) {
+            !key.startsWith('data-') &&
+            !key.startsWith('native-')) {
             if (key.startsWith('@view-')) {
                 key = 'view-@' + key.substring(6);
             } else if (!key.startsWith('view-')) {
@@ -69,6 +70,9 @@ let splitAttrs = (tag, attrs) => {
             viewAttrs += ' ' + key + '="' + content + '"';
             viewAttrsMap[key.substring(5)] = content;
             return '';
+        }
+        if (key.startsWith('native-')) {
+            return ' ' + key.substring(7) + '=' + q + content + q;
         }
         return m;
     }).trim();
@@ -167,9 +171,14 @@ let innerView = (result, info, gRoot, map, extInfo) => {
             return ' view-@' + key.substring(6) + '=' + q + value + q;
         }
         if (!allAttrs.hasOwnProperty(key) &&
-            key.indexOf('view-') !== 0 &&
-            key.indexOf('mx-') !== 0) {
+            !key.startsWith('view-') &&
+            !key.startsWith('mx-') &&
+            !key.startsWith('data-') &&
+            !key.startsWith('native-')) {
             key = 'view-' + key;
+        }
+        if (key.startsWith('native-')) {
+            key = key.substring(7);
         }
         if (info) {
             let pKey = '_' + key;

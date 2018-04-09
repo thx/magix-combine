@@ -24,6 +24,8 @@ let attrKeyReg = /\s*_mxa="[^"]+"/g;
 let mxvKeyReg = /\s*_mxv="[^"]+"/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let forceStaticKey = /\s+mx-static(?:\s*=\s*(['"])[^'"]+\1)?/;
+let slotKeyReg = /\s*_mxslot="[^"]+"/g;
+
 module.exports = (tmpl, file) => {
     let g = 0;
     let prefix = configs.projectName + md5(file, 'tmplFiles', '', true) + ':';
@@ -31,6 +33,7 @@ module.exports = (tmpl, file) => {
         tKey = ' _mxv="' + g++ + '"';
         tKey += ' _mxs="' + g++ + '"';
         tKey += ' _mxa="' + g++ + '"';
+        tKey += ' _mxslot="' + g++ + '"';
         return '<' + tag + tKey + attrs + (close || '') + '>';
     });
     let tokens = tmplParser(tmpl);
@@ -112,7 +115,22 @@ module.exports = (tmpl, file) => {
                         keys.push(' _mxs="' + n.mxsKey + '"');
                     }
                 } else if (n.children) {
-                    removeChildrenStaicKeys(n.children, keys);
+                    let hasMxv = false;
+                    for (let c of n.children) {
+                        if (c.mxvKey ||
+                            c.mxvAutoKey ||
+                            c.tag == 'input' ||
+                            c.tag == 'textarea' ||
+                            c.tag == 'option') {
+                            hasMxv = true;
+                            removeStaticKey = true;
+                            keys.push(' _mxs="' + n.mxsKey + '"');
+                            break;
+                        }
+                    }
+                    if (!hasMxv) {
+                        removeChildrenStaicKeys(n.children, keys);
+                    }
                 }
                 if (!removeStaticKey) {
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
@@ -120,25 +138,48 @@ module.exports = (tmpl, file) => {
             }
         };
         walk(tokens);
+
+        let slot = (nodes, named) => {
+            for (let n of nodes) {
+                if (n.hasMxView) {
+                    if (!named && !n.namedSlot) {
+                        keys.push(' _mxslot="' + n.mxSlotKey + '"');
+                    }
+                } else {
+                    keys.push(' _mxslot="' + n.mxSlotKey + '"');
+                }
+                if (n.hasContent) {
+                    if (n.children) {
+                        slot(n.children, named || n.namedSlot);
+                    }
+                }
+            }
+        };
+        slot(tokens);
         return keys;
     };
     let keys = getRemovedStaticKeys();
     for (let key of keys) {
         tmpl = tmpl.replace(key, '');
     }
-    tmpl = tmpl.replace(staticKeyReg, m => {
-        let r = userKeysMap[m];
-        if (r === 'false') return '';
-        if (!r || r === true) {
-            r = keysMap[m];
-            r = md5(r, file + ':key', prefix, true);
-        } else {
-            r = md5(m, file + ':key', prefix, true) + ':' + r;
-        }
-        return ' mxs="' + r + '"';
-    }).replace(attrKeyReg, m => {
-        m = keysMap[m];
-        return ' mxa="' + md5(m, file + ':akey', prefix, true) + '"';
-    }).replace(mxvKeyReg, ' mxv').replace(tagReg, m => m.replace(forceStaticKey, ''));
+    tmpl = tmpl.replace(tagReg, m => {
+        return m.replace(staticKeyReg, m => {
+            let r = userKeysMap[m];
+            if (r === 'false') return '';
+            if (!r || r === true) {
+                r = keysMap[m];
+                r = md5(r, file + ':key', prefix, true);
+            } else {
+                r = md5(m, file + ':key', prefix, true) + ':' + r;
+            }
+            return ' mxs="' + r + '"';
+        }).replace(attrKeyReg, m => {
+            m = keysMap[m];
+            return ' mxa="' + md5(m, file + ':akey', prefix, true) + '"';
+        }).replace(slotKeyReg, () => {
+            return ' mx-slot="\x1f"';
+        }).replace(mxvKeyReg, ' mxv')
+            .replace(forceStaticKey, '');
+    });
     return tmpl;
 };

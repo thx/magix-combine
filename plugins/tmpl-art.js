@@ -292,7 +292,6 @@ let syntax = (code, stack, e, lineNo, refMap) => {
     }
 };
 let findBestCode = (str, e, line) => {
-    debugger;
     let left = '',
         right = '';
     let leftCount = 0,

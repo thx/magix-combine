@@ -99,16 +99,11 @@ module.exports = {
     galleries: {
         mxRoot: 'app/gallery/',
         mxMap: {
-            'mx-suggest': compound('input'),
             'mx-calendar.datepicker': compound('input'),
             'mx-calendar.rangepicker': compound('input'),
-            'mx-color.picker': compound('input'),
-            'mx-suggest.index': compound('input'),
             'mx-time.picker': compound('input'),
             'mx-popover': compound('span'),
             'mx-popover.index': compound('span'),
-            'mx-popconfirm': compound('a'),
-            'mx-popconfirm.index': compound('a'),
             'mx-number': {
                 _class: 'input pr'
             },
