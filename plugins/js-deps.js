@@ -8,6 +8,7 @@
 //b=require('cc');
 let jsModuleParser = require('./js-module-parser');
 let configs = require('./util-config');
+let atpath = require('./util-atpath');
 
 let depsReg = /(?:(?:(?:var\s+|let\s+|const\s+)?[^\r\n]+?)?\brequire\s*\([^\(\)]+\)|\bimport\s+[^;\r\n]+)[\r\n;,]?/g;
 let importReg = /import\s+(?:([^;\r\n]+?)from\s+)?(['"])([^'"]+)\2([\r\n;,])?/;
@@ -84,6 +85,15 @@ module.exports = {
         //kissy要删除require信息
         if (removeRequiresLoader[e.loader] || !reqInfo.mId) {
             return '';
+        }
+        if (!reqInfo.mId.startsWith('.')) {
+            let i = reqInfo.mId.indexOf('/');
+            if (i > -1) {
+                if (reqInfo.mId.substring(0, i) === e.pkgName) {
+                    let p = atpath.resolvePath('"@' + reqInfo.mId + '"', e.moduleId);
+                    reqInfo.mId = p.slice(1, -1);
+                }
+            }
         }
         let dId = JSON.stringify(reqInfo.mId);
         let replacement = reqInfo.prefix;

@@ -78,6 +78,7 @@ let processContent = (from, to, content, inwatch) => {
         checker: headers.checkerCfg,
         loader: headers.loader || configs.loaderType,
         isSnippet: headers.isSnippet,
+        exRequires: headers.exRequires,
         processContent
     };
     //let originalContent = content;
@@ -289,21 +290,28 @@ let processContent = (from, to, content, inwatch) => {
                 for (let v of mxViews) {
                     let i = v.indexOf('/');
                     let mName = i === -1 ? null : v.substring(0, i);
-                    let p;
+                    let p, full;
                     if (mName === e.pkgName) {
                         p = atpath.resolvePath('"@' + v + '"', e.moduleId);
                     } else {
                         p = `"${v}"`;
                     }
+                    full = atpath.resolvePath('"@' + p.slice(1, -1) + '"', e.moduleId);
                     let reqInfo = {
                         prefix: '',
                         tail: ';',
                         vId: '',
                         mId: p.slice(1, -1),
+                        full: full,
                         from: 'view',
                         raw: 'mx-view="' + v + '"'
                     };
-                    if (e.deps.indexOf(p) === -1) {
+                    console.log(e.exRequires,p);
+                    if (e.deps.indexOf(p) === -1 &&
+                        e.deps.indexOf(reqInfo.full) === -1 &&
+                        reqInfo.full != e.moduleId &&
+                        e.exRequires.indexOf(p) === -1 &&
+                        e.exRequires.indexOf(reqInfo.full) == -1) {
                         if (e.loader == 'module') {
                             reqInfo.prefix = 'import ';
                             reqInfo.type = 'import';

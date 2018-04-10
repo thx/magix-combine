@@ -7,6 +7,7 @@ let loaderReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#loader\s*=\s*([\w]+)\1\s*;
 let checkerReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\[([\w,]+)\]\1\s*;?/g;
 
 let checkerReg1 = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#((?:un)?check)\s*=\s*([\w,]+)\1\s*;?/g;
+let exRequiresReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#(?:(?:no|non|ex)requires)\s*=\s*([^\r\n;]+)\1\s*;?/g;
 //let jsThisAliasReg = /(?:^|[\r\n])\s*(?:\/{2,})?\s*(['"])?#this\s*=\s*([\w_])\1\s*;?/g;
 module.exports = (content) => {
     let execBeforeProcessor = true,
@@ -64,12 +65,27 @@ module.exports = (content) => {
         loader = type;
         return '\r\n';
     });
+    let exRequires = [];
+    content = content.replace(exRequiresReg, (m, q, reqs) => {
+        exRequires = reqs.split(',').map(i => {
+            i = i.trim();
+            if (i.startsWith('\'') && i.endsWith('\'')) {
+                i = i.slice(1, -1);
+            }
+            if (!i.startsWith('"') && !i.endsWith('"')) {
+                i = `"${i}"`;
+            }
+            return i;
+        });
+        return '\r\n';
+    });
     return {
         content,
         isSnippet,
         addWrapper,
         checkerCfg,
         loader,
+        exRequires,
         //thisAlias,
         ignoreAllProcessor,
         execBeforeProcessor,

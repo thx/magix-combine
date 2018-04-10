@@ -59,6 +59,7 @@ let chalk = require('chalk');
 let brReg = /(?:\r\n|\r|\n)/;
 let lineNoReg = /^(\d+)([\s\S]+)/;
 let slashReg = /\\|'/g;
+let ifForReg = /^\s*(if|for)\s*\(/;
 let asReg = /([\{\[]?[^\{\[]+?[\}\]]?)(\s+[\w_$]+)?$/;
 let stringKeyReg = /^['"][\s\S]+?['"]$/;
 let eventLeftReg = /\(\s*\{/g;
@@ -206,11 +207,18 @@ let getAssignment = (code, object, key, value) => {
 };
 let syntax = (code, stack, e, lineNo, refMap) => {
     code = code.trim();
-    let ctrls;
-    if (code.startsWith('if(')) {
-        ctrls = ['if', code.slice(3, -1)];
-    } else if (code.startsWith('for(')) {
-        ctrls = ['for', code.slice(3)];
+    let ctrls, partial;
+    ifForReg.lastIndex = 0;
+    let temp = ifForReg.exec(code);
+    if (temp) {
+        if (temp[1] == 'for') {
+            partial = '(' + code.substring(temp[0].length);
+        } else {
+            let last = code.lastIndexOf(')');
+            partial = code.substring(temp[0].length, last);
+        }
+        ctrls = [temp[1], partial];
+
     } else {
         ctrls = code.split(/\s+/);
     }
