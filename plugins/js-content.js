@@ -81,6 +81,7 @@ let processContent = (from, to, content, inwatch) => {
         exRequires: headers.exRequires,
         processContent
     };
+    psychic.exRequires.push(`"${moduleId}"`);
     //let originalContent = content;
     if (headers.execBeforeProcessor) {
         let processor = configs.compileBeforeProcessor || configs.compileJSStart;
@@ -306,10 +307,8 @@ let processContent = (from, to, content, inwatch) => {
                         from: 'view',
                         raw: 'mx-view="' + v + '"'
                     };
-                    console.log(e.exRequires,p);
                     if (e.deps.indexOf(p) === -1 &&
                         e.deps.indexOf(reqInfo.full) === -1 &&
-                        reqInfo.full != e.moduleId &&
                         e.exRequires.indexOf(p) === -1 &&
                         e.exRequires.indexOf(reqInfo.full) == -1) {
                         if (e.loader == 'module') {

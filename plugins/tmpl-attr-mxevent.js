@@ -156,44 +156,31 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 //         return md5(c, 'revisableString', configs.revisableStringPrefix);
                 //     });
                 // });
-                if (configs.disableMagixUpdater) {
-                    let left = m.indexOf('=');
-                    let idx = left;
-                    do {
-                        idx++;
-                        let c = m.charAt(idx);
-                        if (c != ' ' && c != '"' && c != '\'') {
-                            break;
-                        }
-                    } while (idx < m.length);
-                    return m.substring(0, idx) + holder + magixHolder + m.substring(idx);
-                } else {
-                    let left = m.indexOf('(');
-                    let right = m.lastIndexOf(')');
-                    if (left > -1 && right > -1) {
-                        let params = m.substring(left + 1, right).trim();
-                        left = m.substring(0, left + 1);
-                        right = m.substring(right);
-                        if (cmdReg.test(left) || cmdReg.test(right)) {
-                            right = params + right;
-                        } else if (params) {
-                            tmplChecker.checkMxEventParams(name, params, originalMatch, e);
-                            right = encodeParams(params, refTmplCommands, originalMatch, e, toSrc) + right;
-                        }
-                    } else {
-                        slog.ever(chalk.red('bad event:' + m), 'at', chalk.grey(e.shortHTMLFile));
-                        left = m;
-                        right = '';
+                let left = m.indexOf('(');
+                let right = m.lastIndexOf(')');
+                if (left > -1 && right > -1) {
+                    let params = m.substring(left + 1, right).trim();
+                    left = m.substring(0, left + 1);
+                    right = m.substring(right);
+                    if (cmdReg.test(left) || cmdReg.test(right)) {
+                        right = params + right;
+                    } else if (params) {
+                        tmplChecker.checkMxEventParams(name, params, originalMatch, e);
+                        right = encodeParams(params, refTmplCommands, originalMatch, e, toSrc) + right;
                     }
-                    let start = left.indexOf('=');
-                    let c;
-                    do {
-                        c = left.charAt(start);
-                        start++;
-                    } while (c != '"' && c != '\'');
-                    let rest = left.substring(start) + right;
-                    return left.substring(0, start) + holder + magixHolder + rest;
+                } else {
+                    slog.ever(chalk.red('bad event:' + m), 'at', chalk.grey(e.shortHTMLFile));
+                    left = m;
+                    right = '';
                 }
+                let start = left.indexOf('=');
+                let c;
+                do {
+                    c = left.charAt(start);
+                    start++;
+                } while (c != '"' && c != '\'');
+                let rest = left.substring(start) + right;
+                return left.substring(0, start) + holder + magixHolder + rest;
             }
             return m;
         });
