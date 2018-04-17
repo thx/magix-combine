@@ -61,9 +61,9 @@ module.exports = (tmpl, file) => {
                         walk(n.children);
                     }
                 }
-                let html = tmpl.substring(n.start, n.end).replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '');
+                let html = tmpl.substring(n.start, n.end).replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').replace(slotKeyReg, '');
                 let attr = tmpl.substring(n.attrsStart, n.attrsEnd).trim();
-                attr = attr.replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').trim();
+                attr = attr.replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').replace(slotKeyReg, '').trim();
                 let removeStaticKey = false;
                 keysMap[' _mxs="' + n.mxsKey + '"'] = html;
                 keysMap[' _mxa="' + n.mxsAttrKey + '"'] = attr;

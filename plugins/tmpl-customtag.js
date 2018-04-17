@@ -41,6 +41,7 @@ let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let fileCache = Object.create(null);
+let processedGalleryInfo = Symbol('gallery.info.processed');
 
 let splitAttrs = (tag, attrs) => {
     let viewAttrs = '';
@@ -362,28 +363,9 @@ module.exports = {
                 if (result.subTags.length) {
                     vpath += '/' + result.subTags.join('/');
                 }
-                if (gMap.hasOwnProperty(result.tag)) {
+                if (hasGallery) {
                     let i = gMap[result.tag];
-                    if (util.isFunction(i)) {
-                        i = {
-                            processor: i.processor || i,
-                            tag: i.tag || '',
-                            isolated: i.isolated || 0
-                        };
-                        gMap[result.tag] = i;
-                    }
-                    if (i) {
-                        //临时兼容
-                        if (i.isolated) {
-                            delete i.processor;
-                            delete i.isolated;
-                        }
-                        if (!i.path) {
-                            i.path = vpath;
-                        }
-                    }
-                } else {
-                    if (hasGallery) {
+                    if (!i || !i[processGalleryTag]) {
                         let subs = result.subTags.slice(0, -1);
                         if (subs.length) {
                             subs = subs.join(sep);
@@ -393,20 +375,59 @@ module.exports = {
                         let main = (n.group ? '' : n.pfx + '-') + result.mainTag;
                         let cpath = path.join(configs.moduleIdRemovedPath, gRoot, main, subs);
                         if (fs.existsSync(cpath)) {
-                            gMap[result.tag] = {
-                                path: vpath
-                            };
+                            let cfg = {};
+                            let configFile = path.join(cpath, '_config.js');
+                            if (fs.existsSync(configFile)) {
+                                cfg = require(configFile);
+                                for (let p in cfg) {
+                                    if (!p.startsWith(main)) {
+                                        throw new Error('bad config at ' + configFile + '. Only property key starts with ' + main + ' support');
+                                    }
+                                }
+                            }
+                            if (cfg.hasOwnProperty(result.tag)) {
+                                gMap[result.tag] = cfg[result.tag];
+                            } else {
+                                gMap[result.tag] = {
+                                    [processedGalleryInfo]: 1,
+                                    path: vpath
+                                };
+                            }
                         } else {
                             uncheckTags[result.tag] = {
                                 resolve: cpath + sep,
                                 msg: 'folder not found. try path'
                             };
                         }
-                    } else {
-                        uncheckTags[result.tag] = {
-                            resolve: `${n.pfx}Root or ${n.pfx}Map`,
-                            msg: 'missing config galleries'
-                        };
+                    }
+                } else {
+                    uncheckTags[result.tag] = {
+                        resolve: `${n.pfx}Root or ${n.pfx}Map`,
+                        msg: 'missing config galleries'
+                    };
+                }
+                if (gMap.hasOwnProperty(result.tag)) {
+                    let i = gMap[result.tag];
+                    if (!i[processedGalleryInfo]) {
+                        if (util.isFunction(i)) {
+                            i = {
+                                processor: i.processor || i,
+                                tag: i.tag || '',
+                                isolated: i.isolated || 0
+                            };
+                            gMap[result.tag] = i;
+                        }
+                        if (i) {
+                            //临时兼容
+                            if (i.isolated) {
+                                delete i.processor;
+                                delete i.isolated;
+                            }
+                            if (!i.path) {
+                                i.path = vpath;
+                            }
+                            i[processedGalleryInfo] = 1;
+                        }
                     }
                 }
             }
