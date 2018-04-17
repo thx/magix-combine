@@ -365,7 +365,7 @@ module.exports = {
                 }
                 if (hasGallery) {
                     let i = gMap[result.tag];
-                    if (!i || !i[processGalleryTag]) {
+                    if (!i) {
                         let subs = result.subTags.slice(0, -1);
                         if (subs.length) {
                             subs = subs.join(sep);
@@ -389,7 +389,6 @@ module.exports = {
                                 gMap[result.tag] = cfg[result.tag];
                             } else {
                                 gMap[result.tag] = {
-                                    [processedGalleryInfo]: 1,
                                     path: vpath
                                 };
                             }
