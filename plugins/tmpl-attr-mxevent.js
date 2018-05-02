@@ -59,7 +59,9 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     try {
         ast = acorn.parse(params);
     } catch (ex) {
-        slog.ever(chalk.red('encode mx-event params error'), 'parse origin', chalk.magenta(params.substring(1, params.length - 1).replace(cmdPHReg, m => store[m]).replace(cmdReg, m => refTmplCommands[m])));
+        let origin = params.substring(1, params.length - 1).replace(cmdPHReg, m => store[m]).replace(cmdReg, m => refTmplCommands[m]);
+        let src = toSrc(origin);
+        slog.ever(chalk.red('encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'),'e.g.',chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'));
         throw ex;
     }
     let modifiers = [];
@@ -158,7 +160,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 // });
                 let left = m.indexOf('(');
                 let right = m.lastIndexOf(')');
-                if (left > -1 && right > -1) {
+                if (left > -1 && right > -1 && right > left) {
                     let params = m.substring(left + 1, right).trim();
                     left = m.substring(0, left + 1);
                     right = m.substring(right);
@@ -168,19 +170,17 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                         tmplChecker.checkMxEventParams(name, params, originalMatch, e);
                         right = encodeParams(params, refTmplCommands, originalMatch, e, toSrc) + right;
                     }
+                    let start = left.indexOf('=');
+                    let c;
+                    do {
+                        c = left.charAt(start);
+                        start++;
+                    } while (c != '"' && c != '\'');
+                    let rest = left.substring(start) + right;
+                    return left.substring(0, start) + holder + magixHolder + rest;
                 } else {
-                    slog.ever(chalk.red('bad event:' + m), 'at', chalk.grey(e.shortHTMLFile));
-                    left = m;
-                    right = '';
+                    return m;
                 }
-                let start = left.indexOf('=');
-                let c;
-                do {
-                    c = left.charAt(start);
-                    start++;
-                } while (c != '"' && c != '\'');
-                let rest = left.substring(start) + right;
-                return left.substring(0, start) + holder + magixHolder + rest;
             }
             return m;
         });

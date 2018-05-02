@@ -31,10 +31,13 @@ module.exports = (tmpl, file) => {
             } else if (operate == `=`) {
                 source += `'+($expr='<%` + operate + expr + `%>',$e(` + content + `))+'`;
             } else if (operate == `!`) {
-                source += `'+($expr='<%` + operate + expr + `%>',$n(` + content + `))+'`;
+                if (!content.startsWith('$eu(') || !content.endsWith(')')) {
+                    content = `$n(${content})`;
+                }
+                source += `'+($expr='<%` + operate + expr + `%>',` + content + `)+'`;
             } else if (content) {
                 if (line > -1) {
-                    source += `';$art='` + art + `';$line=` + line + `;`;
+                    source += `';$line=` + line + `;$art='` + art + `';`;
                     content = '';
                 } else {
                     source += `';`;
@@ -51,7 +54,10 @@ module.exports = (tmpl, file) => {
             } else if (operate == `=`) {
                 source += `'+$e(${content})+'`;
             } else if (operate == `!`) {
-                source += `'+$n(${content})+'`;
+                if (!content.startsWith('$eu(') || !content.endsWith(')')) {
+                    content = `$n(${content})`;
+                }
+                source += `'+${content}+'`;
             } else if (content) {
                 source += `';${content};$p+='`;
             }

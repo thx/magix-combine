@@ -56,9 +56,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
-        let artCtrlsMap = Object.create(null);
         if (flagsInfo.artEngine) {
-            fileContent = tmplArt(fileContent, e, artCtrlsMap);
+            fileContent = tmplArt(fileContent, e);
         }
         if (e.checker.tmplTagsMatch) {
             try {
@@ -90,7 +89,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         //console.log(fileContent);
         //如果经过自定义标签后内容不一致，则进行再次的处理
         if (flagsInfo.artEngine && srcContent != fileContent) {
-            fileContent = tmplArt(fileContent, e, artCtrlsMap);
+            fileContent = tmplArt(fileContent, e);
         }
 
         //console.log(fileContent);
@@ -119,7 +118,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         };
 
         if (magixTmpl) {
-            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo, artCtrlsMap);
+            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo);
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析

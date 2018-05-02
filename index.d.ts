@@ -171,6 +171,45 @@ declare module "magix-combine" {
          */
         tag: string
     }
+    interface ICompileCssStart {
+        /**
+         * 扩展名
+         */
+        ext: string
+        /**
+         * 文件完整路径
+         */
+        file: string
+        /**
+        * css内容
+        */
+        content: string
+        /**
+         * 短文件名
+         */
+        shortFile: string
+    }
+    /**
+     * 读取css结果对象
+     */
+    interface ICompileCssResult {
+        /**
+         * 读取的样式文件是否存在
+         */
+        exists: boolean
+        /**
+         * 文件完整路径
+         */
+        file: string
+        /**
+         * css内容
+         */
+        content: string
+        /**
+         * source map
+         */
+        map: object
+    }
     interface IConfig {
         /**
          * 编译的模板目录。默认tmpl
@@ -297,19 +336,19 @@ declare module "magix-combine" {
         /**
          * 开始编译某个js文件之前的处理器，可以加入一些处理，比如typescript的预处理
          */
-        compileJSStart?: (content: string, from?: string) => Promise<string> | string
+        compileJSStart?: (content: string, e: ICombineResult) => string | Promise<ICombineResult> | Promise<string>
         /**
          * 结束编译时的处理器
          */
-        compileJSEnd?: (e: ICombineResult) => ICombineResult | Promise<ICombineResult>
+        compileJSEnd?: (content: string, e: ICombineResult) => string | Promise<ICombineResult> | Promise<string>
         /**
          * 开始编译css前处理器
          */
-        compileCSSStart?: (css: string) => Promise<string>
+        compileCSSStart?: (css: string, e: ICompileCssStart) => Promise<string> | string
         /**
          * 结束编译css时的处理器
          */
-        compileCSSEnd?: (css: string) => Promise<string>
+        compileCSSEnd?: (css: string, e: ICompileCssResult) => Promise<string> | string
         /**
          * 对自定义标签做加工处理
          */

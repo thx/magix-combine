@@ -60,8 +60,6 @@ let brReg = /(?:\r\n|\r|\n)/;
 let lineNoReg = /^(\d+)([\s\S]+)/;
 let slashReg = /\\|'/g;
 let ifForReg = /^\s*(if|for)\s*\(/;
-let asReg = /([\{\[]?[^\{\[]+?[\}\]]?)(\s+[\w_$]+)?$/;
-let stringKeyReg = /^['"][\s\S]+?['"]$/;
 let eventLeftReg = /\(\s*\{/g;
 let eventRightReg = /\}\s*\)/g;
 let mxEventHolderReg = /\x12([^\x12]+?)\x12/g;
@@ -165,60 +163,58 @@ let checkStack = (stack, key, code, e, lineNo) => {
         throw new Error(`unclosed art ctrls at ${e.shortHTMLFile}`);
     }
 };
-let getAssignment = (code, object, key, value) => {
-    let assignment = '';
-    key = key.trim();
-    value = value.trim();
-    if ((value[0] == '{' && value[value.length - 1] == '}') ||
-        (value[0] == '[' && value[value.length - 1] == ']')) {
-        let ae = value[0] == '[';
-        let vs = value.slice(1, -1).split(',');
-        let temp = utils.uId('$art_v', code);
-        assignment = `let ${temp}=${object}[${key}];`;
-        if (ae) {
-            for (let i = 0, v; i < vs.length; i++) {
-                v = vs[i];
-                v = v.trim();
-                if (v) {
-                    assignment += `let ${v}=${temp}[${i}];`;
-                }
+let extractAsExpr = expr => {
+    expr = expr.trim();
+    //解构
+    if (expr.startsWith('{') || expr.startsWith('[')) {
+        let stack = [], vars = '', key = '', bad = false;
+        for (let i = 0; i < expr.length; i++) {
+            let c = expr[i];
+            if (key) {
+                key += c;
+            } else {
+                vars += c;
             }
-        } else {
-            for (let v of vs) {
-                let kv = v.split(':');
-                if (kv.length == 1) {
-                    kv.push(v);
-                }
-                let ovalue = kv[1].trim();
-                let okey = kv[0].trim();
-                assignment += `let ${ovalue}=${temp}`;
-                if (stringKeyReg.test(okey)) {
-                    assignment += `[${okey}];`;
+            if (c == '{' || c == '[') {
+                stack.push(c);
+            } else if (c == '}') {
+                if (stack[stack.length - 1] == '{') {
+                    stack.pop();
                 } else {
-                    assignment += `.${okey};`;
+                    bad = true;
+                    break;
                 }
+            } else if (c == ']') {
+                if (stack[stack.length - 1] == '[') {
+                    stack.pop();
+                } else {
+                    bad = true;
+                    break;
+                }
+            } else if (c == ' ' && !key && !stack.length) {
+                key += c;
             }
         }
-        assignment = assignment.slice(0, -1);
-    } else {
-        assignment = `let ${value}=${object}[${key}]`;
+        return {
+            vars: vars.trim(),
+            key: key.trim(),
+            bad: bad || stack.length
+        };
     }
-    return assignment;
+    expr = expr.split(/\s+/);
+    return {
+        vars: expr[0],
+        key: expr[1]
+    };
 };
-let syntax = (code, stack, e, lineNo, refMap) => {
+let syntax = (code, stack, e, lineNo) => {
     code = code.trim();
     let ctrls, partial;
     ifForReg.lastIndex = 0;
     let temp = ifForReg.exec(code);
     if (temp) {
-        if (temp[1] == 'for') {
-            partial = '(' + code.substring(temp[0].length);
-        } else {
-            let last = code.lastIndexOf(')');
-            partial = code.substring(temp[0].length, last);
-        }
+        partial = '(' + code.substring(temp[0].length);
         ctrls = [temp[1], partial];
-
     } else {
         ctrls = code.split(/\s+/);
     }
@@ -226,29 +222,11 @@ let syntax = (code, stack, e, lineNo, refMap) => {
     let src = '';
     if (configs.debug) {
         src = `<%'${lineNo}\x11${code.replace(slashReg, '\\$&')}\x11'%>`;
-        if (code[0] === ':') {//绑定的不处理
-            let match = code.slice(1).match(/^[^<({&]+/);
-            if (!match) {
-                slog.ever(chalk.red(`bad art {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
-                return;
-            }
-            let key = match[0].trim();
-            let old = refMap[key];
-            if (old) {
-                old.push(src);
-            } else {
-                refMap[key] = [src];
-            }
-            src = '';
-        }
     }
     if (key == 'if') {
         checkStack(stack, key, code, e, lineNo);
         let expr = ctrls.join(' ');
         expr = expr.trim();
-        // if (expr.startsWith('(') && expr.endsWith(')')) {
-        //     expr = expr.slice(1, -1);
-        // }
         return `${src}<%if(${expr}){%>`;
     } else if (key == 'else') {
         checkStack(stack, key, code, e, lineNo);
@@ -261,30 +239,28 @@ let syntax = (code, stack, e, lineNo, refMap) => {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
-        let m = asValue.match(asReg);
-        if (!m || ctrls[1] != 'as') {
-            slog.ever(chalk.red(`unsupport each {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport each {{' + code + '}}');
+        let asExpr = extractAsExpr(asValue);
+        if (asExpr.bad || ctrls[1] != 'as') {
+            slog.ever(chalk.red(`unsupport or bad each {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('unsupport or bad each {{' + code + '}}');
         }
-        let value = m[1];
-        let index = m[2] || utils.uId('$art_i', code);
+        let value = asExpr.vars;
+        let index = asExpr.key || utils.uId('$art_i', code);
         let refObj = utils.uId('$art_obj', code);
-        let ai = getAssignment(code, refObj, index, value);
-        return `${src}<%for(let ${index}=0,${refObj}=${object};${index}<${refObj}.length;${index}++){${ai}%>`;
+        return `${src}<%for(let ${index}=0,${refObj}=${object};${index}<${refObj}.length;${index}++){let ${value}=${refObj}[${index}]%>`;
     } else if (key == 'forin') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0];
         let asValue = ctrls.slice(2).join(' ');
-        let m = asValue.match(asReg);
-        if (!m || ctrls[1] != 'as') {
-            slog.ever(chalk.red(`unsupport forin {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport forin {{' + code + '}}');
+        let asExpr = extractAsExpr(asValue);
+        if (asExpr.bad || ctrls[1] != 'as') {
+            slog.ever(chalk.red(`unsupport or bad forin {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('unsupport or bad forin {{' + code + '}}');
         }
-        let value = m[1];
-        let key1 = m[2] || utils.uId('$art_k', code);
+        let value = asExpr.vars;
+        let key1 = asExpr.key || utils.uId('$art_k', code);
         let refObj = utils.uId('$art_obj', code);
-        let ai = getAssignment(code, refObj, key1, value);
-        return `${src}<%let ${refObj}=${object};for(let ${key1} in ${refObj}){${ai}%>`;
+        return `${src}<%let ${refObj}=${object};for(let ${key1} in ${refObj}){let ${value}=${refObj}[${key1}]%>`;
     } else if (key == 'for') {
         checkStack(stack, key, code, e, lineNo);
         let expr = ctrls.join(' ').trim();
@@ -292,7 +268,12 @@ let syntax = (code, stack, e, lineNo, refMap) => {
             expr = `(${expr})`;
         }
         return `${src}<%for${expr}{%>`;
-    } else if (key == '/if' || key == '/each' || key == '/forin' || key == '/loop' || key == '/for') {
+    } else if (key == 'set') {
+        return `${src}<%let ${ctrls.join(' ')};%>`;
+    } else if (key == '/if' ||
+        key == '/each' ||
+        key == '/forin' ||
+        key == '/for') {
         checkStack(stack, key, code, e, lineNo);
         return `${src}<%}%>`;
     } else {
@@ -334,20 +315,20 @@ let findBestCode = (str, e, line) => {
         }
     }
     if (!find && maybeCount >= 2 && maybeAt == -1) {
-        maybeAt = str.length;
+        maybeAt = str.length - 2;
     }
     if (!find) {
         if (maybeAt == -1) {
             slog.ever(chalk.red('bad partial art: {{' + str.trim() + ' at line:' + line), 'at file', chalk.magenta(e.shortHTMLFile));
             throw new Error('bad partial art: {{' + str.trim() + ' at line:' + line + ' at file:' + e.shortHTMLFile);
         } else {
-            left = str.substring(0, maybeAt - 1);
-            right = str.substring(maybeAt + 1);
+            left = str.substring(0, maybeAt - 2);
+            right = str.substring(maybeAt);
         }
     }
     return [left, right];
 };
-module.exports = (tmpl, e, refMap) => {
+module.exports = (tmpl, e) => {
     let result = [];
     tmpl = tmpl.replace(configs.tmplMxEventReg, m => {
         let hasLeft = eventLeftReg.test(m);
@@ -366,7 +347,7 @@ module.exports = (tmpl, e, refMap) => {
         let lni = part.match(lineNoReg);
         if (lni) {
             let codes = findBestCode(lni[2], e, lni[1]);
-            result.push(syntax(codes[0], stack, e, lni[1], refMap), codes[1]);
+            result.push(syntax(codes[0], stack, e, lni[1]), codes[1]);
         } else {
             result.push(part);
         }

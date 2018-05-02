@@ -71,6 +71,7 @@ let processContent = (from, to, content, inwatch) => {
         from,
         moduleId,
         debug: configs.debug,
+        content,
         pkgName: moduleId.slice(0, moduleId.indexOf('/')),
         moduleFileName: moduleId.substring(moduleId.lastIndexOf('/') + 1),
         shortFrom: from.replace(configs.moduleIdRemovedPath, '').substring(1),
@@ -85,16 +86,20 @@ let processContent = (from, to, content, inwatch) => {
     //let originalContent = content;
     if (headers.execBeforeProcessor) {
         let processor = configs.compileBeforeProcessor || configs.compileJSStart;
-        before = processor(content, psychic);
-        if (util.isString(before)) {
-            before = Promise.resolve(before);
+        let result = processor(content, psychic);
+        if (util.isString(result)) {
+            before = Promise.resolve(result);
+        } else if (result && util.isFunction(result.then)) {
+            before = result;
         }
     }
     if (configs.log && inwatch) {
         slog.ever('compile:', chalk.blue(from));
     }
     return before.then(content => {
-        psychic.content = content;
+        if (util.isString(content)) {
+            psychic.content = content;
+        }
         return jsDeps.process(psychic);
     }).then(e => {
         if (headers.ignoreAllProcessor) {
@@ -338,10 +343,17 @@ let processContent = (from, to, content, inwatch) => {
         let after = Promise.resolve(e);
         if (headers.execAfterProcessor) {
             let processor = configs.compileAfterProcessor || configs.compileJSEnd;
-            after = processor(e.content, e);
-            if (util.isString(after)) {
-                e.content = after;
-                after = Promise.resolve(e);
+            let result = processor(e.content, e);
+            if (util.isString(result)) {
+                e.content = result;
+            } else if (result && util.isFunction(result.then)) {
+                after = result.then(temp => {
+                    if (util.isString(temp)) {
+                        e.content = temp;
+                        temp = e;
+                    }
+                    return Promise.resolve(temp);
+                });
             }
         }
         return after;

@@ -17,6 +17,7 @@ let chalk = require('chalk');
 let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
+let atpath = require('./util-atpath');
 let sep = path.sep;
 let selfClose = {
     input: 1,
@@ -35,10 +36,11 @@ let uncheckTags = {
     'mx-vframe': 1
 };
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
-let attrNameValueReg = /(?:^|\s)([^=\/\s]+)\s*=\s*(["'])([\s\S]*?)\2/g;
+let attrNameValueReg = /(?:^|\s)([^=\/\s]+)(?:\s*=\s*(["'])([\s\S]*?)\2)?/g;
 let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
+let attrAtStartContentHolderReg = /\x03/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let fileCache = Object.create(null);
 let processedGalleryInfo = Symbol('gallery.info.processed');
@@ -62,18 +64,34 @@ let splitAttrs = (tag, attrs) => {
         if (!attrsMap[key] &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
-            !key.startsWith('native-')) {
+            !key.startsWith('native-') &&
+            !key.startsWith('#') &&
+            !key.startsWith('@native-') &&
+            !key.startsWith('@#')) {
             if (key.startsWith('@view-')) {
                 key = 'view-@' + key.substring(6);
             } else if (!key.startsWith('view-')) {
                 key = 'view-' + key;
             }
+            if (q === undefined) {
+                content = 'true';
+            }
             viewAttrs += ' ' + key + '="' + content + '"';
             viewAttrsMap[key.substring(5)] = content;
             return '';
         }
+        let tValue = '';
+        if (q !== undefined) {
+            tValue = `=${q}${content}${q}`;
+        }
         if (key.startsWith('native-')) {
-            return ' ' + key.substring(7) + '=' + q + content + q;
+            return ' ' + key.substring(7) + tValue;
+        } else if (key.startsWith('#')) {
+            return ' ' + key.substring(1) + tValue;
+        } else if (key.startsWith('@native-')) {
+            return ' @' + key.substring(8) + tValue;
+        } else if (key.startsWith('@#')) {
+            return ' @' + key.substring(2) + tValue;
         }
         return m;
     }).trim();
@@ -168,18 +186,32 @@ let innerView = (result, info, gRoot, map, extInfo) => {
                 return ' mx-view=' + q + value + q;
             }
         }
-        if (key.startsWith('@view-')) {
-            return ' view-@' + key.substring(6) + '=' + q + value + q;
-        }
+        let viewKey = false;
         if (!allAttrs.hasOwnProperty(key) &&
-            !key.startsWith('view-') &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
-            !key.startsWith('native-')) {
-            key = 'view-' + key;
+            !key.startsWith('native-') &&
+            !key.startsWith('#') &&
+            !key.startsWith('@native-') &&
+            !key.startsWith('@#')) {
+            if (q === undefined) {
+                value = 'true';
+            }
+            if (key.startsWith('@view-')) {
+                key = 'view-@' + key.substring(6);
+            } else if (!key.startsWith('view-')) {
+                key = 'view-' + key;
+            }
+            viewKey = true;
         }
         if (key.startsWith('native-')) {
             key = key.substring(7);
+        } else if (key.startsWith('#')) {
+            key = key.substring(1);
+        } else if (key.startsWith('@native-')) {
+            key = '@' + key.substring(8);
+        } else if (key.startsWith('@#')) {
+            key = '@' + key.substring(2);
         }
         if (info) {
             let pKey = '_' + key;
@@ -190,7 +222,7 @@ let innerView = (result, info, gRoot, map, extInfo) => {
                 value += ' ' + info[pKey];
             }
         }
-        return ' ' + key + '=' + q + value + q;
+        return ' ' + key + (q === undefined && !viewKey ? '' : '=' + q + value + q);
     });
     if (info) {
         for (let p in info) {
@@ -463,17 +495,30 @@ module.exports = {
             let tag = result.tag;
             let attrs = result.attrs;
             attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
-                if (tmplCommandAnchorReg.test(content) && key.startsWith('@')) {
-                    let cmdContent = tmplCmd.extractCmdContent(content, cmdCache);
-                    if (cmdContent.succeed) {
+                if (key.startsWith('@')) {
+                    if (key.startsWith('@@')) {
+                        m = ' \x03' + m.trim().substring(2);
+                    } else if (tmplCommandAnchorReg.test(content)) {
+                        let cmdContent = tmplCmd.extractCmdContent(content, cmdCache);
+                        if (cmdContent.succeed) {
+                            update = true;
+                            m = m.trim().substring(1);
+                            return ' <%if(' + cmdContent.content + '){%>' + m + '<%}%> ';
+                        } else {
+                            let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
+                            let ex2 = cmdContent.art ? `{{!data.${key}}}` : `<%!data.${key}%>`;
+                            let ex3 = cmdContent.art ? `{{@data.${key}}}` : `<%@data.${key}%>`;
+                            slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
+                        }
+                    } else if (content === 'false' ||
+                        content === '0' ||
+                        content === '' ||
+                        content === 'null') {
                         update = true;
-                        m = m.trim().substring(1);
-                        return ' <%if(' + cmdContent.content + '){%>' + m + '<%}%> ';
+                        m = '';
                     } else {
-                        let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
-                        let ex2 = cmdContent.art ? `{{!data.${key}}}` : `<%!data.${key}%>`;
-                        let ex3 = cmdContent.art ? `{{@data.${key}}}` : `<%@data.${key}%>`;
-                        slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
+                        update = true;
+                        m = ' ' + m.trim().substring(1);
                     }
                 }
                 return m;
@@ -492,6 +537,36 @@ module.exports = {
                 tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
+        };
+        let processAtAttrContents = n => {
+            let result = getTagInfo(n);
+            let content = '';
+            let tag = result.tag;
+            let attrs = result.attrs;
+            attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
+                if (content) {
+                    if (content.startsWith('@.')) {
+                        if (content.indexOf('/') > -1) {
+                            return atpath.resolvePath(m, e.moduleId);
+                        }
+                    } else if (content.startsWith('@@')) {
+                        return m.replace('@@', '\x03');
+                    }
+                }
+                return m;
+            });
+            let html = `<${tag} ${attrs}`;
+            let unary = selfClose.hasOwnProperty(tag);
+            if (unary) {
+                html += `/`;
+            }
+            html += `>${result.content}`;
+            if (!unary) {
+                html += `</${tag}>`;
+            }
+            content = html;
+            tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
+            updateOffset(n.start, content.length - (n.end - n.start));
         };
         let walk = (nodes, map) => {
             if (nodes) {
@@ -513,17 +588,19 @@ module.exports = {
                             //slog.ever(chalk.red('can not process custom tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
                             processCustomTag(n, map);
                         }
-                    } else {
+                    } else if (n.atAttr) {
                         processAtAttrs(n);
+                    } else if (n.atAttrContent) {
+                        processAtAttrContents(n);
                     }
                 }
             }
         };
-        let hasMxTag = nodes => {
+        let hasSpecialTags = nodes => {
             let map = nodes.__map;
             for (let n in map) {
                 n = map[n];
-                if (!badTags[n.tag] && n.customTag || n.atAttr) {
+                if (!badTags[n.tag] && n.customTag || n.atAttr || n.atAttrContent) {
                     return true;
                 }
             }
@@ -532,14 +609,14 @@ module.exports = {
         tmpl = tmplCmd.store(tmpl, cmdCache);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 2;
-        while (hasMxTag(tokens) && --checkTimes) {
+        while (hasSpecialTags(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
             tmpl = tmplCmd.store(tmpl, cmdCache, configs.tmplArtCommand);
-            //console.log(tmpl);
             tokens = tmplParser(tmpl, e.shortHTMLFile);
         }
         tmpl = tmplCmd.recover(tmpl, cmdCache);
+        tmpl = tmpl.replace(attrAtStartContentHolderReg, '@');
         return tmpl;
     }
 };

@@ -15,7 +15,7 @@ module.exports = {
             sourceType: 'module',
             ecmaVersion: 9,
             onComment(block, text, start, end) {
-                if (block && comments) {
+                if (comments) {
                     comments[start] = {
                         text: text.trim()
                     };

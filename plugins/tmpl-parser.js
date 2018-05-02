@@ -86,6 +86,8 @@ module.exports = (input, htmlFile) => {
                     token.userStaticKey = a.value || true;
                 } else if (temp.startsWith('@')) {
                     token.atAttr = true;
+                } else if (a.quote && a.value && a.value.startsWith('@')) {
+                    token.atAttrContent = true;
                 }
                 if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;

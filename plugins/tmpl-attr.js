@@ -22,7 +22,7 @@ module.exports = {
                     key.indexOf('mx-') !== 0 &&
                     key != 'mx-view') {
                     m = toSrc(m);
-                    let i = tmplCmd.extactCmd(m, ['@', '!']);
+                    let i = tmplCmd.extactCmd(m, ['!']);
                     if (i) {
                         if (i.operate == '!') {
                             let reg = regexp.get(i.open + '!', 'g');

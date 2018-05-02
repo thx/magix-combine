@@ -7,6 +7,7 @@ let path = require('path');
 let less = require('less');
 let sass = require('node-sass');
 let chalk = require('chalk');
+let util = require('util');
 
 let utils = require('./util');
 let slog = require('./util-log');
@@ -18,73 +19,88 @@ let sourceMap = require('./css-sourcemap');
 let cssAutoprefixer = require('./css-autoprefixer');
 
 let compileContent = (file, content, ext, resolve, reject, shortFile) => {
-    if (ext == '.scss' || ext == '.sass') {
-        let cssCompileConfigs = {};
-        utils.cloneAssign(cssCompileConfigs, configs.sass);
-        if (configs.debug) {
-            cssCompileConfigs.file = file;
-            cssCompileConfigs.sourceComments = true;
-            cssCompileConfigs.sourceMapContents = true;
-        }
-        cssCompileConfigs.data = content;
-        if (ext == '.sass') {
-            cssCompileConfigs.indentedSyntax = true;
-        }
-        if (configs.debug && configs.sourceMapCss) {
-            cssCompileConfigs.sourceMap = file;
-        }
-        sass.render(cssCompileConfigs, (err, result) => {
-            if (err) {
-                slog.ever(ext.substring(1) + ' error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
-                return reject(err);
-            }
-            let map = sourceMap(result.map ? result.map.toString() : '', file, {
-                rebuildSources: true
-            });
-            resolve({
-                exists: true,
-                map,
-                file,
-                content: result.css.toString()
-            });
-        });
-    } else if (ext == '.less') {
-        let cssCompileConfigs = {};
-        utils.cloneAssign(cssCompileConfigs, configs.less);
-        cssCompileConfigs.paths = [path.dirname(file)];
-        if (configs.debug) {
-            cssCompileConfigs.filename = file;
-            if (configs.sourceMapCss) {
-                cssCompileConfigs.dumpLineNumbers = 'comments';
-                cssCompileConfigs.sourceMap = {
-                    outputSourceFiles: true
-                };
-            }
-        }
-        less.render(content, cssCompileConfigs, (err, result) => {
-            if (err) {
-                slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(shortFile));
-                return reject(err);
-            }
-            let map = sourceMap(configs.debug && configs.sourceMapCss ? result.map : '', file);
-            resolve({
-                exists: true,
-                file,
-                map,
-                content: result.css
-            });
-        });
-    } else if (ext == '.css') {
-        resolve({
-            exists: true,
-            file: file,
-            content: content
-        });
-    } else if (ext == '.mx') {
-        let content = fd.read(file);
-        let info = jsMx.process(content, file);
-        compileContent(file, info.style, info.styleType, resolve, reject, shortFile);
+    let cfg = {
+        file,
+        ext,
+        content,
+        shortFile
+    };
+    let before = configs.compileCSSStart(content, cfg);
+    if (util.isString(before)) {
+        cfg.content = before;
+        before = Promise.resolve(cfg);
+    } else if (!before || !before.then) {
+        before = Promise.resolve(cfg);
     }
+    before.then(e => {
+        if (e.ext == '.scss' || e.ext == '.sass') {
+            let cssCompileConfigs = {};
+            utils.cloneAssign(cssCompileConfigs, configs.sass);
+            if (configs.debug) {
+                cssCompileConfigs.file = e.file;
+                cssCompileConfigs.sourceComments = true;
+                cssCompileConfigs.sourceMapContents = true;
+            }
+            cssCompileConfigs.data = e.content;
+            if (e.ext == '.sass') {
+                cssCompileConfigs.indentedSyntax = true;
+            }
+            if (configs.debug && configs.sourceMapCss) {
+                cssCompileConfigs.sourceMap = e.file;
+            }
+            sass.render(cssCompileConfigs, (err, result) => {
+                if (err) {
+                    slog.ever(e.ext.substring(1) + ' error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
+                    return reject(err);
+                }
+                let map = sourceMap(result.map ? result.map.toString() : '', e.file, {
+                    rebuildSources: true
+                });
+                resolve({
+                    exists: true,
+                    map,
+                    file: e.file,
+                    content: result.css.toString()
+                });
+            });
+        } else if (e.ext == '.less') {
+            let cssCompileConfigs = {};
+            utils.cloneAssign(cssCompileConfigs, configs.less);
+            cssCompileConfigs.paths = [path.dirname(e.file)];
+            if (configs.debug) {
+                cssCompileConfigs.filename = e.file;
+                if (configs.sourceMapCss) {
+                    cssCompileConfigs.dumpLineNumbers = 'comments';
+                    cssCompileConfigs.sourceMap = {
+                        outputSourceFiles: true
+                    };
+                }
+            }
+            less.render(e.content, cssCompileConfigs, (err, result) => {
+                if (err) {
+                    slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
+                    return reject(err);
+                }
+                let map = sourceMap(configs.debug && configs.sourceMapCss ? result.map : '', e.file);
+                resolve({
+                    exists: true,
+                    file: e.file,
+                    map,
+                    content: result.css
+                });
+            });
+        } else if (e.ext == '.css') {
+            resolve({
+                exists: true,
+                file: e.file,
+                content: e.content
+            });
+        } else if (e.ext == '.mx') {
+            let content = fd.read(e.file);
+            let info = jsMx.process(content, e.file);
+            compileContent(e.file, info.style, info.styleType, resolve, reject, e.shortFile);
+        }
+    });
 };
 //css 文件读取模块，我们支持.css .less .scss文件，所以该模块负责根据文件扩展名编译读取文件内容，供后续的使用
 module.exports = (file, e, source, ext, refInnerStyle) => {
@@ -96,10 +112,13 @@ module.exports = (file, e, source, ext, refInnerStyle) => {
                 let inner = configs.autoprefixer ? cssAutoprefixer(info.content) : Promise.resolve(info.content);
                 inner.then(css => {
                     let r = configs.compileCSSEnd(css, info);
-                    if (!r || !r.then) {
-                        r = Promise.resolve(r);
+                    if (util.isString(r)) {
+                        return Promise.resolve(r);
                     }
-                    return r;
+                    if (r && r.then) {
+                        return r;
+                    }
+                    return Promise.resolve(css);
                 }).then(css => {
                     info.content = css;
                     done(info);

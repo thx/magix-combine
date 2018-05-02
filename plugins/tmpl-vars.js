@@ -18,8 +18,8 @@ let md5 = require('./util-md5');
 let jsGeneric = require('./js-generic');
 let tmplCmdReg = /<%([@=!:~])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
-let bindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*<%:([\s\S]+?)%>\s*\2/g;
-let bindReg2 = /\s*<%:([\s\S]+?)%>\s*/g;
+let bindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%:([\s\S]+?)%>\s*\2/g;
+let bindReg2 = /\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%:([\s\S]+?)%>\s*/g;
 let pathReg = /<%~([\s\S]+?)%>/g;
 let textaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let mxViewAttrReg = /(?:\b|\s|^)mx-view\s*=\s*(['"])([^'"]+?)\1/g;
@@ -152,7 +152,7 @@ let getSafeguardExpression = (i, fn) => {
     第二遍用不可见字符
  */
 module.exports = {
-    process: (tmpl, reject, e, extInfo, artCtrlsMap) => {
+    process: (tmpl, reject, e, extInfo) => {
         let sourceFile = e.shortHTMLFile;
         let fn = [];
         let index = 0;
@@ -1043,49 +1043,18 @@ module.exports = {
         };
         fn = tmplCmd.store(fn, cmdStore); //存储代码，只分析模板
         //textarea情况：<textarea><%:taValue%></textarea>处理成=><textarea <%:taValue%>><%=taValue%></textarea>
-        let findIndex = (offset, expr) => {
-            let temp = fn.substring(0, offset);
-            temp = tmplCmd.recover(temp, cmdStore);
-            let c = -1;
-            let count = 0;
-            while (true) {
-                c = temp.indexOf(expr, c);
-                if (c > -1) {
-                    c++;
-                    count++;
-                } else {
-                    break;
-                }
-            }
-            return count;
-        };
-        let getOriginalArtCtrl = (expr, index) => {
-            expr = expr.replace(removeTempReg, '');
-            let art = artCtrlsMap[expr];
-            let artExpr = '';
-            if (art && art.length) {
-                if (index >= 0) {
-                    artExpr = art.splice(index, 1);
-                } else {
-                    artExpr = art.shift();
-                }
-            }
-            return artExpr;
-        };
-        fn = fn.replace(textaraReg, (match, attr, content, offset) => {
+        fn = fn.replace(textaraReg, (match, attr, content) => {
             attr = tmplCmd.recover(attr, cmdStore);
-            content = tmplCmd.recover(content, cmdStore);
+            content = tmplCmd.recover(content, cmdStore, recoverString);
             if (bindReg2.test(content)) {
                 bindReg2.lastIndex = 0;
-                let bind = '';
-                content = content.replace(bindReg2, (m, expr) => {
+                let bind = '', artExpr = '';
+                content = content.replace(bindReg2, (m, art, expr) => {
                     bind = m;
-                    expr = expr.trim();
+                    artExpr = art;
                     let i = extractFunctions(expr);
-                    let ii = findIndex(offset, expr);
-                    let artExpr = getOriginalArtCtrl(i.expr, ii);
-                    return `${artExpr}<%=${i.expr}%>`;
-                });
+                    return `<%=${i.expr}%>`;
+                }).replace(artExpr, '');
                 attr = attr + ' ' + bind;
             }
             content = tmplCmd.store(content, cmdStore);
@@ -1100,7 +1069,7 @@ module.exports = {
             let findCount = 0;
             let mxeInfo = [];
             let syncPaths = [];
-            let transformEvent = (exprInfo, source, attrName) => { //转换事件
+            let transformEvent = (exprInfo, source, attrName, art) => { //转换事件
                 let expr = exprInfo.expr;
                 expr = analyseExpr(expr, source); //分析表达式
                 for (let v of expr.vars) {
@@ -1108,7 +1077,7 @@ module.exports = {
                         syncPaths.push(v);
                     }
                 }
-                let e = `{p:'${expr.result}'`;
+                let e = `${art}{p:'${expr.result}'`;
                 if (exprInfo.fns) {
                     e += `,f:` + exprInfo.fns;
                 }
@@ -1124,38 +1093,39 @@ module.exports = {
                 e += '}';
                 mxeInfo.push(e);
             };
-            attrs.replace(bindReg, (m, name, q, expr) => {
+            let removedArtCtrls = [];
+            attrs = attrs.replace(bindReg, (m, name, q, art, expr) => {
                 expr = expr.trim();
                 let exprInfo = extractFunctions(expr);
-                transformEvent(exprInfo, m, name);
-            }).replace(bindReg2, (m, expr) => {
-                expr = expr.trim();
-                let exprInfo = extractFunctions(expr);
-                transformEvent(exprInfo, m);
-            });
-            attrs = attrs.replace(bindReg, (m, name, q, expr) => {
+                art = art || '';
+                removedArtCtrls.push(art);
+                transformEvent(exprInfo, m, name, art);
                 findCount++;
                 let replacement = '<%=';
                 if (hasMagixView && name.indexOf('view-') === 0) {
                     replacement = '<%@';
                 }
-                let exprInfo = extractFunctions(expr);
-                let artExpr = getOriginalArtCtrl(exprInfo.expr);
-                m = name + '=' + q + artExpr + replacement + exprInfo.expr + '%>' + q;
+                m = name + '=' + q + art + replacement + exprInfo.expr + '%>' + q;
                 return m;
-            }).replace(bindReg2, (m, expr) => {
-                findCount++;
+            }).replace(bindReg2, (m, art, expr) => {
+                expr = expr.trim();
                 let exprInfo = extractFunctions(expr);
-                getOriginalArtCtrl(exprInfo.expr);
+                art = art || '';
+                removedArtCtrls.push(art);
+                transformEvent(exprInfo, m, null, art);
+                findCount++;
                 return '';
             });
+            for (let art of removedArtCtrls) {
+                attrs = attrs.replace(art, '');
+            }
 
             if (findCount > 0) {
                 let mxe = '\x1f_' + mxeCount.toString(16);
                 if (syncPaths.length) {
                     mxe += '_' + syncPaths.join('_');
                 }
-                attrs = ' mxe="' + mxe + '" mxc="[' + mxeInfo.join(',') + ']"' + attrs;
+                attrs = ' mxe="' + mxe + '" mxc="[' + mxeInfo.join(',') + ']" ' + attrs;
                 mxeCount++;
             }
             if (configs.magixUpdaterIncrement) {
