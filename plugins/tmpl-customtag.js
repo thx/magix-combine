@@ -19,6 +19,7 @@ let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
 let atpath = require('./util-atpath');
 let sep = path.sep;
+let cmdNumReg = /^\x07\d+$/;
 let selfClose = {
     input: 1,
     br: 1,
@@ -36,7 +37,7 @@ let uncheckTags = {
     'mx-vframe': 1
 };
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
-let attrNameValueReg = /(?:^|\s)([^=\/\s]+)(?:\s*=\s*(["'])([\s\S]*?)\2)?/g;
+let attrNameValueReg = /(^|\s|\x07)([^=\/\s\x07]+)(?:\s*=\s*(["'])([\s\S]*?)\3)?/g;
 let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
@@ -60,7 +61,11 @@ let splitAttrs = (tag, attrs) => {
         }
     }
     let attrsMap = attrMap.getAll(tag, type);
-    attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
+    attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, content) => {
+        if (cmdNumReg.test(m)) {
+            return m;
+        }
+        prefix = prefix || '';
         if (!attrsMap[key] &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
@@ -85,13 +90,13 @@ let splitAttrs = (tag, attrs) => {
             tValue = `=${q}${content}${q}`;
         }
         if (key.startsWith('native-')) {
-            return ' ' + key.substring(7) + tValue;
+            return prefix + key.substring(7) + tValue;
         } else if (key.startsWith('#')) {
-            return ' ' + key.substring(1) + tValue;
+            return prefix + key.substring(1) + tValue;
         } else if (key.startsWith('@native-')) {
-            return ' @' + key.substring(8) + tValue;
+            return prefix + '@' + key.substring(8) + tValue;
         } else if (key.startsWith('@#')) {
-            return ' @' + key.substring(2) + tValue;
+            return prefix + '@' + key.substring(2) + tValue;
         }
         return m;
     }).trim();
@@ -103,53 +108,6 @@ let splitAttrs = (tag, attrs) => {
         viewAttrs,
         viewAttrsMap
     };
-};
-let toNative = (result, cmdStore, e) => {
-    let attrs = result.attrs;
-    let type = '';
-    let tag = result.mainTag;
-    if (tag == 'input') {
-        let m = attrs.match(inputTypeReg);
-        if (m) {
-            type = m[2];
-        }
-    }
-    let bAttrs = attrMap.getBooleanProps(tag, type);
-    attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
-        if (bAttrs.hasOwnProperty(key)) {
-            if (tmplCommandAnchorReg.test(content)) {
-                let cmdContent = tmplCmd.extractCmdContent(content, cmdStore);
-                if (cmdContent.succeed) {
-                    return ' <%if(' + cmdContent.content + '){%>' + key + '<%}%> ';
-                } else {
-                    let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
-                    let ex2 = cmdContent.art ? `{{!data.${key}}}` : `<%!data.${key}%>`;
-                    let ex3 = cmdContent.art ? `{{@data.${key}}}` : `<%@data.${key}%>`;
-                    slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
-                }
-            } else {
-                if (content === 'false' ||
-                    content === '0' ||
-                    content === '' ||
-                    content === 'null') {
-                    return '';
-                } else {
-                    return ' ' + key + ' ';
-                }
-            }
-        }
-        return m;
-    });
-    let html = `<${tag} ${attrs}`;
-    let unary = selfClose.hasOwnProperty(tag);
-    if (unary) {
-        html += `/`;
-    }
-    html += `>${result.content}`;
-    if (!unary) {
-        html += `</${tag}>`;
-    }
-    return html;
 };
 let innerView = (result, info, gRoot, map, extInfo) => {
     if (info) {
@@ -179,11 +137,15 @@ let innerView = (result, info, gRoot, map, extInfo) => {
     let allAttrs = attrMap.getAll(tag, type);
     let hasPath = false;
     let processedAttrs = {};
-    attrs = attrs.replace(attrNameValueReg, (m, key, q, value) => {
+    attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, value) => {
+        if (cmdNumReg.test(m)) {
+            return m;
+        }
+        prefix = prefix || '';
         if (!info) {
             if (key == 'path' || key == 'view' || key == 'src') {
                 hasPath = true;
-                return ' mx-view=' + q + value + q;
+                return prefix + 'mx-view=' + q + value + q;
             }
         }
         let viewKey = false;
@@ -222,7 +184,7 @@ let innerView = (result, info, gRoot, map, extInfo) => {
                 value += ' ' + info[pKey];
             }
         }
-        return ' ' + key + (q === undefined && !viewKey ? '' : '=' + q + value + q);
+        return prefix + key + (q === undefined && !viewKey ? '' : '=' + q + value + q);
     });
     if (info) {
         for (let p in info) {
@@ -255,7 +217,7 @@ let innerInclude = (result, info) => {
     let file = '';
     let attrs = {};
     let src = '';
-    result.attrs.replace(attrNameValueReg, (m, name, q, value) => {
+    result.attrs.replace(attrNameValueReg, (m, prefix, name, q, value) => {
         if (name == 'path' || name == 'src') {
             src = m;
             file = path.resolve(path.join(path.dirname(info.srcOwnerHTMLFile) + sep + value));
@@ -345,7 +307,8 @@ module.exports = {
             }
             let tags = tag.split('.');
             let mainTag = tags.shift();
-            let subTags = tags.length ? tags : n.group ? [] : ['index'];
+            //console.log(tags);
+            let subTags = tags.length ? tags : ['index'];
             let result = {
                 id: n.id,
                 prefix: n.pfx,
@@ -376,13 +339,6 @@ module.exports = {
                 tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
                 updateOffset(n.start, content.length - (n.end - n.start));
             }
-        };
-        let processToNativeTag = n => {
-            let result = getTagInfo(n);
-            let content = result.content;
-            content = toNative(result, cmdCache, extInfo);
-            tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
-            updateOffset(n.start, content.length - (n.end - n.start));
         };
         let processGalleryTag = (n, map) => {
             let result = getTagInfo(n);
@@ -494,31 +450,54 @@ module.exports = {
             let content = '';
             let tag = result.tag;
             let attrs = result.attrs;
-            attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
+            let inputType = n.attrsMap.type;
+            if (inputType) {
+                inputType = inputType.value;
+            }
+            let bProps = attrMap.getBooleanProps(n.tag, inputType);
+            attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, content) => {
+                if (cmdNumReg.test(m)) {
+                    return m;
+                }
+                prefix = prefix || '';
                 if (key.startsWith('@')) {
                     if (key.startsWith('@@')) {
-                        m = ' \x03' + m.trim().substring(2);
+                        m = prefix + '\x03' + key.substring(2) + (q ? q + content + q : '');
                     } else if (tmplCommandAnchorReg.test(content)) {
+                        key = key.substring(1);
                         let cmdContent = tmplCmd.extractCmdContent(content, cmdCache);
+                        //console.log(cmdContent);
                         if (cmdContent.succeed) {
                             update = true;
                             m = m.trim().substring(1);
-                            return ' <%if(' + cmdContent.content + '){%>' + m + '<%}%> ';
+                            let art = '', operate = cmdContent.operate || '';
+                            let isBooleanProp = bProps[key] === 1;
+                            if (cmdContent.isArt) {
+                                art = `<%'${cmdContent.line}\x11${cmdContent.art}\x11'%>`;
+                            }
+                            if (configs.magixUpdaterQuick) {
+                                operate = tmplCmd.operatesMap[operate] || '';
+                                let out = isBooleanProp ? `(${cmdContent.content})?true:null` : operate + cmdContent.content;
+                                return `${prefix}${key}="${art}<%${out}%>"`;
+                            }
+                            let out = isBooleanProp ? key : `${key}="<%${operate}$_temp%>"`;
+                            return `${prefix}${art}<%if(($_temp=${cmdContent.content})){%>${out}<%}%> `;
                         } else {
-                            let ex1 = cmdContent.art ? `{{=data.${key}}}` : `<%=data.${key}%>`;
-                            let ex2 = cmdContent.art ? `{{!data.${key}}}` : `<%!data.${key}%>`;
-                            let ex3 = cmdContent.art ? `{{@data.${key}}}` : `<%@data.${key}%>`;
-                            slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
+                            let ex0 = cmdContent.isArt ? `{{data.${key}}}` : `<%data.${key}%>`;
+                            let ex1 = cmdContent.isArt ? `{{=data.${key}}}` : `<%=data.${key}%>`;
+                            let ex2 = cmdContent.isArt ? `{{!data.${key}}}` : `<%!data.${key}%>`;
+                            let ex3 = cmdContent.isArt ? `{{@data.${key}}}` : `<%@data.${key}%>`;
+                            slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex0 + '" or ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
                         }
                     } else if (content === 'false' ||
                         content === '0' ||
                         content === '' ||
                         content === 'null') {
                         update = true;
-                        m = '';
+                        m = prefix;
                     } else {
                         update = true;
-                        m = ' ' + m.trim().substring(1);
+                        m = prefix + key.substring(1) + (q ? ('=' + q + content + q) : '');
                     }
                 }
                 return m;
@@ -543,17 +522,8 @@ module.exports = {
             let content = '';
             let tag = result.tag;
             let attrs = result.attrs;
-            attrs = attrs.replace(attrNameValueReg, (m, key, q, content) => {
-                if (content) {
-                    if (content.startsWith('@.')) {
-                        if (content.indexOf('/') > -1) {
-                            return atpath.resolvePath(m, e.moduleId);
-                        }
-                    } else if (content.startsWith('@@')) {
-                        return m.replace('@@', '\x03');
-                    }
-                }
-                return m;
+            attrs = attrs.replace(attrNameValueReg, m => {
+                return atpath.resolveContent(m, e.moduleId, '\x03');
             });
             let html = `<${tag} ${attrs}`;
             let unary = selfClose.hasOwnProperty(tag);
@@ -579,11 +549,7 @@ module.exports = {
                     if (n.customTag) {
                         //console.log(configs.galleryPrefixes, n.pfx);
                         if (configs.galleryPrefixes[n.pfx] === 1) {
-                            if (n.group && n.pfx == 'native') {
-                                processToNativeTag(n);
-                            } else {
-                                processGalleryTag(n, map);
-                            }
+                            processGalleryTag(n, map);
                         } else {
                             //slog.ever(chalk.red('can not process custom tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
                             processCustomTag(n, map);
@@ -607,6 +573,7 @@ module.exports = {
             return false;
         };
         tmpl = tmplCmd.store(tmpl, cmdCache);
+        tmpl = tmplCmd.store(tmpl, cmdCache, configs.tmplArtCommand);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 2;
         while (hasSpecialTags(tokens) && --checkTimes) {

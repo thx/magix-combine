@@ -25,6 +25,7 @@ let tmplVars = require('./tmpl-vars');
 let md5 = require('./util-md5');
 let slog = require('./util-log');
 let tmplToFn = require('./tmpl-tofn');
+let tmplQuick = require('./tmpl-quick');
 //let tmplDecode = require('./tmpl-decode');
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 
@@ -37,6 +38,8 @@ let removeVdReg = /\u0002/g;
 let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
+let globalTmplRootReg = /[\u0003\u0006]/g;
+let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 
 let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang) => {
     let key = magixTmpl + holder + fileContent;
@@ -57,17 +60,10 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             return;
         }
         if (flagsInfo.artEngine) {
-            fileContent = tmplArt(fileContent, e);
-        }
-        if (e.checker.tmplTagsMatch) {
-            try {
-                unmatchChecker(fileContent, e);
-            } catch (ex) {
-                slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
-                ex.message += ' at ' + e.shortHTMLFile;
-                reject(ex);
-                return;
+            if (magixTmpl && configs.magixUpdaterQuick) {
+                fileContent = tmplQuick.preProcess(fileContent, e);
             }
+            fileContent = tmplArt(fileContent, e);
         }
         let srcContent = fileContent;
         try {
@@ -85,16 +81,13 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
-
-        //console.log(fileContent);
-        //如果经过自定义标签后内容不一致，则进行再次的处理
         if (flagsInfo.artEngine && srcContent != fileContent) {
+            if (magixTmpl && configs.magixUpdaterQuick) {
+                fileContent = tmplQuick.preProcess(fileContent, e);
+            }
             fileContent = tmplArt(fileContent, e);
         }
-
-        //console.log(fileContent);
-
-        if (e.checker.tmplTagsMatch && srcContent != fileContent) {
+        if (e.checker.tmplTagsMatch) {
             try {
                 unmatchChecker(fileContent, e);
             } catch (ex) {
@@ -105,8 +98,6 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             }
         }
 
-
-
         let temp = Object.create(null);
         cache[key] = temp;
 
@@ -116,9 +107,12 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         e.refLeakGlobal = {
             reassigns: []
         };
-
         if (magixTmpl) {
-            fileContent = tmplVars.process(fileContent, reject, e, flagsInfo);
+            try {
+                fileContent = tmplVars.process(fileContent, e, flagsInfo);
+            } catch (ex) {
+                reject(ex);
+            }
         }
         fileContent = tmplCmd.compress(fileContent);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
@@ -170,7 +164,14 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
                     .replace(stringReg, '$1');
             }
         }
-        let info = tmplPartial.process(fileContent, refTmplCommands, e, flagsInfo);
+        let info;
+        if (magixTmpl && configs.magixUpdaterIncrement) {
+            info = {
+                tmpl: commandAnchorRecover(fileContent, refTmplCommands)
+            };
+        } else {
+            info = tmplPartial.process(fileContent, refTmplCommands, e, flagsInfo);
+        }
         temp.info = info;
         fCache = temp;
     }
@@ -243,8 +244,7 @@ module.exports = e => {
                 if (magixTmpl) {
                     if (configs.magixUpdaterIncrement) {
                         let tmpl = fcInfo.info.tmpl;
-                        //tmpl = tmplDecode(tmpl);
-                        return tmplToFn(tmpl, e.shortHTMLFile);
+                        return configs.magixUpdaterQuick ? tmplQuick.process(tmpl, e) : tmplToFn(tmpl, e.shortHTMLFile);
                     }
                     let temp = {
                         html: fcInfo.info.tmpl,

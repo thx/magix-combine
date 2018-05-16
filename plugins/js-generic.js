@@ -12,7 +12,40 @@ let qReg = /['"]/g;
 let escapeQ = str => str.replace(qReg, m => qmap[m]);
 module.exports = {
     escapeQ,
+    trimParentheses(expr) {
+        expr = expr.trim();
+        let start = 0, c,
+            startPC = 0,
+            endPC = 0,
+            sc = 0;
+        while (start < expr.length) {
+            c = expr[start];
+            if (c == '(') {
+                if (!sc) {
+                    startPC++;
+                } else {
+                    endPC--;
+                }
+            } else if (c == ')') {
+                if (!sc) {
+                    startPC--;
+                } else {
+                    endPC++;
+                }
+            } else if (c != ' ') {
+                endPC = 0;
+                sc++;
+            }
+            start++;
+        }
+        let trimPC = Math.min(startPC, endPC);
+        if (trimPC) {
+            expr = expr.slice(trimPC, -trimPC);
+        }
+        return expr;
+    },
     splitExpr(expr) { //拆分表达式，如"list[i].name[object[key[value]]]" => ["list", "[i]", "name", "[object[key[value]]]"]
+        expr = this.trimParentheses(expr);
         let stack = [];
         let temp = '';
         let max = expr.length;

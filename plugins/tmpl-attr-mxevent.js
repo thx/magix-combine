@@ -61,7 +61,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     } catch (ex) {
         let origin = params.substring(1, params.length - 1).replace(cmdPHReg, m => store[m]).replace(cmdReg, m => refTmplCommands[m]);
         let src = toSrc(origin);
-        slog.ever(chalk.red('encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'),'e.g.',chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'));
+        slog.ever(chalk.red('encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'), 'e.g.', chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'));
         throw ex;
     }
     let modifiers = [];
@@ -164,6 +164,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                     let params = m.substring(left + 1, right).trim();
                     left = m.substring(0, left + 1);
                     right = m.substring(right);
+                    //console.log(cmdReg.test(left), left, right);
                     if (cmdReg.test(left) || cmdReg.test(right)) {
                         right = params + right;
                     } else if (params) {

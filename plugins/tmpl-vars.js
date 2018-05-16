@@ -16,10 +16,10 @@ let slog = require('./util-log');
 let regexp = require('./util-rcache');
 let md5 = require('./util-md5');
 let jsGeneric = require('./js-generic');
-let tmplCmdReg = /<%([@=!:~])?([\s\S]*?)%>|$/g;
+let tmplCmdReg = /<%([@=!:~\x1a-\x1d&])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
-let bindReg = /([^>\s\/=]+)\s*=\s*(["'])\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%:([\s\S]+?)%>\s*\2/g;
-let bindReg2 = /\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%:([\s\S]+?)%>\s*/g;
+let bindReg = /([^>\s\/=]+)\s*=\s*(["'])([\s\S]*?)(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%([:\x1b])([\s\S]+?)%>\s*([\s\S]*?)\2/g;
+let bindReg2 = /\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%[:\x1b]([\s\S]+?)%>\s*/g;
 let pathReg = /<%~([\s\S]+?)%>/g;
 let textaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
 let mxViewAttrReg = /(?:\b|\s|^)mx-view\s*=\s*(['"])([^'"]+?)\1/g;
@@ -152,7 +152,7 @@ let getSafeguardExpression = (i, fn) => {
     第二遍用不可见字符
  */
 module.exports = {
-    process: (tmpl, reject, e, extInfo) => {
+    process: (tmpl, e, extInfo) => {
         let sourceFile = e.shortHTMLFile;
         let fn = [];
         let index = 0;
@@ -186,7 +186,7 @@ module.exports = {
             slog.ever('parse html cmd ast error:', chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             slog.ever('current state:', fn);
             slog.ever('prev state:' + fn.replace(htmlHolderReg, m => htmlStore[m]));
-            reject(ex);
+            throw ex;
         }
         let globalExists = Object.assign(Object.create(null), extInfo.tmplScopedGlobalVars);
         let globalTracker = Object.create(null);
@@ -875,6 +875,7 @@ module.exports = {
         fn = fn.replace(scharReg, '');
         fn = stripChar(fn);
         fn = fn.replace(htmlHolderReg, m => htmlStore[m]);
+        //console.log(JSON.stringify(fn));
         fn = fn.replace(tmplCmdReg, (match, operate, content) => {
             if (operate) {
                 return '<%' + operate + content.slice(1, -1) + '%>';
@@ -937,6 +938,7 @@ module.exports = {
             return expr;
         };
         let best = head => {
+            //console.log(head);
             let match = head.match(/\u0001(\d+)/); //获取使用这个变量时的位置信息
             if (!match) return null;
             let pos = match[1];
@@ -957,7 +959,7 @@ module.exports = {
                 srcExpr = expr;
             }
             //slog.ever('expr', expr);
-            let ps = jsGeneric.splitExpr(expr); //表达式拆分，如user[name][key[value]]=>["user","[name]","[key[value]"]
+            let ps = jsGeneric.splitExpr(expr);//表达式拆分，如user[name][key[value]]=>["user","[name]","[key[value]"]
             /*
                 1. <%:user.name%>
                 2. <%var a=user.name%>...<%:a%>
@@ -1093,32 +1095,26 @@ module.exports = {
                 e += '}';
                 mxeInfo.push(e);
             };
-            let removedArtCtrls = [];
-            attrs = attrs.replace(bindReg, (m, name, q, art, expr) => {
+            attrs = attrs.replace(bindReg, (m, name, q, prefix, art, op, expr, suffix) => {
                 expr = expr.trim();
                 let exprInfo = extractFunctions(expr);
                 art = art || '';
-                removedArtCtrls.push(art);
                 transformEvent(exprInfo, m, name, art);
                 findCount++;
-                let replacement = '<%=';
+                let replacement = '<%' + (op == '=' ? op : '\x1a');
                 if (hasMagixView && name.indexOf('view-') === 0) {
                     replacement = '<%@';
                 }
-                m = name + '=' + q + art + replacement + exprInfo.expr + '%>' + q;
+                m = name + '=' + q + (prefix || '') + art + replacement + exprInfo.expr + '%>' + (suffix || '') + q;
                 return m;
             }).replace(bindReg2, (m, art, expr) => {
                 expr = expr.trim();
                 let exprInfo = extractFunctions(expr);
                 art = art || '';
-                removedArtCtrls.push(art);
                 transformEvent(exprInfo, m, null, art);
                 findCount++;
                 return '';
             });
-            for (let art of removedArtCtrls) {
-                attrs = attrs.replace(art, '');
-            }
 
             if (findCount > 0) {
                 let mxe = '\x1f_' + mxeCount.toString(16);

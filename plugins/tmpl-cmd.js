@@ -14,8 +14,8 @@ let anchor = '\u0007';
 let tmplCommandAnchorCompressReg = /(\u0007\d+\u0007)\s+(?=[<>])/g;
 let tmplCommandAnchorCompressReg2 = /([<>])\s+(\u0007\d+\u0007)/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-let tmplCmdReg = /<%([@=!:~#])?([\s\S]+?)%>|$/g;
-let outputCmdReg = /<%([=!@:~#])?([\s\S]*?)%>/g;
+let tmplCmdReg = /<%([@=!:~\x1a\x1b\x1c\x1d])?([\s\S]+?)%>|$/g;
+let outputCmdReg = /<%([=!@:~\x1a\x1b\x1c\x1d])?([\s\S]*?)%>/g;
 let phCmdReg = /\u0000\d+\u0000/g;
 let phAllCmdReg = /([\u0000\u0001])\d+\1/g;
 let continuedCmdReg = /(?:\s*\u0000\d+\u0000\s*){2,}/g;
@@ -35,10 +35,16 @@ let extractArtReg = /\{\{([@!~=:])?([\s\S]+?)\}\}(?!\})/;
 
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/g;
 
-let cmdOutReg = /^<%(?:[!=@])([\s\S]*)%>$/;
-let artCtrlsReg = /<%'\x17?\d+\x11([^\x11]+)\x11\x17?'%>(<%[\s\S]+?%>)/g;
+let cmdOutReg = /^<%([@=!:])?([\s\S]*)%>$/;
+let artCtrlsReg = /(?:<%'\x17?(\d+)\x11([^\x11]+)\x11\x17?'%>)?(<%[\s\S]+?%>)/;
 
 module.exports = {
+    operatesMap: {
+        '=': '\x1a',
+        ':': '\x1b',
+        '!': '\x1c',
+        '@': '\x1d'
+    },
     compile(tmpl) {
         if (!configs.disableMagixUpdater) {
             let tps = [];
@@ -103,9 +109,11 @@ module.exports = {
                 if (o) {
                     c = c.slice(1, -1);
                 }
+                // console.log(o,c,m);
                 c = jm.min(c).replace(lineBreakReg, '');
                 return '<%' + (o || '') + c + '%>';
             });
+            //console.log(tmpl);
             tmpl = tmpl.replace(emptyCmdReg, '');
         }
         return tmpl;
@@ -180,9 +188,11 @@ module.exports = {
                     m = modifiers[i];
                     let c = tmpl.substring(m.start, m.end);
                     c = c.replace(continuedCmdReg, m => {
-                        m = m.replace(phCmdReg, n => stores[n]) //命令还原
-                            .replace(bwSpaceCmdReg, ';')
-                            .replace(blockCmdReg, '$1')
+                        m = m.replace(phCmdReg, n => stores[n]); //命令还原
+                        if (!configs.magixUpdaterIncrement) {
+                            m = m.replace(bwSpaceCmdReg, ';');
+                        }
+                        m = m.replace(blockCmdReg, '$1')
                             .replace(continuedSemicolonReg, ';'); //删除中间的%><%及分号
                         return m;
                     });
@@ -192,9 +202,11 @@ module.exports = {
                 //console.log(JSON.stringify(tmpl));
                 //把多个连续的控制命令做压缩
                 tmpl = tmpl.replace(continuedCmdReg, m => {
-                    m = m.replace(phCmdReg, n => stores[n]) //命令还原
-                        .replace(bwCmdReg, ';')
-                        .replace(blockCmdReg, '$1')
+                    m = m.replace(phCmdReg, n => stores[n]); //命令还原
+                    if (!configs.magixUpdaterIncrement) {
+                        m = m.replace(bwCmdReg, ';');
+                    }
+                    m = m.replace(blockCmdReg, '$1')
                         .replace(continuedSemicolonReg, ';'); //删除中间的%><%及分号
                     return m;
                 });
@@ -278,11 +290,15 @@ module.exports = {
     },
     extractCmdContent(cmd, refTmplCommands) {
         let oc = this.recover(cmd, refTmplCommands);
-        let art = oc.replace(artCtrlsReg, '{{$1}}');
-        let old = oc.replace(artCtrlsReg, '$2');
+        artCtrlsReg.lastIndex = 0;
+        let am = oc.match(artCtrlsReg);
+        let old = '', line = -1, art = '';
+        if (am) {
+            [, line, art, old] = am;
+        }
         let ocm = old.match(cmdOutReg);
         if (ocm) {
-            if (ocm[1].indexOf('%>') > -1 || ocm[1].indexOf('<%') > -1) {
+            if (ocm[2].indexOf('%>') > -1 || ocm[2].indexOf('<%') > -1) {
                 return {
                     isArt: !!art,
                     origin: art || old,
@@ -291,9 +307,12 @@ module.exports = {
             }
             return {
                 isArt: !!art,
+                line,
+                art,
                 origin: art || old,
                 succeed: true,
-                content: ocm[1]
+                operate: ocm[1],
+                content: ocm[2]
             };
         }
         return {

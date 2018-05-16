@@ -10,7 +10,7 @@ let classNameReg = /(\s|^|\u0007)([\w\-]+)(?=\s|$|\u0007)/g;
 let pureTagReg = /<([^>\s\/]+)([^>]*)>/g;
 let numReg = /^\d+$/;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
-let tmplCmdReg = /<%([=!])?([\s\S]+?)%>/;
+let tmplCmdReg = /<%([=!@])?([\s\S]+?)%>/;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let attrReg = /([\w\-:]+)(?:=(["'])[\s\S]*?\2)?/g;
 module.exports = {

@@ -84,9 +84,11 @@ module.exports = (input, htmlFile) => {
                     token.namedSlot = true;
                 } else if (temp == 'mx-static' || temp == 'mxs') {
                     token.userStaticKey = a.value || true;
+                } else if (temp == 'mx-static-attr' || temp == 'mxa') {
+                    token.userStaticAttrKey = a.value || true;
                 } else if (temp.startsWith('@')) {
                     token.atAttr = true;
-                } else if (a.quote && a.value && a.value.startsWith('@')) {
+                } else if (a.quote && a.value && a.value.indexOf('@') > -1) {
                     token.atAttrContent = true;
                 }
                 if (a.quote && a.value !== undefined) {

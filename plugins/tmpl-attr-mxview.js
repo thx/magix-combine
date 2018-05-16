@@ -12,12 +12,13 @@ let tmplUnescape = require('html-entities-decoder');
 let tmplChecker = checker.Tmpl;
 //let tmplCmd = require('./tmpl-cmd');
 
-let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]+?)\1/;
+let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]*?)\1/;
 let viewAttrReg = /\bview-([\w\-@]+)=(["'])([\s\S]*?)\2/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 //let mxViewParamsReg = /\bmx-params\s*=\s*(['"])([^'"]+?)\1/;
 let cmdReg = /\u0007\d+\u0007/g;
 let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
+let relativeReg = /\.{1,2}\//g;
 // let paramsReg = /([^=&?\/#]+)=?[^&#?]*/g;
 
 // let hyphenateRE = /(?=[^-])([A-Z]+)/g;
@@ -34,6 +35,14 @@ let encodeMore = {
     ')': '%29',
     '*': '%2A'
 };
+let addAtIfNeed = tmpl => {
+    return tmpl.replace(relativeReg, (m, offset) => {
+        if (tmpl[offset - 1] == '@') {
+            return m;
+        }
+        return '@' + m;
+    });
+};
 
 let encodeMoreReg = /[!')(*]/g;
 let encodeReplacor = m => encodeMore[m];
@@ -43,16 +52,9 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
         if (configs.useAtPathConverter) { //如果启用@路径转换规则
             match = match.replace(mxViewAttrReg, (m, q, c) => {
                 let { pathname, query } = url.parse(c);
-                if (pathname.startsWith('@@')) {
-                    pathname = pathname.substring(1);
-                } else if (pathname.startsWith('.') ||
-                    pathname.startsWith('@')) {
-                    if (pathname.startsWith('.')) {
-                        pathname = '@' + pathname;
-                    }
-                    pathname = atpath.resolvePath(`"${pathname}"`, e.moduleId);
-                    pathname = pathname.substring(1, pathname.length - 1);
-                }
+                pathname = pathname || '';
+                pathname = addAtIfNeed(pathname);
+                pathname = atpath.resolveContent(pathname, e.moduleId);
                 let params = [];
                 query = qs.parse(query, '&', '=', {
                     decodeURIComponent(v) {
@@ -61,14 +63,8 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                 });
                 for (let p in query) {
                     let v = query[p];
-                    if (v.startsWith('@.')) {
-                        if (v.indexOf('/') > -1) {
-                            v = atpath.resolvePath(`"${v}"`, e.moduleId);
-                            v = v.substring(1, v.length - 1);
-                        }
-                    } else if (v.startsWith('@@')) {
-                        v = v.substring(1);
-                    }
+                    v = addAtIfNeed(v);
+                    v = atpath.resolveContent(v, e.moduleId);
                     params.push(`${p}=${v}`);
                 }
                 let view = pathname;
@@ -116,7 +112,12 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                     } else if (tmplCommandAnchorReg.test(content)) {
                         let cmdContent = tmplCmd.extractCmdContent(content, refTmplCommands);
                         if (cmdContent.succeed) {
-                            attrs.push(`<%if(${cmdContent.content}){%>${name.slice(1)}=${content}<%}%>`);
+                            let o = cmdContent.operate || '';
+                            let art='';
+                            if (cmdContent.isArt) {
+                                art = `<%'${cmdContent.line}\x11${cmdContent.art}\x11'%>`;
+                            }
+                            attrs.push(`${art}<%if(($_temp=${cmdContent.content})){%>${name.slice(1)}=<%${o}$_temp%><%}%>`);
                         } else {
                             tmplChecker.checkAtAttr(toSrc(name + '="' + content + '"'), e);
                         }
@@ -132,6 +133,8 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                     for (let i = 0; i < cs.length; i++) {
                         cs[i] = tmplUnescape(cs[i]); //对转义字符回转一次，浏览器的行为，这里view-最终并不是标签属性，所以这里模拟浏览器的特性。
                         cs[i] = classRef(cs[i], e, classLocker);
+                        //cs[i] = addAtIfNeed(cs[i]);
+                        cs[i] = atpath.resolveContent(cs[i], e.moduleId);
                         cs[i] = encodeURIComponent(cs[i]).replace(encodeMoreReg, encodeReplacor); //对这个普通字符串做转义处理
                         if (i < cmdTemp.length) { //把命令还原回去
                             cs[i] = cs[i] + cmdTemp[i];

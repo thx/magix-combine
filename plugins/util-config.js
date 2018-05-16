@@ -65,6 +65,7 @@ module.exports = {
         viewId: 1
     }, //模板中不会变的变量，减少子模板的分析
     tmplGlobalVars: {
+        $_temp: 100,//
         window: 1,
         JSON: 1,
         document: 1,
@@ -73,6 +74,21 @@ module.exports = {
         Number: 1,
         isNaN: 1,
         isFinite: 1,
+        parseInt: 1,
+        parseFloat: 1,
+        Infinity: 1,
+        NaN: 1,
+        encodeURIComponent: 1,
+        decodeURIComponent: 1,
+        escape: 1,
+        unescape: 1,
+        encodeURI: 1,
+        decodeURI: 1,
+        eval: 1,
+        history: 1,
+        localStorage: 1,
+        sessionStorage: 1,
+        navigator: 1,
         Array: 1,
         Date: 1,
         String: 1,
@@ -89,7 +105,8 @@ module.exports = {
     tmplCommand: /<%[\s\S]*?%>/g,
     disableMagixUpdater: false,
     magixUpdaterIncrement: false,
-    selectorSilentErrorCss: false,
+    magixUpdaterQuick: false,//quick模板
+    selectorSilentErrorCss: false,//css选择器处理失败时，使用原有的选择器还是提示用户出错
     sourceMapCss: false,
     globalCss: [], //全局样式
     scopedCss: [], //全局但做为scoped使用的样式

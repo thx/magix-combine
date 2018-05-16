@@ -272,7 +272,7 @@ declare module "magix-combine" {
         /**
          * 是否把模板中的view打包到js中的文件依赖中，默认false。如果为true，渲染的view会在加载相应的js时提前加载，有效解决页面渲染时子view加载的闪烁问题
          */
-        addTmplViewsToDependencies?: boolean
+        tmplAddViewsToDependencies?: boolean
         /**
          * 是否增加事件前缀，开启该选项有利于提高magix查找vframe的效率。默认为true
          */
@@ -321,6 +321,14 @@ declare module "magix-combine" {
          * 模板输出时是否输出识别到的事件列表，默认为false
          */
         tmplOutputWithEvents?: boolean
+        /**
+         * 是否启用增量更新，即dom diff
+         */
+        magixUpdaterIncrement?: boolean
+        /**
+         * 是否启用quick模板
+         */
+        magixUpdaterQuick?: boolean
         /**
          * 是否禁用magix view中的updater，该选项影响模板对象的输出，默认为false
          */

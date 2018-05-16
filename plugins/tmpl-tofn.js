@@ -27,17 +27,17 @@ module.exports = (tmpl, file) => {
             }
             if (operate == `@`) {
                 hasAtRule = true;
-                source += `';$expr='<%` + operate + expr + `%>';$p+=$i(` + content + `);$p+='`;
+                source += `'+($expr='<%${operate + expr}%>',$i(${content}))+'`;
             } else if (operate == `=`) {
-                source += `'+($expr='<%` + operate + expr + `%>',$e(` + content + `))+'`;
+                source += `'+($expr='<%${operate + expr}%>',$e(${content}))+'`;
             } else if (operate == `!`) {
                 if (!content.startsWith('$eu(') || !content.endsWith(')')) {
                     content = `$n(${content})`;
                 }
-                source += `'+($expr='<%` + operate + expr + `%>',` + content + `)+'`;
+                source += `'+($expr='<%${operate + expr}%>',${content})+'`;
             } else if (content) {
                 if (line > -1) {
-                    source += `';$line=` + line + `;$art='` + art + `';`;
+                    source += `';$line=${line};$art='${art}';`;
                     content = '';
                 } else {
                     source += `';`;
@@ -50,7 +50,7 @@ module.exports = (tmpl, file) => {
         } else {
             if (operate == `@`) {
                 hasAtRule = true;
-                source += `';$p+=$i(${content});$p+='`;
+                source += `'+$i(${content})+'`;
             } else if (operate == `=`) {
                 source += `'+$e(${content})+'`;
             } else if (operate == `!`) {
@@ -65,6 +65,7 @@ module.exports = (tmpl, file) => {
         // Adobe VMs need the match returned to produce the correct offset.
         return match;
     });
+    //console.log(source);
     source += `';`;
 
     if (configs.debug) {
@@ -80,10 +81,10 @@ module.exports = (tmpl, file) => {
 
     let encodeQuote = `,$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&')`;
 
-    source = `let $g='\x1e',$p=''${encode}${encodeURIMore}${encodeQuote}${atRule};${source}return $p`;
+    source = `let $g='\x1e',$_temp,$p=''${encode}${encodeURIMore}${encodeQuote}${atRule};${source}return $p`;
 
     source = configs.compileTmplCommand(`($$,$viewId)=>{${source}}`, configs);
-    if (source.startsWith('(')) {
+    if (source.startsWith('(function')) {
         source = source.substring(1).replace(closeReg, '');
     }
     return source;

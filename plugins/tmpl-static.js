@@ -23,8 +23,9 @@ let staticKeyReg = /\s*_mxs="[^"]+"/g;
 let attrKeyReg = /\s*_mxa="[^"]+"/g;
 let mxvKeyReg = /\s*_mxv="[^"]+"/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
-let forceStaticKey = /\s+mx-static(?:\s*=\s*(['"])[^'"]+\1)?/;
+let forceStaticKey = /\s+mx-static(?:-attr)?(?:\s*=\s*(['"])[^'"]+\1)?/;
 let slotKeyReg = /\s*_mxslot="[^"]+"/g;
+let ifForReg = /\s*(?:if|for|for_declare)\s*=\s*"[^"]+"/g;
 
 module.exports = (tmpl, file) => {
     let g = 0;
@@ -38,7 +39,8 @@ module.exports = (tmpl, file) => {
     });
     let tokens = tmplParser(tmpl);
     let keysMap = Object.create(null),
-        userKeysMap = Object.create(null);
+        userKeysMap = Object.create(null),
+        userAttrKeysMap = Object.create(null);
     let removeChildrenStaicKeys = (children, keys) => {
         for (let c of children) {
             if (c.children) removeChildrenStaicKeys(c.children, keys);
@@ -61,48 +63,73 @@ module.exports = (tmpl, file) => {
                         walk(n.children);
                     }
                 }
-                let html = tmpl.substring(n.start, n.end).replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').replace(slotKeyReg, '');
-                let attr = tmpl.substring(n.attrsStart, n.attrsEnd).trim();
-                attr = attr.replace(staticKeyReg, '').replace(attrKeyReg, '').replace(mxvKeyReg, '').replace(slotKeyReg, '').trim();
+                let html = tmpl.substring(n.start, n.end)
+                    .replace(staticKeyReg, '')
+                    .replace(attrKeyReg, '')
+                    .replace(mxvKeyReg, '')
+                    .replace(slotKeyReg, '');
+                if (configs.magixUpdaterQuick) {
+                    html = html.replace(ifForReg, '');
+                }
+                let attr = tmpl.substring(n.attrsStart, n.attrsEnd);
+                attr = attr.replace(staticKeyReg, '')
+                    .replace(attrKeyReg, '')
+                    .replace(mxvKeyReg, '')
+                    .replace(slotKeyReg, '').trim();
+                if (configs.magixUpdaterQuick) {
+                    attr = attr.replace(ifForReg, '').trim();
+                }
                 let removeStaticKey = false;
                 keysMap[' _mxs="' + n.mxsKey + '"'] = html;
                 keysMap[' _mxa="' + n.mxsAttrKey + '"'] = attr;
                 if (attr) {
                     if (tmplCommandAnchorRegTest.test(attr)) {
-                        keys.push(' _mxa="' + n.mxsAttrKey + '"');
+                        if (n.userStaticAttrKey) {
+                            userAttrKeysMap[' _mxa="' + n.mxsAttrKey + '"'] = n.userStaticAttrKey;
+                        } else {
+                            keys.push(' _mxa="' + n.mxsAttrKey + '"');
+                        }
                     }
                 } else {
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
                 }
-                if (n.mxvKey) {
+                if (configs.magixUpdaterQuick) {
                     keys.push(' _mxv="' + n.mxvAutoKey + '"');
-                } else if (n.children) {
-                    let hasSubView = 0;
-                    for (let c of n.children) {
-                        /*
-                            对于input textarea等，我们也利用mxv属性深入diff
-                            场景：<input value="{{=abc}}"/>
-                            updater.digest({abc:'abc'});
-                            然后用户删除了input中的abc修改成了123
-                            此时依然updater.digest({abc:'abc'}),问input中的值该显示abc还是123?
-                            该方案目的是显示abc
-                        */
-                        if (c.mxvKey ||
-                            c.mxvAutoKey ||
-                            c.tag == 'input' ||
-                            c.tag == 'textarea' ||
-                            c.tag == 'option') {
-                            hasSubView = 1;
-                            break;
+                } else {
+                    if (n.mxvKey) {
+                        keys.push(' _mxv="' + n.mxvAutoKey + '"');
+                    } else if (n.children) {
+                        let hasSubView = 0;
+                        for (let c of n.children) {
+                            /*
+                                对于input textarea等，我们也利用mxv属性深入diff
+                                场景：<input value="{{=abc}}"/>
+                                updater.digest({abc:'abc'});
+                                然后用户删除了input中的abc修改成了123
+                                此时依然updater.digest({abc:'abc'}),问input中的值该显示abc还是123?
+                                该方案目的是显示abc
+                            */
+                            if (c.mxvKey ||
+                                c.mxvAutoKey ||
+                                c.tag == 'input' ||
+                                c.tag == 'direct' ||
+                                c.tag == 'textarea' ||
+                                c.tag == 'option') {
+                                // if (c.mxvKey && c.namedSlot) {
+                                //     continue;
+                                // }
+                                hasSubView = 1;
+                                break;
+                            }
                         }
-                    }
-                    if (!hasSubView) {
+                        if (!hasSubView) {
+                            keys.push(' _mxv="' + n.mxvAutoKey + '"');
+                            delete n.mxvAutoKey;
+                        }
+                    } else {
                         keys.push(' _mxv="' + n.mxvAutoKey + '"');
                         delete n.mxvAutoKey;
                     }
-                } else {
-                    keys.push(' _mxv="' + n.mxvAutoKey + '"');
-                    delete n.mxvAutoKey;
                 }
                 if (tmplCommandAnchorRegTest.test(html)) {
                     if (n.userStaticKey) {
@@ -119,6 +146,7 @@ module.exports = (tmpl, file) => {
                     for (let c of n.children) {
                         if (c.mxvKey ||
                             c.mxvAutoKey ||
+                            c.tag == 'group' ||
                             c.tag == 'input' ||
                             c.tag == 'textarea' ||
                             c.tag == 'option') {
@@ -174,10 +202,17 @@ module.exports = (tmpl, file) => {
             }
             return ' mxs="' + r + '"';
         }).replace(attrKeyReg, m => {
-            m = keysMap[m];
-            return ' mxa="' + md5(m, file + ':akey', prefix, true) + '"';
+            let r = userAttrKeysMap[m];
+            if (r === 'false') return '';
+            if (!r || r === true) {
+                r = keysMap[m];
+                r = md5(m, file + ':akey', prefix, true);
+            } else {
+                r = md5(m, file + ':akey', prefix, true) + ':' + r;
+            }
+            return ' mxa="' + r + '"';
         }).replace(slotKeyReg, () => {
-            return ' mx-slot="\x1f"';
+            return ' mxo="\x1f"';
         }).replace(mxvKeyReg, ' mxv')
             .replace(forceStaticKey, '');
     });

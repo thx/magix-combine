@@ -5,6 +5,8 @@ let path = require('path');
 let sep = path.sep;
 let sepRegTmpl = sep.replace(/\\/g, '\\\\');
 let sepReg = new RegExp(sepRegTmpl, 'g');
+let atReg = /(@{1,})(\.[^\x07@]+)/g;
+let escapeAtReg = /@{2}/g;
 //以@开头的路径转换
 let relativePathReg = /(['"])@([^\/\\]+)([^\s;\(\)\{\}]+?)(?=\\?\1)/g;
 //处理@开头的路径，如果是如'@coms/dragdrop/index'则转换成相对当前模块的相对路径，如果是如 mx-view="@./list" 则转换成 mx-view="app/views/reports/list"完整的模块路径
@@ -36,5 +38,22 @@ let resolveAtName = (name, moduleId) => {
 
 module.exports = {
     resolvePath: resolveAtPath,
-    resolveName: resolveAtName
+    resolveName: resolveAtName,
+    resolveContent(tmpl, moduleId, holder) {
+        holder = holder || '@';
+        return tmpl.replace(atReg, (match, ats, parts) => {
+            let c = ats.length % 2;
+            ats = ats.substring(0, ats.length - c);
+            ats = ats.replace(escapeAtReg, holder);
+            if (parts.indexOf('/') > -1) {
+                if (c) {
+                    parts = resolveAtPath(`"@${parts}"`, moduleId).slice(1, -1);
+                    return ats + parts;
+                } else {
+                    return ats + parts;
+                }
+            }
+            return ats + parts;
+        });
+    }
 };
