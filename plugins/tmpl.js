@@ -44,9 +44,10 @@ let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refT
 let oldMxEventReg = /\s+mx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
 let mustache = /\{\{#\s*\w+|\{\{\{\w+/;
 let etpl = /\$\{[^{}]+?\}/;
-let bx = /\s+bx-(?:datakey|tmpl)\s*=\s*['"]/;
+let bx = /\s+bx-(?:datakey|tmpl|path|config)\s*=\s*['"]/;
 let vframe = /<vframe\s+/;
 let oldMxEventReg1 = /\s+mx-(?!view|vframe|keys|options|data|partial|init|html)[a-zA-Z]+\s*=\s*(['"])\w+(?:\{[\s\S]*?\})?\1/;
+let bxCfg = /\bbx-config\s*=\s*"[^"]+"/g;
 let isOldTemplate = tmpl => {
     oldMxEventReg.lastIndex = 0;
     return oldMxEventReg.test(tmpl) ||
@@ -59,6 +60,10 @@ let isOldTemplate = tmpl => {
 let storeOldEvent = (tmpl, dataset) => {
     let index = 0;
     return tmpl.replace(oldMxEventReg, m => {
+        let key = '\x1a' + (index++) + '\x1a';
+        dataset[key] = m;
+        return key;
+    }).replace(bxCfg, m => {
         let key = '\x1a' + (index++) + '\x1a';
         dataset[key] = m;
         return key;
