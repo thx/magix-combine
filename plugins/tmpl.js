@@ -41,18 +41,20 @@ let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 
-let oldMxEventReg = /mx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
-let mustache = /\{\{#\s*\w+/;
+let oldMxEventReg = /\s+mx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
+let mustache = /\{\{#\s*\w+|\{\{\{\w+/;
 let etpl = /\$\{[^{}]+?\}/;
 let bx = /\s+bx-(?:datakey|tmpl)\s*=\s*['"]/;
 let vframe = /<vframe\s+/;
+let oldMxEventReg1 = /\s+mx-(?!view|vframe|keys|options|data|partial|init|html)[a-zA-Z]+\s*=\s*(['"])\w+(?:\{[\s\S]*?\})?\1/;
 let isOldTemplate = tmpl => {
     oldMxEventReg.lastIndex = 0;
     return oldMxEventReg.test(tmpl) ||
         mustache.test(tmpl) ||
         etpl.test(tmpl) ||
         bx.test(tmpl) ||
-        vframe.test(tmpl);
+        vframe.test(tmpl) ||
+        oldMxEventReg1.test(tmpl);
 };
 let storeOldEvent = (tmpl, dataset) => {
     let index = 0;
@@ -140,7 +142,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
                 reject(ex);
             }
         }
-        fileContent = tmplCmd.compress(fileContent);
+        //fileContent = tmplCmd.compress(fileContent, e.isOldTemplate);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
         if (!configs.debug) {
             fileContent = fileContent.replace(revisableReg, m => {

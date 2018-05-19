@@ -33,7 +33,7 @@ let newWindowReg = /\btarget\s*=\s*(['"])[^'"]+\1/i;
 //检测各种可能执行代码的情况
 let dangerousAttrReg = /\b(on[a-z]+)\s*=\s*(['"]?)[^>]+?\2/gi;
 
-let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:([\s\S]+?)\1/i;
+let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:([\s\S]*?)\1/i;
 
 let targetSelfReg = /\btarget\s*=\s*(['"])_self\1/g;
 let allowClickReg = /\bonclick\s*=\s*(['"])return\s+false;*\1/;
