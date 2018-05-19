@@ -7,6 +7,7 @@ let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script)[^>]*>[\s\S]*?<\/\1>/g;
 let tagReg = /<(\/)?([a-z0-9\-.:_]+)[^>]*>?/ig;
 let brReg = /(?:\r\n|\r|\n)/;
+let consts = require('./util-const');
 let selfCloseTags = {
     area: 1,
     base: 1,
@@ -33,7 +34,8 @@ let brPlaceholder = m => {
 };
 let cleanHTML = tmpl => {
     tmpl = tmpl.replace(commentReg, brPlaceholder)
-        .replace(tagRemovedReg, brPlaceholder);
+        .replace(tagRemovedReg, brPlaceholder)
+        .replace(consts.microTmplCommand, brPlaceholder);
     if (configs.tmplCommand) {
         tmpl = tmpl.replace(configs.tmplCommand, brPlaceholder);
     }

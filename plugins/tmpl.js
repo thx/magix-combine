@@ -41,6 +41,32 @@ let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 
+let oldMxEventReg = /mx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
+let mustache = /\{\{#\s*\w+/;
+let etpl = /\$\{[^{}]+?\}/;
+let bx = /\s+bx-(?:datakey|tmpl)\s*=\s*['"]/;
+let vframe = /<vframe\s+/;
+let isOldTemplate = tmpl => {
+    oldMxEventReg.lastIndex = 0;
+    return oldMxEventReg.test(tmpl) ||
+        mustache.test(tmpl) ||
+        etpl.test(tmpl) ||
+        bx.test(tmpl) ||
+        vframe.test(tmpl);
+};
+let storeOldEvent = (tmpl, dataset) => {
+    let index = 0;
+    return tmpl.replace(oldMxEventReg, m => {
+        let key = '\x1a' + (index++) + '\x1a';
+        dataset[key] = m;
+        return key;
+    });
+};
+let recoverOldEvent = (tmpl, dataset) => {
+    return tmpl.replace(/\x1a\d+\x1a/g, m => {
+        return dataset[m] || '';
+    });
+};
 let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang) => {
     let key = magixTmpl + holder + fileContent;
     let fCache = cache[key];
@@ -59,8 +85,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
-        if (flagsInfo.artEngine) {
-            if (magixTmpl && configs.magixUpdaterQuick) {
+        if (flagsInfo.artEngine && magixTmpl) {
+            if (configs.magixUpdaterQuick) {
                 fileContent = tmplQuick.preProcess(fileContent, e);
             }
             fileContent = tmplArt(fileContent, e);
@@ -81,8 +107,8 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
-        if (flagsInfo.artEngine && srcContent != fileContent) {
-            if (magixTmpl && configs.magixUpdaterQuick) {
+        if (flagsInfo.artEngine && magixTmpl && srcContent != fileContent) {
+            if (configs.magixUpdaterQuick) {
                 fileContent = tmplQuick.preProcess(fileContent, e);
             }
             fileContent = tmplArt(fileContent, e);
@@ -186,7 +212,6 @@ module.exports = e => {
         //仍然是读取view.js文件内容，把里面@到的文件内容读取进来
         e.content = e.content.replace(configs.fileTmplReg, (match, quote, ctrl, name, ext, flags) => {
             name = atpath.resolvePath(name, moduleId);
-            //console.log(raw,name,prefix,configs.tmplOutputWithEvents);
             let file = path.resolve(path.dirname(from) + sep + name + '.' + ext);
             let fileContent = name;
             let singleFile = (name == 'template' && e.contentInfo);
@@ -198,10 +223,20 @@ module.exports = e => {
             }
             if (singleFile || fs.existsSync(file)) {
                 let magixTmpl = ctrl != 'raw' || flags;
+                let oldTemplate = false,
+                    oldEventDataset = Object.create(null);
                 if (configs.disableMagixUpdater) {
                     magixTmpl = false;
                 }
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
+                if (magixTmpl &&
+                    configs.checkOldTempalte &&
+                    isOldTemplate(fileContent)) {
+                    fileContent = storeOldEvent(fileContent, oldEventDataset);
+                    magixTmpl = false;
+                    oldTemplate = true;
+                    e.isOldTemplate = true;
+                }
                 let lang = singleFile ? e.contentInfo.templateLang : ext;
                 e.htmlModuleId = utils.extractModuleId(file);
                 e.srcHTMLFile = file;
@@ -253,6 +288,9 @@ module.exports = e => {
                     if (configs.debug) temp.file = e.shortHTMLFile;
                     if (configs.tmplOutputWithEvents) temp.events = fcInfo.events;
                     return JSON.stringify(temp);
+                }
+                if (oldTemplate) {
+                    fcInfo.info.tmpl = recoverOldEvent(fcInfo.info.tmpl, oldEventDataset);
                 }
                 return JSON.stringify(fcInfo.info.tmpl);
             }

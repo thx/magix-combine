@@ -24,6 +24,7 @@ module.exports = {
     less: {}, //less编译选项
     sass: {}, //sass编译选项
     autoprefixer: {},
+    checkOldTempalte: false,
     projectName: null, //css选择器前缀，通常可以是项目的简写，多个项目同时运行在magix中时有用
     htmlminifier: { //html压缩器选项 https://www.npmjs.com/package/html-minifier
         removeComments: true, //注释
@@ -101,13 +102,13 @@ module.exports = {
     tmplCompressVariable: true, //是否压缩模板中的变量
     tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplStaticAnalyze: true,//模板静态节点分析
-    tmplArtCommand: /\{\{[\s\S]*?\}\}(?!\})/g,//art模板
-    tmplCommand: /<%[\s\S]*?%>/g,
     disableMagixUpdater: false,
     magixUpdaterIncrement: false,
     magixUpdaterQuick: false,//quick模板
     selectorSilentErrorCss: false,//css选择器处理失败时，使用原有的选择器还是提示用户出错
     sourceMapCss: false,
+    importCssSyntax: false,
+    magixModuleIds: ['magix'],
     globalCss: [], //全局样式
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查

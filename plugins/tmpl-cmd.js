@@ -9,6 +9,7 @@ let jm = require('./js-min');
 let jsGeneric = require('./js-generic');
 let slog = require('./util-log');
 let tmplParser = require('./tmpl-parser');
+let consts = require('./util-const');
 //模板文件，模板引擎命令处理，因为我们用的是字符串模板，常见的模板命令如<%=output%> {{output}}，这种通常会影响我们的分析，我们先把它们做替换处理
 let anchor = '\u0007';
 let tmplCommandAnchorCompressReg = /(\u0007\d+\u0007)\s+(?=[<>])/g;
@@ -223,16 +224,18 @@ module.exports = {
     },
     store(tmpl, dataset, reg) { //保存模板引擎命令
         let idx = dataset.___idx || 0;
-        reg = reg || configs.tmplCommand;
-        if (reg) {
-            tmpl = tmpl.replace(reg, (match, key) => {
-                idx++;
-                key = anchor + idx + anchor;
-                dataset[match] = key;
-                dataset[key] = match;
-                dataset.___idx = idx;
-                return key;
-            });
+        let regs = [reg, configs.tmplCommand, consts.microTmplCommand];
+        for (let r of regs) {
+            if (r) {
+                tmpl = tmpl.replace(r, (match, key) => {
+                    idx++;
+                    key = anchor + idx + anchor;
+                    dataset[match] = key;
+                    dataset[key] = match;
+                    dataset.___idx = idx;
+                    return key;
+                });
+            }
         }
         return tmpl;
     },
@@ -290,7 +293,6 @@ module.exports = {
     },
     extractCmdContent(cmd, refTmplCommands) {
         let oc = this.recover(cmd, refTmplCommands);
-        artCtrlsReg.lastIndex = 0;
         let am = oc.match(artCtrlsReg);
         let old = '', line = -1, art = '';
         if (am) {

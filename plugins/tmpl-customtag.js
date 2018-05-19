@@ -18,6 +18,7 @@ let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
 let duAttrChecker = require('./checker-tmpl-duattr');
 let atpath = require('./util-atpath');
+let consts = require('./util-const');
 let sep = path.sep;
 let cmdNumReg = /^\x07\d+$/;
 let selfClose = {
@@ -286,6 +287,14 @@ module.exports = {
                                 n.contentEnd += offset;
                             }
                         }
+                        for (let r of n.childrenRange) {
+                            if (r.start > pos) {
+                                r.start += offset;
+                            }
+                            if (r.end > pos) {
+                                r.end += offset;
+                            }
+                        }
                     }
                 }
             };
@@ -293,12 +302,18 @@ module.exports = {
         };
         let getTagInfo = n => {
             let content = '',
-                attrs = '';
+                attrs = '',
+                children = [];
             if (n.hasAttrs) {
                 attrs = tmpl.substring(n.attrsStart, n.attrsEnd);
             }
             if (n.hasContent) {
                 content = tmpl.substring(n.contentStart, n.contentEnd);
+            }
+            if (n.childrenRange) {
+                for (let r of n.childrenRange) {
+                    children.push(tmpl.substring(r.start, r.end));
+                }
             }
             let tag = n.tag;
             let oTag = tag;
@@ -319,8 +334,10 @@ module.exports = {
                 subTags,
                 attrs,
                 attrsMap: n.attrsMap,
-                content
+                content,
+                children
             };
+            //console.log(result);
             return result;
         };
 
@@ -573,13 +590,13 @@ module.exports = {
             return false;
         };
         tmpl = tmplCmd.store(tmpl, cmdCache);
-        tmpl = tmplCmd.store(tmpl, cmdCache, configs.tmplArtCommand);
+        tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 2;
         while (hasSpecialTags(tokens) && --checkTimes) {
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
-            tmpl = tmplCmd.store(tmpl, cmdCache, configs.tmplArtCommand);
+            tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
             tokens = tmplParser(tmpl, e.shortHTMLFile);
         }
         tmpl = tmplCmd.recover(tmpl, cmdCache);

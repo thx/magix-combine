@@ -123,8 +123,8 @@ let processContent = (from, to, content, inwatch) => {
         let modifiers = [];
         let toTops = [];
         let toBottoms = [];
-        let tmplRanges = [];
-        let tmplInRange = n => {
+        //let tmplRanges = [];
+        /*let tmplInRange = n => {
             let key = n.start + '~' + n.end;
             return tmplRanges[key] === 1;
             /*
@@ -134,7 +134,7 @@ let processContent = (from, to, content, inwatch) => {
                 }
             }
             return false;*/
-        };
+        //};
         let processString = (node, tl) => { //存储字符串，减少分析干扰
             if (!tl) {
                 if (!stringReg.test(node.raw)) return;
@@ -161,8 +161,7 @@ let processContent = (from, to, content, inwatch) => {
                 }).replace(doubleAtReg, '@');
                 add = true;
             } else if (configs.htmlFileReg.test(raw)) {
-                let magixTmpl = tmplInRange(node);
-                node.raw = raw.replace(configs.htmlFileGlobalReg, (m, q, ctrl) => m.replace('@', (ctrl ? '' : (magixTmpl ? 'updater' : '')) + '\u0012@'));
+                node.raw = raw.replace(configs.htmlFileGlobalReg, (m, q, ctrl) => m.replace('@', (ctrl || 'updater') + '\u0012@'));
                 add = true;
             } else if (othersFileReg.test(raw)) {
                 let replacement = '';
@@ -221,7 +220,7 @@ let processContent = (from, to, content, inwatch) => {
                 });
             }
         };
-        acorn.walk(ast, {
+        /*acorn.walk(ast, {
             Property(node) {
                 if (node.key.type == 'Identifier' && node.key.name == 'tmpl') {
                     let key = node.value.start + '~' + node.value.end;
@@ -240,7 +239,7 @@ let processContent = (from, to, content, inwatch) => {
                     });
                 }
             }*/
-        });
+        //});
         acorn.walk(ast, {
             Property(node) {
                 if (node.key.type == 'Literal') {

@@ -42,6 +42,7 @@ module.exports = (input, htmlFile) => {
                 group: i != -1 && i == ip,
                 attrs,
                 attrsMap,
+                childrenRange: [],
                 hasContent: true,
                 start: pos
             };
@@ -116,6 +117,13 @@ module.exports = (input, htmlFile) => {
             if (unary) {
                 ctrls.pop();
                 token.end = pos;
+                let parent = ctrls[ctrls.length - 1];
+                if (parent) {
+                    parent.childrenRange.push({
+                        start: token.start,
+                        end: token.end
+                    });
+                }
                 delete token.contentStart;
                 delete token.hasContent;
             }
@@ -126,9 +134,24 @@ module.exports = (input, htmlFile) => {
             let temp = '</' + tag + '>';
             pos = input.indexOf(temp, pos) + temp.length;
             token.end = pos;
+            let parent = ctrls[ctrls.length - 1];
+            if (parent) {
+                parent.childrenRange.push({
+                    start: token.start,
+                    end: token.end
+                });
+            }
         },
         chars(text) {
-            pos = input.indexOf(text, pos) + text.length;
+            let parent = ctrls[ctrls.length - 1];
+            let p = input.indexOf(text, pos);
+            pos = p + text.length;
+            if (parent && text.trim()) {
+                parent.childrenRange.push({
+                    start: p,
+                    end: pos
+                });
+            }
         },
         comment(text) {
             pos = input.indexOf(text, pos) + text.length;

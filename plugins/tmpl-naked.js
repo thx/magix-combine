@@ -6,6 +6,7 @@ let configs = require('./util-config');
 let fd = require('./util-fd');
 let tmplCmd = require('./tmpl-cmd');
 let attrType = require('./tmpl-attr-type');
+let consts = require('./util-const');
 let mxTailReg = /\.mx$/;
 let templateReg = /<template([^>]*)>([\s\S]+?)<\/template>/i;
 let pureTagReg = /<[\w-]+[^>]*>/g;
@@ -20,8 +21,8 @@ let processTmpl = (tmpl, shortFrom) => {
         templateLang: tLang
     });*/
     tmpl = tmplCmd.store(tmpl, store);
-    tmpl = tmplCmd.store(tmpl, store, configs.tmplArtCommand);
-    
+    tmpl = tmplCmd.store(tmpl, store, consts.artCommandReg);
+
     tmpl = tmpl.replace(htmlCommentCelanReg, m => {
         let key = '\x00' + cIdx++ + '\x00';
         comment[key] = m;

@@ -245,6 +245,16 @@ declare module "magix-combine" {
         sourceMapCss?: boolean
 
         /**
+         * 是否支持类似 import 'style.css'　导入样式的语法，默认false
+         */
+        importCssSyntax?: boolean
+
+        /**
+         * magix模块名称，默认magix
+         */
+        magixModuleIds?: [string]
+
+        /**
          * autprefixer配置
          */
         autoprefixer?: object

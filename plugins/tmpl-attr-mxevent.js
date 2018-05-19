@@ -143,7 +143,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     return params.slice(1, -1);
 };
 module.exports = (e, match, refTmplCommands, toSrc) => {
-    if (!configs.disableMagixUpdater) { //增加事件前缀
+    if (!configs.disableMagixUpdater && !e.isOldTemplate) { //增加事件前缀
         match = match.replace(configs.tmplMxEventReg, (m, name, double, single) => { //查找事件
             tmplChecker.checkMxEventName(name, e);
             if (double || single) {

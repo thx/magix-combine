@@ -13,6 +13,7 @@ let atpath = require('./util-atpath');
 let depsReg = /(?:(?:(?:var\s+|let\s+|const\s+)?[^\r\n]+?)?\brequire\s*\([^\(\)]+\)|\bimport\s+[^;\r\n]+)[\r\n;,]?/g;
 let importReg = /import\s+(?:([^;\r\n]+?)from\s+)?(['"])([^'"]+)\2([\r\n;,])?/;
 let requireReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(\s*(['"])([^\(\)]+)\3\s*\)([\r\n;,])?/;
+let styleReg = /^(global|ref|names)?@?([\w\.\-\/\\]+?(?:\.css|\.less|\.scss|\.sass|\.mx|\.style))$/;
 let removeRequiresLoader = {
     kissy: 1,
     kissy_es: 1
@@ -22,6 +23,7 @@ module.exports = {
         let deps = [];
         let vars = [];
         let noKeyDeps = [];
+        let nearestMagixVarName = 'Magix';
         if (e.addWrapper) {
             let depsInfo = jsModuleParser.process(e.content);
             depsInfo = depsInfo.reverse();
@@ -47,16 +49,20 @@ module.exports = {
                             mId = m[3];
                             tail = m[4] || '';
                         }
+                        if (configs.magixModuleIds.indexOf(mId) !== -1) {
+                            nearestMagixVarName = vId;
+                        }
                         let reqInfo = {
                             prefix,
                             tail,
                             raw: match,
                             type: info.type,
                             vId,
-                            mId
+                            mId,
+                            magix: nearestMagixVarName
                         };
                         let replacement = this.getReqReplacement(reqInfo, e);
-                        if (reqInfo.mId) {
+                        if (reqInfo.mId && !reqInfo.isCss) {
                             let dId = JSON.stringify(reqInfo.mId);
                             if (reqInfo.vId) {
                                 deps.push(dId);
@@ -81,6 +87,24 @@ module.exports = {
         configs.resolveRequire(reqInfo, e);
         if (reqInfo.hasOwnProperty('replacement')) {
             return reqInfo.replacement;
+        }
+        if (configs.importCssSyntax) {
+            let sm = reqInfo.mId.match(styleReg);
+            if (sm) {
+                let [, prefix, name] = sm;
+                let dId = reqInfo.mId;
+                let replacement = reqInfo.prefix;
+                if (prefix) {
+                    dId = JSON.stringify(dId);
+                } else {
+                    dId = `${reqInfo.magix}.applyStyle(${JSON.stringify('@' + name)})`;
+                }
+                if (reqInfo.vId) {
+                    replacement += reqInfo.vId + ' = ';
+                }
+                reqInfo.isCss = true;
+                return replacement + dId + reqInfo.tail;
+            }
         }
         //kissy要删除require信息
         if (removeRequiresLoader[e.loader] || !reqInfo.mId) {

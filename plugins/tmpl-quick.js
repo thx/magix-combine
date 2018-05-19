@@ -1,22 +1,22 @@
 /*
-{{set user,index}}
-<div for="{{(user,index) in list}}" if="{{user.name>20 && def>30}}">
-    <div value="def{{:value}}" {{:name}}>{{=user.name}}good</div>
-    <span>adsf</span>
-    <div>
-        <span class="test">aaa</span>
-        <span class="{{=good()}}">bbb</span>
-        <span>ccc</span>
+<div each="{{list as user index}}" if="{{user.age>20}}">
+    <input value="{{:user.name}}"/>
+    <input type="checkbox" @checked="{{=user.gender=='female'}}"/>
+    {{=user.age}}
+    {{if user.age>30}}
+        <span>~~~</span>
+    {{/if}}
+    {{=user.origin}}
+    <div mx-view="path/to/user/card" user="{{@user}}">
+        <mx-loading/>
     </div>
 </div>
-<input value="{{:gogo}}"/>
-<input value="{{:gogo}}"/>
-<div>adfasdf</div>
 */
 let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
 let tmplCmd = require('./tmpl-cmd');
 let configs = require('./util-config');
 let artExpr = require('./tmpl-art-ctrl');
+let consts = require('./util-const');
 let utils = require('./util');
 let util = require('util');
 let regexp = require('./util-rcache');
@@ -263,7 +263,6 @@ let getForContent = (cnt, e) => {
         throw new Error('bad loop ' + cnt + ' at ' + e.shortHTMLFile);
     }
     fi = fi[0];
-    inReg.lastIndex = 0;
     let m = fi.ctrl.match(inReg);
     if (m) {
         return {
@@ -282,7 +281,6 @@ let getIfContent = (cnt, e) => {
         throw new Error('bad if ' + cnt + ' at ' + e.shortHTMLFile);
     }
     fi = fi[0];
-    ifExtractReg.lastIndex = 0;
     let m = fi.ctrl.match(ifExtractReg);
     if (m) {
         return {
@@ -467,7 +465,7 @@ let preProcess = (src, e) => {
     });
     src = artExpr.addLine(src);
     src = tmplCmd.store(src, cmds);
-    src = tmplCmd.store(src, cmds, configs.tmplArtCommand);
+    src = tmplCmd.store(src, cmds, consts.artCommandReg);
     src = storeMatchedTags(src, tags);
     src = src.replace(tmplCommandAnchorReg, m => {
         let ref = cmds[m];
@@ -501,7 +499,7 @@ let preProcess = (src, e) => {
         return m;
     });
 
-    src = tmplCmd.store(src, cmds, configs.tmplArtCommand);
+    src = tmplCmd.store(src, cmds, consts.artCommandReg);
     src = storeHTML(src, tags);
     src = src.replace(tagHReg, m => {
         m = tags[m];

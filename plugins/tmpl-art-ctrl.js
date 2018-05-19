@@ -82,7 +82,6 @@ module.exports = {
         return tmpl;
     },
     extractArtInfo(art) {
-        lineNoReg.lastIndex = 0;
         if (art.startsWith(openTag)) {
             art = art.substring(2, art.length - 2);
         }

@@ -163,7 +163,6 @@ let checkStack = (stack, key, code, e, lineNo) => {
 let syntax = (code, stack, e, lineNo) => {
     code = code.trim();
     let ctrls, partial;
-    ifForReg.lastIndex = 0;
     let temp = ifForReg.exec(code);
     if (temp) {
         partial = '(' + code.substring(temp[0].length);
