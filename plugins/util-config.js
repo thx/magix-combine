@@ -44,12 +44,12 @@ module.exports = {
     revisableStringPrefix: '',//set default value at util-init.js
     checker: {
         css: true, //样式
-        cssUrl: true, //样式中的url
+        cssUrl: false, //样式中的url
         jsLoop: true, //js循环
         jsService: true, //js接口服务
         //jsThis: true, //js this别名
         tmplCmdSyntax: true,//命令语法检查
-        tmplAttrImg: true, //模板img属性
+        tmplAttrImg: false, //模板img属性
         tmplDisallowedTag: true, //不允许的标签
         tmplAttrDangerous: true, //危险的属性
         tmplAttrAnchor: true, //检测anchor类标签
@@ -113,7 +113,7 @@ module.exports = {
     scopedCss: [], //全局但做为scoped使用的样式
     uncheckGlobalCss: [], //对某些全局样式不做检查
     useAtPathConverter: true, //是否使用@转换路径的功能
-    jsFileExtNames: ['js', 'mx', 'ts', 'jsx', 'es', 'tsx'], //选择编译时的后缀名
+    jsFileExtNames: ['js', 'mx', 'ts', 'jsx', 'es', 'tsx','mjs'], //选择编译时的后缀名
     galleries: {
         mxRoot: 'app/gallery/',
         mxMap: {

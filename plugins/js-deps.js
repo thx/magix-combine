@@ -10,9 +10,10 @@ let jsModuleParser = require('./js-module-parser');
 let configs = require('./util-config');
 let atpath = require('./util-atpath');
 
-let depsReg = /(?:(?:(?:var\s+|let\s+|const\s+)?[^\r\n]+?)?\brequire\s*\([^\(\)]+\)|\bimport\s+[^;\r\n]+)[\r\n;,]?/g;
+let depsReg = /(?:(?:(?:(?:var|let|const)\s+|,|\s)\s*[^=\s]+\s*=\s*)?\brequire\s*\([^\(\)]+\)|\bimport\s+[^;\r\n]+)[\r\n;,]?|\bimport\s*\([^\(\);\r\n]+\)/g;
 let importReg = /import\s+(?:([^;\r\n]+?)from\s+)?(['"])([^'"]+)\2([\r\n;,])?/;
-let requireReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(\s*(['"])([^\(\)]+)\3\s*\)([\r\n;,])?/;
+let requireReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(\s*(['"])([^\(\)]+)\3\s*\)([\r\n;,\s])?/;
+let dimportReg = /import\s*\(([^\(\);\r\n]+)\)/;
 let styleReg = /^(global|ref|names)?@?([\w\.\-\/\\]+?(?:\.css|\.less|\.scss|\.sass|\.mx|\.style))$/;
 let removeRequiresLoader = {
     kissy: 1,
@@ -42,12 +43,18 @@ module.exports = {
                             vId = m[2] || '';
                             mId = m[4];
                             tail = m[5] || '';
-                        } else {
+                        } else if (info.type == 'import') {
                             m = match.match(importReg);
                             prefix = 'import ';
                             vId = m[1] || '';
                             mId = m[3];
                             tail = m[4] || '';
+                        } else if (info.type == 'dimport') {
+                            m = match.match(dimportReg);
+                            prefix = 'import(';
+                            tail = ')';
+                            vId = '';
+                            mId = m[1];
                         }
                         if (configs.magixModuleIds.indexOf(mId) !== -1) {
                             nearestMagixVarName = vId;
@@ -62,7 +69,9 @@ module.exports = {
                             magix: nearestMagixVarName
                         };
                         let replacement = this.getReqReplacement(reqInfo, e);
-                        if (reqInfo.mId && !reqInfo.isCss) {
+                        if (reqInfo.mId &&
+                            !reqInfo.isCss &&
+                            reqInfo.type != 'dimport') {
                             let dId = JSON.stringify(reqInfo.mId);
                             if (reqInfo.vId) {
                                 deps.push(dId);
@@ -119,7 +128,7 @@ module.exports = {
                 }
             }
         }
-        let dId = JSON.stringify(reqInfo.mId);
+        let dId = reqInfo.type == 'dimport' ? reqInfo.mId : JSON.stringify(reqInfo.mId);
         let replacement = reqInfo.prefix;
         if (reqInfo.vId) {
             replacement += reqInfo.vId;

@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "3.11.3",
+  "version": "3.11.4",
   "description": "合并Magix View的html,js,css成一个js文件，并检测html,js,css中可能存在的问题",
   "main": "index.js",
   "types": "index.d.ts",
@@ -17,6 +17,7 @@
   ],
   "dependencies": {
     "acorn": "5.5.x",
+    "acorn-dynamic-import": "3.0.x",
     "acorn-es7-plugin": "1.1.x",
     "acorn5-object-spread": "5.1.x",
     "autoprefixer": "8.5.x",

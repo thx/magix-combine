@@ -46,7 +46,7 @@ module.exports = e => {
             return v;
         });
     }
-    if (loader == 'kissy') {
+    if (loader == 'kissy' || loader == 'kissy_es') {
         tmpl = tmpl.replace(exportsReg, 'return ');
     }
     return tmpl;

@@ -26,11 +26,24 @@ module.exports = {
                 }
             },
             CallExpression(node) {
-                if (node.callee.type == 'Identifier' && node.arguments.length == 1) {
-                    if (node.arguments[0].type == 'Literal' && node.callee.name == 'require') {
-                        let a0 = node.arguments[0];
+                if (node.arguments.length == 1) {
+                    let a0 = node.arguments[0];
+                    let callee = node.callee;
+                    if (callee.type == 'Identifier' &&
+                        a0.type == 'Literal' &&
+                        callee.name == 'require') {
                         modules.push({
                             type: 'require',
+                            start: node.start,
+                            end: node.end,
+                            raw: tmpl.substring(node.start, node.end),
+                            module: a0.value,
+                            moduleStart: a0.start,
+                            moduleEnd: a0.end
+                        });
+                    } else if (callee.type == 'Import') {
+                        modules.push({
+                            type: 'dimport',
                             start: node.start,
                             end: node.end,
                             raw: tmpl.substring(node.start, node.end),
