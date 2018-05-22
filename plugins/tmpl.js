@@ -41,12 +41,12 @@ let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 
-let oldMxEventReg = /\s+mx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
+let oldMxEventReg = /\bmx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
 let mustache = /\{\{#\s*\w+|\{\{\{\w+/;
 let etpl = /\$\{[^{}]+?\}/;
 let bx = /\s+bx-(?:datakey|tmpl|path|config)\s*=\s*['"]/;
 let vframe = /<vframe\s+/;
-let oldMxEventReg1 = /\s+mx-(?!view|vframe|keys|options|data|partial|init|html)[a-zA-Z]+\s*=\s*(['"])\w+(?:\{[\s\S]*?\})?\1/g;
+let oldMxEventReg1 = /\bmx-(?!view|vframe|keys|options|data|partial|init|html)[a-zA-Z]+\s*=\s*(['"])\w+(?:\{[\s\S]*?\})?\1/g;
 let bxCfg = /\bbx-config\s*=\s*"[^"]+"/g;
 let isOldTemplate = tmpl => {
     oldMxEventReg.lastIndex = 0;
