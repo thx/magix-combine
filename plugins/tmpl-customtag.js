@@ -67,6 +67,10 @@ let splitAttrs = (tag, attrs) => {
             return m;
         }
         prefix = prefix || '';
+        if (q === undefined && !content) {
+            q = '"';
+            content = 'true';
+        }
         if (!attrsMap[key] &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
@@ -79,17 +83,11 @@ let splitAttrs = (tag, attrs) => {
             } else if (!key.startsWith('view-')) {
                 key = 'view-' + key;
             }
-            if (q === undefined) {
-                content = 'true';
-            }
             viewAttrs += ' ' + key + '="' + content + '"';
             viewAttrsMap[key.substring(5)] = content;
             return '';
         }
-        let tValue = '';
-        if (q !== undefined) {
-            tValue = `=${q}${content}${q}`;
-        }
+        let tValue = `=${q}${content}${q}`;
         if (key.startsWith('native-')) {
             return prefix + key.substring(7) + tValue;
         } else if (key.startsWith('#')) {
@@ -150,6 +148,10 @@ let innerView = (result, info, gRoot, map, extInfo) => {
             }
         }
         let viewKey = false;
+        if (q === undefined && !value) {
+            value = 'true';
+            q = '"';
+        }
         if (!allAttrs.hasOwnProperty(key) &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
@@ -157,9 +159,6 @@ let innerView = (result, info, gRoot, map, extInfo) => {
             !key.startsWith('#') &&
             !key.startsWith('@native-') &&
             !key.startsWith('@#')) {
-            if (q === undefined) {
-                value = 'true';
-            }
             if (key.startsWith('@view-')) {
                 key = 'view-@' + key.substring(6);
             } else if (!key.startsWith('view-')) {

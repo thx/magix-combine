@@ -41,7 +41,7 @@ let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 let globalTmplRootReg = /[\u0003\u0006]/g;
 let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
 
-let oldMxEventReg = /\bmx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent)>(?:{([\s\S]*?)})?\1/g;
+let oldMxEventReg = /\bmx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent|halt)>(?:{([\s\S]*?)})?\1/g;
 let mustache = /\{\{#\s*\w+|\{\{\{\w+/;
 let etpl = /\$\{[^{}]+?\}/;
 let bx = /\s+bx-(?:datakey|tmpl|path|config)\s*=\s*['"]/;
