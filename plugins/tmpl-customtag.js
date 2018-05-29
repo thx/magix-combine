@@ -67,10 +67,6 @@ let splitAttrs = (tag, attrs) => {
             return m;
         }
         prefix = prefix || '';
-        if (q === undefined && !content) {
-            q = '"';
-            content = 'true';
-        }
         if (!attrsMap[key] &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
@@ -83,11 +79,15 @@ let splitAttrs = (tag, attrs) => {
             } else if (!key.startsWith('view-')) {
                 key = 'view-' + key;
             }
+            if (q === undefined && !content) {
+                q = '"';
+                content = 'true';
+            }
             viewAttrs += ' ' + key + '="' + content + '"';
             viewAttrsMap[key.substring(5)] = content;
             return '';
         }
-        let tValue = `=${q}${content}${q}`;
+        let tValue = (q === undefined && content === undefined) ? '' : `=${q}${content}${q}`;
         if (key.startsWith('native-')) {
             return prefix + key.substring(7) + tValue;
         } else if (key.startsWith('#')) {
@@ -148,10 +148,7 @@ let innerView = (result, info, gRoot, map, extInfo) => {
             }
         }
         let viewKey = false;
-        if (q === undefined && !value) {
-            value = 'true';
-            q = '"';
-        }
+        let originalKey = key;
         if (!allAttrs.hasOwnProperty(key) &&
             !key.startsWith('mx-') &&
             !key.startsWith('data-') &&
@@ -175,14 +172,24 @@ let innerView = (result, info, gRoot, map, extInfo) => {
         } else if (key.startsWith('@#')) {
             key = '@' + key.substring(2);
         }
+        //处理其它属性
         if (info) {
-            let pKey = '_' + key;
-            if (info[key]) {
-                processedAttrs[key] = 1;
-            } else if (info[pKey]) {
-                processedAttrs[pKey] = 1;
-                value += ' ' + info[pKey];
+            let pKey = '_' + originalKey;
+            if (info[originalKey]) {//如果配置中允许覆盖，则标记已经处理过
+                processedAttrs[originalKey] = 1;
+            } else if (info[pKey]) {//如果配置中追加
+                processedAttrs[pKey] = 1;//标记处理过
+                if (q === undefined &&
+                    value === undefined) {//对于unary的我们要特殊处理下
+                    q = '"';
+                    value = '';
+                }
+                value += info[pKey];
             }
+        }
+        if (q === undefined && viewKey) {
+            q = '"';
+            value = 'true';
         }
         return prefix + key + (q === undefined && !viewKey ? '' : '=' + q + value + q);
     });

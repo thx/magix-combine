@@ -40,7 +40,7 @@ module.exports = {
     log: true, //日志及进度条
     debug: false, //
     //thisAlias: '', //this别名
-    jsLoopDepth: 3,
+    jsLoopDepth: 4,
     revisableStringPrefix: '',//set default value at util-init.js
     checker: {
         css: true, //样式
@@ -120,10 +120,10 @@ module.exports = {
             //'mx-popover': compound('span'),
             //'mx-popover.index': compound('span'),
             'mx-number': {
-                _class: 'input pr'
+                _class: ' input pr'
             },
             'mx-number.index': {
-                _class: 'input pr'
+                _class: ' input pr'
             },
             'mx-loading'() {
                 return `<div class="loading">

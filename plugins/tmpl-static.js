@@ -24,7 +24,6 @@ let attrKeyReg = /\s*_mxa="[^"]+"/g;
 let mxvKeyReg = /\s*_mxv="[^"]+"/g;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let forceStaticKey = /\s+mx-static(?:-attr)?(?:\s*=\s*(['"])[^'"]+\1)?/;
-let slotKeyReg = /\s*_mxslot="[^"]+"/g;
 let ifForReg = /\s*(?:if|for|for_declare)\s*=\s*"[^"]+"/g;
 
 module.exports = (tmpl, file) => {
@@ -34,7 +33,6 @@ module.exports = (tmpl, file) => {
         tKey = ' _mxv="' + g++ + '"';
         tKey += ' _mxs="' + g++ + '"';
         tKey += ' _mxa="' + g++ + '"';
-        tKey += ' _mxslot="' + g++ + '"';
         return '<' + tag + tKey + attrs + (close || '') + '>';
     });
     let tokens = tmplParser(tmpl);
@@ -66,16 +64,14 @@ module.exports = (tmpl, file) => {
                 let html = tmpl.substring(n.start, n.end)
                     .replace(staticKeyReg, '')
                     .replace(attrKeyReg, '')
-                    .replace(mxvKeyReg, '')
-                    .replace(slotKeyReg, '');
+                    .replace(mxvKeyReg, '');
                 if (configs.magixUpdaterQuick) {
                     html = html.replace(ifForReg, '');
                 }
                 let attr = tmpl.substring(n.attrsStart, n.attrsEnd);
                 attr = attr.replace(staticKeyReg, '')
                     .replace(attrKeyReg, '')
-                    .replace(mxvKeyReg, '')
-                    .replace(slotKeyReg, '').trim();
+                    .replace(mxvKeyReg, '').trim();
                 if (configs.magixUpdaterQuick) {
                     attr = attr.replace(ifForReg, '').trim();
                 }
@@ -166,24 +162,6 @@ module.exports = (tmpl, file) => {
             }
         };
         walk(tokens);
-
-        let slot = (nodes, named) => {
-            for (let n of nodes) {
-                if (n.hasMxView) {
-                    if (!named && !n.namedSlot) {
-                        keys.push(' _mxslot="' + n.mxSlotKey + '"');
-                    }
-                } else {
-                    keys.push(' _mxslot="' + n.mxSlotKey + '"');
-                }
-                if (n.hasContent) {
-                    if (n.children) {
-                        slot(n.children, named || n.namedSlot);
-                    }
-                }
-            }
-        };
-        slot(tokens);
         return keys;
     };
     let keys = getRemovedStaticKeys();
@@ -211,8 +189,6 @@ module.exports = (tmpl, file) => {
                 r = md5(m, file + ':akey', prefix, true) + ':' + r;
             }
             return ' mxa="' + r + '"';
-        }).replace(slotKeyReg, () => {
-            return ' mxo="\x1f"';
         }).replace(mxvKeyReg, ' mxv')
             .replace(forceStaticKey, '');
     });

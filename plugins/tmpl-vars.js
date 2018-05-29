@@ -18,7 +18,7 @@ let md5 = require('./util-md5');
 let jsGeneric = require('./js-generic');
 let tmplCmdReg = /<%([@=!:~\x1a-\x1d&])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
-let bindReg = /([^>\s\/=]+)\s*=\s*(["'])([\s\S]*?)(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%([:\x1b])([\s\S]+?)%>\s*([\s\S]*?)\2/g;
+let bindReg = /([^>\s\/=]+)\s*=\s*(["'])(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%([:\x1b])([\s\S]+?)%>\s*\2/g;
 let bindReg2 = /\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%[:\x1b]([\s\S]+?)%>\s*/g;
 let pathReg = /<%~([\s\S]+?)%>/g;
 let textaraReg = /<textarea([^>]*)>([\s\S]*?)<\/textarea>/g;
@@ -1095,17 +1095,23 @@ module.exports = {
                 e += '}';
                 mxeInfo.push(e);
             };
-            attrs = attrs.replace(bindReg, (m, name, q, prefix, art, op, expr, suffix) => {
+            attrs = attrs.replace(bindReg, (m, name, q, art, op, expr) => {
                 expr = expr.trim();
                 let exprInfo = extractFunctions(expr);
                 art = art || '';
                 transformEvent(exprInfo, m, name, art);
                 findCount++;
-                let replacement = '<%' + (op == '=' ? op : '\x1a');
+                let replacement = '<%';
+                if (configs.magixUpdaterQuick) {
+                    replacement += (op == '=' ? op : '\x1a');
+                } else {
+                    replacement += '=';
+                }
                 if (hasMagixView && name.indexOf('view-') === 0) {
                     replacement = '<%@';
                 }
-                m = name + '=' + q + (prefix || '') + art + replacement + exprInfo.expr + '%>' + (suffix || '') + q;
+                m = name + '=' + q + art + replacement + exprInfo.expr + '%>' + q;
+                //console.log('enter?',m,name,q,art,expr);
                 return m;
             }).replace(bindReg2, (m, art, expr) => {
                 expr = expr.trim();
@@ -1130,6 +1136,7 @@ module.exports = {
                     attrs = ' mxv="' + keys + '"' + attrs;
                 }
             }
+            //console.log(attrs);
             return '<' + tag + attrs + '>';
         });
         fn = tmplCmd.recover(fn, cmdStore);

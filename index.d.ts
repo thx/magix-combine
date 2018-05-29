@@ -372,7 +372,7 @@ declare module "magix-combine" {
          */
         customTagProcessor?: (tmpl: string, e?: ICombineResult) => string
         /**
-         * 检测js代码中循环嵌套的层数，当超过该值时，输出提示，默认3层。合理的数据结构可以减少循环的嵌套，有效的提升性能
+         * 检测js代码中循环嵌套的层数，当超过该值时，输出提示，默认4层。合理的数据结构可以减少循环的嵌套，有效的提升性能
          */
         jsLoopDepth?: number
 

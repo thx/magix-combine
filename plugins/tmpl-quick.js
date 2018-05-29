@@ -759,7 +759,7 @@ let process = (src, e) => {
     if (configs.debug) {
         source = `let $__art,$__line,$__ctrl;try{${source}}catch(ex){let msg='render view error:'+(ex.message||ex);msg+='\\r\\n\\tsrc art: '+$__art+'\\r\\n\\tat line: '+$__line;msg+='\\r\\n\\ttranslate to: '+$__ctrl+'\\r\\n\\tat file:${e.shortHTMLFile}';throw msg;}`;
     }
-    source = `($$,$create,$viewId,$n,$e,$eu,$i,$eq/*,$views*/)=>{${source}}`;
+    source = `($$,$create,$viewId,$e,$n,$eu,$i,$eq/*,$views*/)=>{${source}}`;
     //console.log(source);
     source = configs.compileTmplCommand(`${source}`, configs);
     //console.log(source);
