@@ -1101,12 +1101,7 @@ module.exports = {
                 art = art || '';
                 transformEvent(exprInfo, m, name, art);
                 findCount++;
-                let replacement = '<%';
-                if (configs.magixUpdaterQuick) {
-                    replacement += (op == '=' ? op : '\x1a');
-                } else {
-                    replacement += '=';
-                }
+                let replacement = '<%=';
                 if (hasMagixView && name.indexOf('view-') === 0) {
                     replacement = '<%@';
                 }

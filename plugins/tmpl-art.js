@@ -150,7 +150,7 @@ let checkStack = (stack, key, code, e, lineNo) => {
             }
             args.push(chalk.grey(e.shortHTMLFile));
             slog.ever.apply(slog, args);
-            throw new Error(`unexpected ${code} , close ${l.ctrl} before it`);
+            throw new Error(`unexpected ${code}`);
         }
     } else if (stack.length) {
         for (let s, i = stack.length; i--;) {

@@ -1,11 +1,12 @@
 //https://github.com/marcosbasualdo/UnclosedHtmlTags/blob/master/index.js
 
-let chalk = require('chalk');
-let slog = require('./util-log');
+//let chalk = require('chalk');
+//let slog = require('./util-log');
 let configs = require('./util-config');
+//let tmplCmd = require('./tmpl-cmd');
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script)[^>]*>[\s\S]*?<\/\1>/g;
-let tagReg = /<(\/)?([a-z0-9\-.:_]+)[^>]*>?/ig;
+let tagReg = /<(\/)?([a-z0-9\-.:_\x11]+)[^>]*>?/ig;
 let brReg = /(?:\r\n|\r|\n)/;
 let consts = require('./util-const');
 let selfCloseTags = {
@@ -34,8 +35,18 @@ let brPlaceholder = m => {
 };
 let cleanHTML = tmpl => {
     tmpl = tmpl.replace(commentReg, brPlaceholder)
-        .replace(tagRemovedReg, brPlaceholder)
-        .replace(consts.microTmplCommand, brPlaceholder);
+        .replace(tagRemovedReg, brPlaceholder);
+    //let store = Object.create(null);
+    //tmpl = tmplCmd.store(tmpl, store);
+    //tmpl = tmpl.replace(/(?:>[\s\S]+?<|^[\s\S]+?<|>[\s\S]+?$)/g, m => tmplCmd.recover(m, store));
+    /*tmpl = tmpl.replace(consts.artCtrlsReg, (m, key) => {
+        let closed = key.startsWith('/');
+        if (closed) {
+            key = key.substring(1);
+        }
+        return `<${closed ? '/' : ''}art\x11${key.trim()}>`;
+    })*/
+    tmpl = tmpl.replace(consts.microTmplCommand, brPlaceholder);
     if (configs.tmplCommand) {
         tmpl = tmpl.replace(configs.tmplCommand, brPlaceholder);
     }
@@ -83,10 +94,10 @@ module.exports = (tmpl, e) => {
     for (let line of lines) {
         line.replace(tagReg, (m, close, name, offset) => {
             if (selfCloseTags.hasOwnProperty(name)) {
-                close = isClosed(line, offset);
-                if (!close) {
-                    slog.ever(chalk.red('tag ' + name + ' recommand closed at line: ' + lineCount), 'at file', chalk.magenta(e.shortHTMLFile));
-                }
+                // close = isClosed(line, offset);
+                // if (!close) {
+                //     slog.ever(chalk.red('tag ' + name + ' recommand closed at line: ' + lineCount), 'at file', chalk.magenta(e.shortHTMLFile));
+                // }
                 return;
             }
             let check = true;
@@ -115,7 +126,15 @@ module.exports = (tmpl, e) => {
             }
             let last = tagsStack.pop();
             if (tag.name != last.name) {
-                throw new Error(`${tag.match} at line ${tag.line} doesn't match open tag ${last.match} at line ${last.line}`);
+                let before = `open tag ${last.match}`;
+                if (last.name.startsWith('art\x11')) {
+                    before = `art "${last.close ? '/' : ''}${last.name.substring(4)}"`;
+                }
+                let current = tag.match;
+                if (tag.name.startsWith('art\x11')) {
+                    current = `art "${tag.close ? '/' : ''}${tag.name.substring(4)}"`;
+                }
+                throw new Error(`${current} at line ${tag.line} doesn't match ${before} at line ${last.line}`);
             }
         } else {
             tagsStack.push(tag);

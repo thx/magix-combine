@@ -33,11 +33,11 @@ let newWindowReg = /\btarget\s*=\s*(['"])[^'"]+\1/i;
 //检测各种可能执行代码的情况
 let dangerousAttrReg = /\b(on[a-z]+)\s*=\s*(['"]?)[^>]+?\2/gi;
 
-let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:([\s\S]*?)\1/i;
+//let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:([\s\S]*?)\1/i;
 
 let targetSelfReg = /\btarget\s*=\s*(['"])_self\1/g;
 let allowClickReg = /\bonclick\s*=\s*(['"])return\s+false;*\1/;
-let voidReg = /void\([\s\S]+?\);?/;
+//let voidReg = /void\([\s\S]+?\);?/;
 let sandboxReg = /\bsandbox\s*=\s*(["'])[^'"]*?\1/;
 let disallowedTags = {
     script: 1,
@@ -64,16 +64,16 @@ module.exports = {
             if (targetSelfReg.test(match)) {
                 slog.ever(chalk.red('remove unnecessary target="_self"'), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
             }
-            let m = match.match(jsProtocalWithHrefReg);
-            if (m) {
-                let am = m[2].match(voidReg);
-                if (am) {
-                    slog.ever(chalk.red('remove unnecessary ' + am[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
-                }
-                if (!allowClickReg.test(match)) {
-                    slog.ever(chalk.red('avoid use ' + m[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch, 'more info:', chalk.magenta('http://www.360doc.com/content/16/0427/18/32095775_554304106.shtml'));
-                }
-            }
+            // let m = match.match(jsProtocalWithHrefReg);
+            // if (m) {
+            //     let am = m[2].match(voidReg);
+            //     if (am) {
+            //         slog.ever(chalk.red('remove unnecessary ' + am[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
+            //     }
+            //     if (!allowClickReg.test(match)) {
+            //         slog.ever(chalk.red('avoid use ' + m[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch, 'more info:', chalk.magenta('http://www.360doc.com/content/16/0427/18/32095775_554304106.shtml'));
+            //     }
+            // }
             if (newWindowReg.test(match) && !safedReg.test(match)) {
                 slog.ever(chalk.red('add rel="noopener noreferrer" to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/asciidoctor/asciidoctor/issues/2071'));
             }

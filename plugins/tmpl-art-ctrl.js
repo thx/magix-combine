@@ -5,8 +5,8 @@ let eventRightReg = /\}\s*\)/g;
 let brReg = /(?:\r\n|\r|\n)/;
 let openTag = '{{';
 let mxEventHolderReg = /\x12([^\x12]+?)\x12/g;
-let lineNoReg = /^(\d+)([\s\S]+)/;
-let removeLineNoReg = /^\{\{\d+([\s\S]+)\}\}$/;
+let lineNoReg = /^\x1e(\d+)([\s\S]+)/;
+let removeLineNoReg = /^\{\{\x1e\d+([\s\S]+)\}\}$/;
 let extractAsExpr = expr => {
     expr = expr.trim();
     //解构
@@ -76,7 +76,7 @@ module.exports = {
         let lines = tmpl.split(brReg);
         let ls = [], lc = 0;
         for (let line of lines) {
-            ls.push(line.split(openTag).join(openTag + (++lc)));
+            ls.push(line.split(openTag).join(openTag + '\x1e' + (++lc)));
         }
         tmpl = ls.join('\n');
         return tmpl;

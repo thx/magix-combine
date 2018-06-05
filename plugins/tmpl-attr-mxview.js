@@ -36,8 +36,9 @@ let encodeMore = {
     '*': '%2A'
 };
 let addAtIfNeed = tmpl => {
-    return tmpl.replace(relativeReg, (m, offset) => {
-        if (tmpl[offset - 1] == '@') {
+    return tmpl.replace(relativeReg, (m, offset, c) => {
+        c = tmpl[offset - 1];
+        if (c == '@' || c == '/') {
             return m;
         }
         return '@' + m;
@@ -113,7 +114,7 @@ module.exports = (e, match, refTmplCommands, toSrc) => {
                         let cmdContent = tmplCmd.extractCmdContent(content, refTmplCommands);
                         if (cmdContent.succeed) {
                             let o = cmdContent.operate || '';
-                            let art='';
+                            let art = '';
                             if (cmdContent.isArt) {
                                 art = `<%'${cmdContent.line}\x11${cmdContent.art}\x11'%>`;
                             }

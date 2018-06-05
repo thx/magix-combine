@@ -130,7 +130,7 @@ module.exports = (file, e, source, ext, refInnerStyle) => {
         if (refInnerStyle) {
             let type = info.styleType;
             if (ext != '.mx') {
-                if (type != ext) {
+                if (type && type != ext) {
                     slog.ever(chalk.red('conflicting style language'), 'at', chalk.magenta(shortFile), 'near', chalk.magenta(source + ' and ' + info.styleTag));
                 }
             }
