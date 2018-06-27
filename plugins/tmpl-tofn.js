@@ -73,7 +73,7 @@ module.exports = (tmpl, file) => {
     }
     source = source.replace(viewIdReg, `'+$viewId+'`);
 
-    let atRule = hasAtRule ? `,$i=(v,k,f)=>{for(f=$$[$g];--f;)if($$[k=$g+f]===v)return k;$$[k=$g+$$[$g]++]=v;return k;}` : '';
+    let atRule = hasAtRule ? `,$i=(v,k,f)=>{for(f=$$ref[$g];--f;)if($$ref[k=$g+f]===v)return k;$$ref[k=$g+$$ref[$g]++]=v;return k;}` : '';
 
     let encode = `,$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=v=>''+(v==null?'':v),$ef=m=>\`&\${$em[m]};\`,$e=v=>$n(v).replace($er,$ef)`;
 
@@ -81,9 +81,9 @@ module.exports = (tmpl, file) => {
 
     let encodeQuote = `,$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&')`;
 
-    source = `let $g='\x1e',$_temp,$p=''${encode}${encodeURIMore}${encodeQuote}${atRule};${source}return $p`;
+    source = `if(!$$ref)$ref=$$;let $g='\x1e',$_temp,$p=''${encode}${encodeURIMore}${encodeQuote}${atRule};${source}return $p`;
 
-    source = configs.compileTmplCommand(`($$,$viewId)=>{${source}}`, configs);
+    source = configs.compileTmplCommand(`($$,$viewId,$$ref)=>{${source}}`, configs);
     if (source.startsWith('(function')) {
         source = source.substring(1).replace(closeReg, '');
     }
