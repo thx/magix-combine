@@ -190,6 +190,7 @@ module.exports = {
         }
         let globalExists = Object.assign(Object.create(null), extInfo.tmplScopedGlobalVars);
         let globalTracker = Object.create(null);
+        let globalVars = Object.create(null);
         /*
             变量和变量声明在ast里面遍历的顺序不一致，需要对位置信息保存后再修改fn
          */
@@ -379,6 +380,7 @@ module.exports = {
                         end: node.end,
                         name: tname
                     });
+                    globalVars[tname] = 1;
                 } else { //如果变量不在全局变量里，则增加使用前缀
                     //console.log(node.name, compressVarsMap);
                     modifiers.push({
@@ -1162,6 +1164,8 @@ module.exports = {
                 return expr.replace(removeTempReg, '').replace(artCtrlsReg, '{{$1}}');
             };
         }
+
+        e.globalVars = Object.keys(globalVars);
 
 
         //slog.ever(JSON.stringify(fn));

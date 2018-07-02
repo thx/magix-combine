@@ -751,6 +751,9 @@ let process = (src, e) => {
         genElement(t, 0);
     }
     let source = 'let $_temp,$vnode0=[],$empty_arr=[]';
+    for (let key of e.globalVars) {
+        source += `,${key}=$$.${key}`;
+    }
     for (let vd in vnodeDeclares) {
         source += ',' + vd;
     }

@@ -38,8 +38,8 @@ let removeVdReg = /\u0002/g;
 let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
-let globalTmplRootReg = /[\u0003\u0006]/g;
-let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '$$$$');
+let globalTmplRootReg = /[\u0003\u0006]\./g;
+let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '');
 
 let oldMxEventReg = /\bmx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent|halt)>(?:{([\s\S]*?)})?\1/g;
 let mustache = /\{\{#\s*\w+|\{\{\{\w+/;
@@ -291,7 +291,7 @@ module.exports = e => {
                 if (magixTmpl) {
                     if (configs.magixUpdaterIncrement) {
                         let tmpl = fcInfo.info.tmpl;
-                        return configs.magixUpdaterQuick ? tmplQuick.process(tmpl, e) : tmplToFn(tmpl, e.shortHTMLFile);
+                        return configs.magixUpdaterQuick ? tmplQuick.process(tmpl, e) : tmplToFn(tmpl, e.shortHTMLFile,e.globalVars);
                     }
                     let temp = {
                         html: fcInfo.info.tmpl,

@@ -59,6 +59,7 @@ let chalk = require('chalk');
 let artExpr = require('./tmpl-art-ctrl');
 let slashReg = /\\|'/g;
 let ifForReg = /^\s*(if|for)\s*\(/;
+let longExpr = /[\.\[\]]/;
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/g;
 let openTag = '{{';
 let ctrls = {
@@ -209,9 +210,10 @@ let syntax = (code, stack, e, lineNo) => {
             throw new Error('unsupport or bad each {{' + code + '}}');
         }
         let index = asExpr.key || utils.uId('$art_i', code);
-        let refObj = utils.uId('$art_obj', code);
+        let refObj = longExpr.test(object) ? utils.uId('$art_obj', code) : object;
         let value = init ? `let ${asExpr.vars}=${refObj}[${index}]` : '';
-        return `${src}<%for(let ${index}=0,${refObj}=${object};${index}<${refObj}.length;${index}++){${value}%>`;
+        let refExpr = longExpr.test(object) ? `,${refObj}=${object}` : '';
+        return `${src}<%for(let ${index}=0${refExpr};${index}<${refObj}.length;${index}++){${value}%>`;
     } else if (key == 'forin') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0], asExpr,
@@ -229,9 +231,10 @@ let syntax = (code, stack, e, lineNo) => {
             throw new Error('unsupport or bad forin {{' + code + '}}');
         }
         let key1 = asExpr.key || utils.uId('$art_k', code);
-        let refObj = utils.uId('$art_obj', code);
+        let refObj = longExpr.test(object) ? utils.uId('$art_obj', code) : object;
         let value = init ? `let ${asExpr.vars}=${refObj}[${key1}]` : '';
-        return `${src}<%let ${refObj}=${object};for(let ${key1} in ${refObj}){${value}%>`;
+        let refExpr = longExpr.test(object) ? `let ${refObj}=${object};` : '';
+        return `${src}<%${refExpr}for(let ${key1} in ${refObj}){${value}%>`;
     } else if (key == 'for') {
         checkStack(stack, key, code, e, lineNo);
         let expr = ctrls.join(' ').trim();

@@ -4,7 +4,7 @@ let escapeBreakReturnRegExp = /\r|\n/g;
 let mathcer = /<%([@=!])?([\s\S]*?)%>|$/g;
 let viewIdReg = /\x1f/g;
 let closeReg = /\);?\s*$/;
-module.exports = (tmpl, file) => {
+module.exports = (tmpl, file, globalVars) => {
     // Compile the template source, escaping string literals appropriately.
     let index = 0;
     let source = `$p+='`;
@@ -81,7 +81,11 @@ module.exports = (tmpl, file) => {
 
     let encodeQuote = `,$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&')`;
 
-    source = `if(!$$ref)$ref=$$;let $g='\x1e',$_temp,$p=''${encode}${encodeURIMore}${encodeQuote}${atRule};${source}return $p`;
+    let vars = '';
+    for (let key of globalVars) {
+        vars += `,${key}=$$.${key}`;
+    }
+    source = `if(!$$ref)$$ref=$$;let $g='\x1e',$_temp,$p=''${encode}${encodeURIMore}${encodeQuote}${atRule}${vars};${source}return $p`;
 
     source = configs.compileTmplCommand(`($$,$viewId,$$ref)=>{${source}}`, configs);
     if (source.startsWith('(function')) {
