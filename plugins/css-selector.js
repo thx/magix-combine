@@ -16,7 +16,7 @@ let slashReg = /[\/\.]/g;
 //[ref="@../default.css:inmain"] .open{
 //    color:red
 //}
-let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.style):([\w\-]+)\1\]/g;
+let cssRefReg = /\[\s*ref\s*=(['"])@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.mx|\.mmx|\.style):([\w\-]+)\1\]/g;
 let genCssNamesKey = (file, ignorePrefix) => {
     /*if (configs.scopedCssMap[file]) {
         file = 'scoped.style';

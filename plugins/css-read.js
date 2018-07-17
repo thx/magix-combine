@@ -95,7 +95,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
                 file: e.file,
                 content: e.content
             });
-        } else if (e.ext == '.mx') {
+        } else if (e.ext == '.mx' || e.ext == '.mmx') {
             let content = fd.read(e.file);
             let info = jsMx.process(content, e.file);
             compileContent(e.file, info.style, info.styleType, resolve, reject, e.shortFile);
@@ -129,7 +129,7 @@ module.exports = (file, e, source, ext, refInnerStyle) => {
         };
         if (refInnerStyle) {
             let type = info.styleType;
-            if (ext != '.mx') {
+            if (ext != '.mx' && ext != '.mmx') {
                 if (type && type != ext) {
                     slog.ever(chalk.red('conflicting style language'), 'at', chalk.magenta(shortFile), 'near', chalk.magenta(source + ' and ' + info.styleTag));
                 }

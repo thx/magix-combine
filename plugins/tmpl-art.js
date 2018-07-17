@@ -213,7 +213,20 @@ let syntax = (code, stack, e, lineNo) => {
         let refObj = longExpr.test(object) ? utils.uId('$art_obj', code) : object;
         let value = init ? `let ${asExpr.vars}=${refObj}[${index}]` : '';
         let refExpr = longExpr.test(object) ? `,${refObj}=${object}` : '';
-        return `${src}<%for(let ${index}=0${refExpr};${index}<${refObj}.length;${index}++){${value}%>`;
+        let refObjCount = utils.uId(`$art_c`, code);
+        let firstAndLast = '';
+        let lastCount = '';
+        let lastCountObj = utils.uId(`$art_lc`, code);
+        if (asExpr.last || asExpr.first) {
+            if (asExpr.first) {
+                firstAndLast += `let ${asExpr.first}=${index}===0;`;
+            }
+            if (asExpr.last) {
+                lastCount = `,${lastCountObj}=${refObjCount}-1`;
+                firstAndLast += `let ${asExpr.last}=${index}===${lastCountObj};`;
+            }
+        }
+        return `${src}<%for(let ${index}=0${refExpr},${refObjCount}=${refObj}.length${lastCount};${index}<${refObjCount};${index}++){${firstAndLast}${value}%>`;
     } else if (key == 'forin') {
         checkStack(stack, key, code, e, lineNo);
         let object = ctrls[0], asExpr,

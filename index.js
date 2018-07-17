@@ -159,7 +159,6 @@ module.exports = {
                 let total = 0;
                 let completed = 0;
                 let tasks = [];
-                let once = 3;
                 fd.walk(configs.commonFolder, filepath => {
                     if (configs.jsFileExtNamesReg.test(filepath)) {
                         let from = path.resolve(filepath);
@@ -178,7 +177,7 @@ module.exports = {
                 let current = 0;
                 let run = () => {
                     errorOccured = false;
-                    let tks = tasks.slice(current, current += once);
+                    let tks = tasks.slice(current, current += configs.concurrentTask);
                     if (tks.length) {
                         ps = [];
                         tks.forEach(it => {
@@ -230,7 +229,6 @@ module.exports = {
             let total = 0;
             let completed = 0;
             let tasks = [];
-            let once = 3;
             fd.walk(configs.commonFolder, filepath => {
                 //if (filepath.indexOf('/nav') >= 0) {
                 let from = path.resolve(filepath);
@@ -242,7 +240,7 @@ module.exports = {
             let current = 0;
             let run = () => {
                 errorOccured = false;
-                let tks = tasks.slice(current, current += once);
+                let tks = tasks.slice(current, current += configs.concurrentTask);
                 if (tks.length) {
                     ps = [];
                     tks.forEach(from => {

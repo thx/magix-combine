@@ -255,6 +255,10 @@ declare module "magix-combine" {
         magixModuleIds?: [string]
 
         /**
+         * 任务同时执行的并发数量，默认为1
+         */
+        concurrentTask: number
+        /**
          * autprefixer配置
          */
         autoprefixer?: object
@@ -311,6 +315,11 @@ declare module "magix-combine" {
          * 待编译的文件后缀，默认为['js', 'mx', 'ts', 'jsx', 'es', 'tsx']
          */
         jsFileExtNames?: string[]
+
+        /**
+         * mx-view　处理器
+         */
+        mxViewProcessor?: ({ path: string, pkgName: string }) => string
         /**
          * 待编译的模板文件后缀，默认为['html', 'haml', 'pug', 'jade', 'tpl']
          */

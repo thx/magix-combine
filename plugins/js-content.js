@@ -23,7 +23,7 @@ let jsHeader = require('./js-header');
 let acorn = require('./js-acorn');
 
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
-let mxTailReg = /\.mx$/;
+let mxTailReg = /\.m?mx$/;
 let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /^(['"])(@moduleId)\1$/;

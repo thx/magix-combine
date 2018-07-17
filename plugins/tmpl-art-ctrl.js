@@ -11,13 +11,23 @@ let extractAsExpr = expr => {
     expr = expr.trim();
     //解构
     if (expr.startsWith('{') || expr.startsWith('[')) {
-        let stack = [], vars = '', key = '', bad = false;
+        let stack = [],
+            vars = '',
+            key = '',
+            last = '',
+            first = '',
+            pos = 0,
+            bad = false;
         for (let i = 0; i < expr.length; i++) {
             let c = expr[i];
-            if (key) {
-                key += c;
-            } else {
+            if (pos == 0) {
                 vars += c;
+            } else if (pos == 1) {
+                key += c;
+            } else if (pos == 2) {
+                last += c;
+            } else if (pos == 3) {
+                first += c;
             }
             if (c == '{' || c == '[') {
                 stack.push(c);
@@ -35,20 +45,24 @@ let extractAsExpr = expr => {
                     bad = true;
                     break;
                 }
-            } else if (c == ' ' && !key && !stack.length) {
-                key += c;
+            } else if (c == ' ' && !stack.length) {
+                pos++;
             }
         }
         return {
             vars: vars.trim(),
             key: key.trim(),
+            last: last.trim(),
+            first: first.trim(),
             bad: bad || stack.length
         };
     }
     expr = expr.split(/\s+/);
     return {
         vars: expr[0],
-        key: expr[1]
+        key: expr[1],
+        last: expr[2],
+        first: expr[3]
     };
 };
 

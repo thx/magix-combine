@@ -1,10 +1,7 @@
 /*
     mx-view属性处理
  */
-let url = require('url');
-let qs = require('querystring');
 let atpath = require('./util-atpath');
-let configs = require('./util-config');
 let checker = require('./checker');
 let tmplCmd = require('./tmpl-cmd');
 let classRef = require('./tmpl-attr-classref');
@@ -18,7 +15,6 @@ let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 //let mxViewParamsReg = /\bmx-params\s*=\s*(['"])([^'"]+?)\1/;
 let cmdReg = /\u0007\d+\u0007/g;
 let dOutCmdReg = /<%([=!])([\s\S]+?)%>/g;
-let relativeReg = /\.{1,2}\//g;
 // let paramsReg = /([^=&?\/#]+)=?[^&#?]*/g;
 
 // let hyphenateRE = /(?=[^-])([A-Z]+)/g;
@@ -35,47 +31,12 @@ let encodeMore = {
     ')': '%29',
     '*': '%2A'
 };
-let addAtIfNeed = tmpl => {
-    return tmpl.replace(relativeReg, (m, offset, c) => {
-        c = tmpl[offset - 1];
-        if (c == '@' || c == '/') {
-            return m;
-        }
-        return '@' + m;
-    });
-};
 
 let encodeMoreReg = /[!')(*]/g;
 let encodeReplacor = m => encodeMore[m];
 module.exports = (e, match, refTmplCommands, toSrc) => {
     if (mxViewAttrReg.test(match)) { //带有mx-view属性才处理
         let classLocker = Object.create(null);
-        if (configs.useAtPathConverter) { //如果启用@路径转换规则
-            match = match.replace(mxViewAttrReg, (m, q, c) => {
-                let { pathname, query } = url.parse(c);
-                pathname = pathname || '';
-                pathname = addAtIfNeed(pathname);
-                pathname = atpath.resolveContent(pathname, e.moduleId);
-                let params = [];
-                query = qs.parse(query, '&', '=', {
-                    decodeURIComponent(v) {
-                        return v;
-                    }
-                });
-                for (let p in query) {
-                    let v = query[p];
-                    v = addAtIfNeed(v);
-                    v = atpath.resolveContent(v, e.moduleId);
-                    params.push(`${p}=${v}`);
-                }
-                let view = pathname;
-                if (params.length) {
-                    view += `?${params.join('&')}`;
-                }
-                return `mx-view="${view}"`;
-            });
-        }
-
         match.replace(mxViewAttrReg, (m, q, content) => {
             let i = content.indexOf('?');
             if (i > -1) {

@@ -9,6 +9,8 @@
  */
 let fs = require('fs');
 let path = require('path');
+let url = require('url');
+let qs = require('querystring');
 let configs = require('./util-config');
 let tmplCmd = require('./tmpl-cmd');
 let slog = require('./util-log');
@@ -43,10 +45,22 @@ let inputTypeReg = /\btype\s*=\s*(['"])([\s\S]+?)\1/;
 let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
 let attrAtStartContentHolderReg = /\x03/g;
+let mxViewAttrHolderReg = /\x02/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
+let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]*?)\1/;
 let fileCache = Object.create(null);
 let processedGalleryInfo = Symbol('gallery.info.processed');
 
+let relativeReg = /\.{1,2}\//g;
+let addAtIfNeed = tmpl => {
+    return tmpl.replace(relativeReg, (m, offset, c) => {
+        c = tmpl[offset - 1];
+        if (c == '@' || c == '/') {
+            return m;
+        }
+        return '@' + m;
+    });
+};
 let splitAttrs = (tag, attrs) => {
     let viewAttrs = '';
     let viewAttrsMap = {};
@@ -404,10 +418,14 @@ module.exports = {
                                 };
                             }
                         } else {
-                            uncheckTags[result.tag] = {
+                            //当文件不存在时，不检查，直接使用用户配置的路径
+                            gMap[result.tag] = {
+                                path: vpath
+                            };
+                            /*uncheckTags[result.tag] = {
                                 resolve: cpath + sep,
                                 msg: 'folder not found. try path'
-                            };
+                            };*/
                         }
                     }
                 } else {
@@ -561,6 +579,52 @@ module.exports = {
             tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
             updateOffset(n.start, content.length - (n.end - n.start));
         };
+        let processMxView = n => {
+            let result = getTagInfo(n);
+            let content = '';
+            let tag = result.tag;
+            let attrs = result.attrs;
+            if (configs.useAtPathConverter) { //如果启用@路径转换规则
+                attrs = attrs.replace(mxViewAttrReg, (m, q, c) => {
+                    let { pathname, query } = url.parse(c);
+                    pathname = pathname || '';
+                    pathname = addAtIfNeed(pathname);
+                    pathname = atpath.resolveContent(pathname, e.moduleId);
+                    let params = [];
+                    query = qs.parse(query, '&', '=', {
+                        decodeURIComponent(v) {
+                            return v;
+                        }
+                    });
+                    for (let p in query) {
+                        let v = query[p];
+                        v = addAtIfNeed(v);
+                        params.push(`${p}=${v}`);
+                    }
+                    pathname = configs.mxViewProcessor({
+                        path: pathname,
+                        pkgName: e.pkgName
+                    }) || pathname;
+                    let view = pathname;
+                    if (params.length) {
+                        view += `?${params.join('&')}`;
+                    }
+                    return `\x02="${view}"`;
+                });
+            }
+            let html = `<${tag} ${attrs}`;
+            let unary = selfClose.hasOwnProperty(tag);
+            if (unary) {
+                html += `/`;
+            }
+            html += `>${result.content}`;
+            if (!unary) {
+                html += `</${tag}>`;
+            }
+            content = html;
+            tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
+            updateOffset(n.start, content.length - (n.end - n.start));
+        };
         let walk = (nodes, map) => {
             if (nodes) {
                 if (!map) map = nodes.__map;
@@ -581,6 +645,8 @@ module.exports = {
                         processAtAttrs(n);
                     } else if (n.atAttrContent) {
                         processAtAttrContents(n);
+                    } else if (n.hasMxView) {
+                        processMxView(n);
                     }
                 }
             }
@@ -589,7 +655,11 @@ module.exports = {
             let map = nodes.__map;
             for (let n in map) {
                 n = map[n];
-                if (!badTags[n.tag] && n.customTag || n.atAttr || n.atAttrContent) {
+                if (!badTags[n.tag] &&
+                    n.customTag ||
+                    n.atAttr ||
+                    n.atAttrContent ||
+                    n.hasMxView) {
                     return true;
                 }
             }
@@ -607,6 +677,7 @@ module.exports = {
         }
         tmpl = tmplCmd.recover(tmpl, cmdCache);
         tmpl = tmpl.replace(attrAtStartContentHolderReg, '@');
+        tmpl = tmpl.replace(mxViewAttrHolderReg, 'mx-view');
         return tmpl;
     }
 };

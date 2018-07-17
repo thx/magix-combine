@@ -14,7 +14,7 @@ let depsReg = /(?:(?:(?:(?:var|let|const)\s+|,|\s)\s*[^=\s]+\s*=\s*)?\brequire\s
 let importReg = /import\s+(?:([^;\r\n]+?)from\s+)?(['"])([^'"]+)\2([\r\n;,])?/;
 let requireReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(\s*(['"])([^\(\)]+)\3\s*\)([\r\n;,\s])?/;
 let dimportReg = /import\s*\(([^\(\);\r\n]+)\)/;
-let styleReg = /^(global|ref|names)?@?([\w\.\-\/\\]+?(?:\.css|\.less|\.scss|\.sass|\.mx|\.style))$/;
+let styleReg = /^(global|ref|names)?@?([\w\.\-\/\\]+?(?:\.css|\.less|\.scss|\.sass|\.mx|\.mmx|\.style))$/;
 let removeRequiresLoader = {
     kissy: 1,
     kissy_es: 1
