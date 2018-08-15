@@ -9,33 +9,20 @@ let tagRemovedReg = /<(style|script)[^>]*>[\s\S]*?<\/\1>/g;
 let tagReg = /<(\/)?([a-z0-9\-.:_\x11]+)[^>]*>?/ig;
 let brReg = /(?:\r\n|\r|\n)/;
 let consts = require('./util-const');
-let selfCloseTags = {
-    area: 1,
-    base: 1,
-    basefont: 1,
-    br: 1,
-    col: 1,
-    embed: 1,
-    frame: 1,
-    hr: 1,
-    img: 1,
-    input: 1,
-    isindex: 1,
-    keygen: 1,
-    link: 1,
-    meta: 1,
-    param: 1,
-    source: 1,
-    track: 1,
-    wbr: 1
-};
-let brPlaceholder = m => {
+let selfCloseTags = require('./html-selfclose-tags');
+let hdreg = /\x1f\d+\s*\x1f/g;
+let brPlaceholder = (m, store) => {
     let count = m.split(brReg).length;
-    return new Array(count).join('\n');
+    let key = `\x1f${++store.__idx}${new Array(count).join('\n')}\x1f`;
+    store[key] = m;
+    return key;
 };
-let cleanHTML = tmpl => {
-    tmpl = tmpl.replace(commentReg, brPlaceholder)
-        .replace(tagRemovedReg, brPlaceholder);
+let cleanHTML = (tmpl, store) => {
+    tmpl = tmpl.replace(commentReg, m => {
+        return brPlaceholder(m, store);
+    }).replace(tagRemovedReg, m => {
+        return brPlaceholder(m, store);
+    });
     //let store = Object.create(null);
     //tmpl = tmplCmd.store(tmpl, store);
     //tmpl = tmpl.replace(/(?:>[\s\S]+?<|^[\s\S]+?<|>[\s\S]+?$)/g, m => tmplCmd.recover(m, store));
@@ -46,15 +33,21 @@ let cleanHTML = tmpl => {
         }
         return `<${closed ? '/' : ''}art\x11${key.trim()}>`;
     })*/
-    tmpl = tmpl.replace(consts.microTmplCommand, brPlaceholder);
+    tmpl = tmpl.replace(consts.microTmplCommand, m => {
+        return brPlaceholder(m, store);
+    });
     if (configs.tmplCommand) {
-        tmpl = tmpl.replace(configs.tmplCommand, brPlaceholder);
+        tmpl = tmpl.replace(configs.tmplCommand, m => {
+            return brPlaceholder(m, store);
+        });
     }
     return tmpl;
 };
 
 module.exports = (tmpl, e) => {
-    tmpl = cleanHTML(tmpl);
+    let store = Object.create(null);
+    store.__idx = 0;
+    tmpl = cleanHTML(tmpl, store);
     let tags = [];
     let lines = tmpl.split(brReg);
     let lineCount = 1;
@@ -119,18 +112,19 @@ module.exports = (tmpl, e) => {
         lineCount++;
     }
     let tagsStack = [];
+    let recover = str => str.replace(hdreg, m => store[m]);
     for (let tag of tags) {
         if (tag.close) {
             if (!tagsStack.length) {
-                throw new Error(`[MXC Error(checker-tmpl-unmatch)] ${tag.match} doesn't have corresponding open tag at line  ${tag.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] ${recover(tag.match)} doesn't have corresponding open tag at line  ${tag.line}`);
             }
             let last = tagsStack.pop();
             if (tag.name != last.name) {
-                let before = `open tag ${last.match}`;
+                let before = `open tag ${recover(last.match)}`;
                 if (last.name.startsWith('art\x11')) {
                     before = `art "${last.close ? '/' : ''}${last.name.substring(4)}"`;
                 }
-                let current = tag.match;
+                let current = recover(tag.match);
                 if (tag.name.startsWith('art\x11')) {
                     current = `art "${tag.close ? '/' : ''}${tag.name.substring(4)}"`;
                 }
@@ -141,6 +135,6 @@ module.exports = (tmpl, e) => {
         }
     }
     for (let tag of tagsStack) {
-        throw new Error(`[MXC Error(checker-tmpl-unmatch)] unclosed tag ${tag.match} at line ${tag.line}`);
+        throw new Error(`[MXC Error(checker-tmpl-unmatch)] unclosed tag ${recover(tag.match)} at line ${tag.line}`);
     }
 };

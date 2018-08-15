@@ -17,7 +17,7 @@ let qnameCapture = (() => {
     startTagOpen = new RegExp('^<' + qnameCapture),
     startTagClose = /^\s*(\/?)>/,
     endTag = new RegExp('^<\\/' + qnameCapture + '[^>]*>');
-//let doctype = /^<!DOCTYPE [^>]+>/i;
+let doctype = /^<!DOCTYPE [^>]+>/i;
 let attribute = /^\s*([^\s"'<>/=]+)(?:\s*((?:=))[ \t\n\f\r]*(?:"([^"]*)"+|'([^']*)'+|([^ \t\n\f\r"'`=<>]+)))?/;
 module.exports = (html, handler) => {
     let last;
@@ -135,15 +135,14 @@ module.exports = (html, handler) => {
             }
 
             // Doctype:
-            // let doctypeMatch = html.match(doctype);
-            // if (doctypeMatch) {
-            //     if (handler.doctype) {
-            //         handler.doctype(doctypeMatch[0]);
-            //     }
-            //     html = html.substring(doctypeMatch[0].length);
-            //     prevTag = '';
-            //     continue;
-            // }
+            let doctypeMatch = html.match(doctype);
+            if (doctypeMatch) {
+                if (handler.doctype) {
+                    handler.doctype(doctypeMatch[0]);
+                }
+                html = html.substring(doctypeMatch[0].length);
+                continue;
+            }
 
             // End tag:
             let endTagMatch = html.match(endTag);
@@ -162,7 +161,19 @@ module.exports = (html, handler) => {
             let startTagMatch = parseStartTag(html, pos);
             if (startTagMatch) {
                 html = startTagMatch.rest;
+                //console.log('===', html, startTagMatch);
                 handleStartTag(startTagMatch, pos, pos = startTagMatch.endPos);
+                let tn = startTagMatch.tagName;
+                if (tn == 'script' || tn == 'style') {
+                    let reg = new RegExp(new RegExp('([\\s\\S]*?)(</' + tn + '[^>]*>)', 'i'));
+                    html = html.replace(reg, (m, text, end) => {
+                        if (handler.chars) {
+                            handler.chars(text, pos, pos + text.length);
+                        }
+                        pos += text.length;
+                        return end;
+                    });
+                }
                 continue;
             }
         }

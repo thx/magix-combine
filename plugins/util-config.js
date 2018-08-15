@@ -59,8 +59,7 @@ module.exports = {
         tmplAttrMxEvent: true, //mx事件
         tmplAttrMxView: true, //mx view
         tmplDuplicateAttr: true, //重复的属性
-        tmplCmdFnOrForOf: true, //模板中函数或for of检测
-        tmplTagsMatch: true //标签配对
+        tmplCmdFnOrForOf: true //模板中函数或for of检测
     },
     tmplFileExtNames: ['html', 'haml', 'pug', 'jade', 'tpl'], //模板后缀
     tmplConstVars: {

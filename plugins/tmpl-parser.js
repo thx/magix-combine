@@ -130,6 +130,9 @@ module.exports = (input, htmlFile) => {
         },
         end(tag) {
             let token = ctrls.pop();
+            if (token.tag !== tag) {
+                throw new Error(`${tag} unmatched tag ${token.tag}`);
+            }
             token.contentEnd = pos;
             let temp = '</' + tag + '>';
             pos = input.indexOf(temp, pos) + temp.length;

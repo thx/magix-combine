@@ -74,6 +74,14 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             }
             fileContent = tmplArt(fileContent, e);
         }
+        try {
+            unmatchChecker(fileContent, e);
+        } catch (ex) {
+            slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            ex.message += ' at ' + e.shortHTMLFile;
+            reject(ex);
+            return;
+        }
         let srcContent = fileContent;
         try {
             fileContent = tmplCutsomTag.process(fileContent, {
@@ -85,7 +93,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
                 artEngine: flagsInfo.artEngine
             }, e);
         } catch (ex) {
-            slog.ever(chalk.red('[MXC Error(tmpl)] parser tmpl-customtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
             return;
@@ -96,15 +104,13 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             }
             fileContent = tmplArt(fileContent, e);
         }
-        if (e.checker.tmplTagsMatch) {
-            try {
-                unmatchChecker(fileContent, e);
-            } catch (ex) {
-                slog.ever(chalk.red('[MXC Error(tmpl)] tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
-                ex.message += ' at ' + e.shortHTMLFile;
-                reject(ex);
-                return;
-            }
+        try {
+            unmatchChecker(fileContent, e);
+        } catch (ex) {
+            slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            ex.message += ' at ' + e.shortHTMLFile;
+            reject(ex);
+            return;
         }
 
         let temp = Object.create(null);
@@ -215,8 +221,7 @@ module.exports = e => {
                     magixTmpl = false;
                 }
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
-                if (magixTmpl &&
-                    configs.checkOldTempalte &&
+                if (configs.checkOldTempalte &&
                     tmplL3.isOldTemplate(fileContent)) {
                     fileContent = tmplL3.storeOldEvent(fileContent, oldEventDataset);
                     magixTmpl = false;

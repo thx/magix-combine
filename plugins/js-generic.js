@@ -55,16 +55,22 @@ module.exports = {
             }
         }
         let trimCount = 0;
+        let compare = expr;
         do {
             let first = check.shift();
             let last = check.pop();
             if (last && first.i === last.m && last.i === first.m) {
+                let c = expr.substring(first.i, first.m + 1);
+                if (c != compare) {
+                    break;
+                }
+                compare = c.substring(1, c.length - 1).trim();
                 trimCount++;
             } else {
                 break;
             }
         } while (check.length);
-        return expr.substring(trimCount, expr.length - trimCount);
+        return expr.substring(trimCount, expr.length - trimCount).trim();
     },
     splitExpr(expr) { //拆分表达式，如"list[i].name[object[key[value]]]" => ["list", "[i]", "name", "[object[key[value]]]"]
         expr = this.trimParentheses(expr);

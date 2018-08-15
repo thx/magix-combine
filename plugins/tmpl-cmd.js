@@ -5,7 +5,7 @@
 let chalk = require('chalk');
 let configs = require('./util-config');
 let htmlminifier = require('html-minifier');
-let jm = require('./js-min');
+//let jm = require('./js-min');
 let jsGeneric = require('./js-generic');
 let slog = require('./util-log');
 let tmplParser = require('./tmpl-parser');
@@ -111,7 +111,7 @@ module.exports = {
                     c = c.slice(1, -1);
                 }
                 // console.log(o,c,m);
-                c = jm.min(c).replace(lineBreakReg, '');
+                c = c.replace(lineBreakReg, '');
                 return '<%' + (o || '') + c + '%>';
             });
             //console.log(tmpl);
