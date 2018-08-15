@@ -11,7 +11,7 @@ let processor = (url, short, e) => {
         return Promise.resolve(cache[url]);
     } else {
         if (e.checker.cssUrl) {
-            slog.ever('css-url match:', url, chalk.grey(short));
+            slog.ever('[MXC Tip(css-url)] match:', url, chalk.grey(short));
         }
         let content = configs.cssUrlMatched(url);
         if (!content.then) {

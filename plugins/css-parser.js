@@ -82,7 +82,7 @@ let parse = (css, file) => {
             current += id.length;
         } else {
             throw {
-                message: 'css-parser:get name error',
+                message: '[MXC Error(css-parser)] get name error',
                 file: file,
                 extract: getArround()
             };
@@ -194,7 +194,7 @@ let parse = (css, file) => {
                     current = ti;
                 } else {
                     throw {
-                        message: 'css-parser:missing right brace',
+                        message: '[MXC Error(css-parser)] missing right brace',
                         file: file,
                         extract: getArround()
                     };
@@ -236,7 +236,7 @@ let parse = (css, file) => {
                 let matches = temp.match(attrReg);
                 if (!matches) {
                     throw {
-                        message: 'css-parser:bad attribute',
+                        message: '[MXC Error(css-parser)] bad attribute',
                         file: file,
                         extract: getArround()
                     };

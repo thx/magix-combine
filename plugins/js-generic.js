@@ -15,34 +15,56 @@ module.exports = {
     trimParentheses(expr) {
         expr = expr.trim();
         let start = 0, c,
-            startPC = 0,
-            endPC = 0,
-            sc = 0;
+            stack = [], end = 0, last = 0;
         while (start < expr.length) {
             c = expr[start];
             if (c == '(') {
-                if (!sc) {
-                    startPC++;
-                } else {
-                    endPC--;
-                }
+                stack.push({
+                    c,
+                    i: start
+                });
             } else if (c == ')') {
-                if (!sc) {
-                    startPC--;
-                } else {
-                    endPC++;
-                }
+                stack.push({
+                    c,
+                    i: start
+                });
+                end = start;
             } else if (c != ' ') {
-                endPC = 0;
-                sc++;
+                last = start;
+                if (!stack.length) {
+                    break;
+                }
             }
             start++;
         }
-        let trimPC = Math.min(startPC, endPC);
-        if (trimPC) {
-            expr = expr.slice(trimPC, -trimPC);
+        if (last > end) {
+            stack = [];
         }
-        return expr;
+        let matches = [], m, check = [];
+        for (start = 0; start < stack.length; start++) {
+            m = stack[start];
+            check.push(m);
+            if (m.c == '(') {
+                matches.push(m);
+            } else if (m.c == ')') {
+                c = matches.pop();
+                if (c) {
+                    m.m = c.i;
+                    c.m = m.i;
+                }
+            }
+        }
+        let trimCount = 0;
+        do {
+            let first = check.shift();
+            let last = check.pop();
+            if (last && first.i === last.m && last.i === first.m) {
+                trimCount++;
+            } else {
+                break;
+            }
+        } while (check.length);
+        return expr.substring(trimCount, expr.length - trimCount);
     },
     splitExpr(expr) { //拆分表达式，如"list[i].name[object[key[value]]]" => ["list", "[i]", "name", "[object[key[value]]]"]
         expr = this.trimParentheses(expr);

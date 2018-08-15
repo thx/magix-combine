@@ -10,7 +10,7 @@ module.exports = (n, e, refTmplCommands, attr) => {
             if (!temp[a.name]) {
                 temp[a.name] = 1;
             } else {
-                slog.ever('duplicate attr:', chalk.red(a.name), 'near:', chalk.magenta(tmplCmd.recover(attr, refTmplCommands)), ' relate file:', chalk.grey(e.shortHTMLFile));
+                slog.ever('[MXC Tip(checker-tmpl-duattr)] duplicate attr:', chalk.red(a.name), 'near:', chalk.magenta(tmplCmd.recover(attr, refTmplCommands)), ' relate file:', chalk.grey(e.shortHTMLFile));
             }
         }
     }

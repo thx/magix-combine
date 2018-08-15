@@ -62,7 +62,7 @@ module.exports = {
         let newMatch = toSrc(match);
         if (e.checker.tmplAttrAnchor && (tn == 'a' || tn == 'area')) {
             if (targetSelfReg.test(match)) {
-                slog.ever(chalk.red('remove unnecessary target="_self"'), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove unnecessary target="_self"'), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
             }
             // let m = match.match(jsProtocalWithHrefReg);
             // if (m) {
@@ -75,19 +75,19 @@ module.exports = {
             //     }
             // }
             if (newWindowReg.test(match) && !safedReg.test(match)) {
-                slog.ever(chalk.red('add rel="noopener noreferrer" to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/asciidoctor/asciidoctor/issues/2071'));
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('add rel="noopener noreferrer" to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/asciidoctor/asciidoctor/issues/2071'));
             }
         } else if (e.checker.tmplDisallowedTag && disallowedTags.hasOwnProperty(tn)) {
-            slog.ever(chalk.red('remove tag ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), (tn == 'style') ? ('use' + chalk.red(' Magix.applyStyle') + ' instead') : '');
+            slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove tag ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), (tn == 'style') ? ('use' + chalk.red(' Magix.applyStyle') + ' instead') : '');
         } else if (e.checker.tmplAttrIframe && tn == 'iframe') {
             if (!sandboxReg.test(match)) {
-                slog.ever(chalk.red('add sandbox to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('http://www.w3school.com.cn/tags/att_iframe_sandbox.asp'));
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('add sandbox to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('http://www.w3school.com.cn/tags/att_iframe_sandbox.asp'));
             }
         }
         if (e.checker.tmplAttrDangerous) {
             match.replace(dangerousAttrReg, (m, attr) => {
                 if (allowClickReg.test(m)) return;
-                slog.ever(chalk.red('remove dnagerous attr ' + attr), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta(m));
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove dnagerous attr ' + attr), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta(m));
             });
         }
 
@@ -97,18 +97,18 @@ module.exports = {
         upperCaseReg.lastIndex = 0;
         if (e.checker.tmplAttrMxEvent && upperCaseReg.test(eventName)) {
             eventName = 'mx-' + eventName;
-            slog.ever(chalk.red('avoid use ' + eventName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red(eventName.toLowerCase()), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
+            slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use ' + eventName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red(eventName.toLowerCase()), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
         }
     },
     checkMxEvengSingQuote(single, match, e) {
         if (e.checker.tmplAttrMxEvent && single) {
-            slog.ever(chalk.red('avoid use single quote:' + match), 'at', chalk.grey(e.shortHTMLFile), 'use double quote instead');
+            slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use single quote:' + match), 'at', chalk.grey(e.shortHTMLFile), 'use double quote instead');
         }
     },
     checkMxEventParams(eventName, params, match, e) {
         if (e.checker.tmplAttrMxEvent) {
             if (params.charAt(0) != '{' || params.charAt(params.length - 1) != '}') {
-                slog.ever(chalk.magenta('not recommended event params:' + match), 'at', chalk.grey(e.shortHTMLFile), 'replace it like', chalk.magenta('mx-' + eventName + '="({p1:\'p1\',p2:\'p2\'})"'));
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.magenta('not recommended event params:' + match), 'at', chalk.grey(e.shortHTMLFile), 'replace it like', chalk.magenta('mx-' + eventName + '="({p1:\'p1\',p2:\'p2\'})"'));
             }
         }
     },
@@ -116,18 +116,18 @@ module.exports = {
         if (e.checker.tmplAttrMxEvent) {
             let i = tmplCmd.extactCmd(srcStr, ['!', '@']);
             if (operate == '!') {
-                slog.ever(chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'use', chalk.red(i.match.replace(open + '!', open + '=')), 'instead');
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'use', chalk.red(i.match.replace(open + '!', open + '=')), 'instead');
             } else if (operate == '@') {
-                slog.ever(chalk.red('unsupport ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'near', chalk.magenta(srcStr));
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('unsupport ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent), 'near', chalk.magenta(srcStr));
             }
         }
     },
-    checkMxViewParams(paramName, e) {
+    checkMxViewParams(paramName, e, prefix = 'view-') {
         let hname = hyphenate(paramName);
         if (e.checker.tmplAttrMxView) {
             upperCaseReg.lastIndex = 0;
             if (upperCaseReg.test(paramName)) {
-                slog.ever(chalk.red('avoid use view-' + paramName + ' or ' + paramName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red('view-' + hname + ' or ' + hname), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
+                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use ' + prefix + paramName + ' or ' + paramName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red(prefix + hname + ' or ' + hname), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
             }
         }
         paramName = hname;
@@ -135,17 +135,17 @@ module.exports = {
         return paramName;
     },
     checkAtAttr(expr, e) {
-        slog.ever(chalk.red('unsupport ' + expr), 'at', chalk.grey(e.shortHTMLFile));
+        slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('unsupport ' + expr), 'at', chalk.grey(e.shortHTMLFile));
     },
     checkMxViewParamsEscape(operate, match, view, e) {
         if (e.checker.tmplAttrMxView && operate === '!') {
             let i = tmplCmd.extactCmd(match, ['!']);
-            slog.ever(chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red(`${i.open}=${i.content}${i.close}`), 'or', chalk.red(`${i.open}@${i.content}${i.close}`), 'instead');
+            slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red(`${i.open}=${i.content}${i.close}`), 'or', chalk.red(`${i.open}@${i.content}${i.close}`), 'instead');
         }
     },
     checkStringRevisable(content, match, e) {
         if (tmplCommandAnchorReg.test(content)) {
-            slog.ever(chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile));
+            slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile));
         }
     }
 };

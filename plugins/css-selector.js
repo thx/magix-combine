@@ -57,7 +57,7 @@ let refProcessor = (relateFile, file, ext, name, e) => {
         if (e) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
-                throw new Error('not found ' + name + ' at scoped.style');
+                throw new Error('[MXC Error(css-selector)] not found ' + name + ' at scoped.style');
             }
             let dFiles = e.globalCssNamesInFiles[name + '!r'];
             dFiles.forEach(f => {
@@ -65,7 +65,7 @@ let refProcessor = (relateFile, file, ext, name, e) => {
             });
             return '.@' + sname;
         } else {
-            throw new Error('unsupport use scoped.style in ' + relateFile);
+            throw new Error('[MXC Error(css-selector)] unsupport use scoped.style in ' + relateFile);
         }
     } else {
         /*
@@ -85,7 +85,7 @@ let refProcessor = (relateFile, file, ext, name, e) => {
         if (e && configs.scopedCssMap[file]) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
-                throw new Error('not found ' + name + ' at ' + file);
+                throw new Error('[MXC Error(css-selector)] not found ' + name + ' at ' + file);
             }
             let dFiles = e.globalCssNamesInFiles[name + '!r'];
             dFiles.forEach(f => {

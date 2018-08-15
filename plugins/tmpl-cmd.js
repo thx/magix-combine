@@ -77,7 +77,7 @@ module.exports = {
                     let temp = expr.split('&');
                     if (temp.length > 1) {
                         if (temp.length != 2) {
-                            throw new Error('unsupport ' + m);
+                            throw new Error('[MXC Error(tmpl-cmd)] unsupport ' + m);
                         }
                         let bind = temp[0].trim();
                         let rule = temp[1].trim();

@@ -4,6 +4,7 @@
 let attrMxEvent = require('./tmpl-attr-mxevent');
 let attrMxView = require('./tmpl-attr-mxview');
 let attrImg = require('./tmpl-attr-img');
+let attrLink = require('./tmpl-attr-link');
 let checker = require('./checker');
 let tmplCmd = require('./tmpl-cmd');
 let regexp = require('./util-rcache');
@@ -26,13 +27,14 @@ module.exports = {
                     if (i) {
                         if (i.operate == '!') {
                             let reg = regexp.get(i.open + '!', 'g');
-                            slog.ever(chalk.red('avoid use ' + m), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.magenta(m.replace(reg, i.open + '=')), 'instead');
+                            slog.ever(chalk.magenta(`[MXC Tip(tmpl-attr)]`), chalk.red('avoid use ' + m), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.magenta(m.replace(reg, i.open + '=')), 'instead');
                         }
                     }
                 }
             });
             match = attrMxEvent(e, match, refTmplCommands, toSrc);
             match = attrMxView(e, match, refTmplCommands, toSrc);
+            match = attrLink(e, tagName, match, refTmplCommands, toSrc);
             match = attrImg(e, tagName, match, refTmplCommands, toSrc);
             match = checker.Tmpl.checkTag(e, tagName, match, toSrc);
             return match;

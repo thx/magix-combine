@@ -16,7 +16,7 @@ let slog = require('./util-log');
 let regexp = require('./util-rcache');
 let md5 = require('./util-md5');
 let jsGeneric = require('./js-generic');
-let tmplCmdReg = /<%([@=!:~\x1a-\x1d&])?([\s\S]*?)%>|$/g;
+let tmplCmdReg = /<%([@=!:~\x1a-\x1d&*])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
 let bindReg = /([^>\s\/=]+)\s*=\s*(["'])(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%([:\x1b])([\s\S]+?)%>\s*\2/g;
 let bindReg2 = /\s*(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%[:\x1b]([\s\S]+?)%>\s*/g;
@@ -183,9 +183,9 @@ module.exports = {
         try {
             ast = acorn.parse(fn);
         } catch (ex) {
-            slog.ever('parse html cmd ast error:', chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
-            slog.ever('current state:', fn);
-            slog.ever('prev state:' + fn.replace(htmlHolderReg, m => htmlStore[m]));
+            slog.ever('[MXC Error(tmpl-vars)] parse html cmd ast error:', chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever('[MXC Error(tmpl-vars)] current state:', fn);
+            slog.ever('[MXC Error(tmpl-vars)] prev state:' + fn.replace(htmlHolderReg, m => htmlStore[m]));
             throw ex;
         }
         let globalExists = Object.assign(Object.create(null), extInfo.tmplScopedGlobalVars);
@@ -221,7 +221,7 @@ module.exports = {
         let compressVarToOriginal = Object.create(null);
         let constVars = Object.assign(Object.create(null), extInfo.tmplScopedConstVars);
         let patternChecker = node => {
-            let msg = 'unpupport ' + fn.substring(node.start, node.end);
+            let msg = '[MXC Error(tmpl-vars)] unpupport ' + fn.substring(node.start, node.end);
             slog.ever(chalk.red(msg), 'at', chalk.grey(sourceFile));
             throw new Error(msg);
         };
@@ -406,13 +406,13 @@ module.exports = {
                         });
                     }
                     if (!globalExists[tname] || globalExists[tname] === 1) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
-                        slog.ever(chalk.red('undeclare variable:' + lname), 'at', chalk.grey(sourceFile));
+                        slog.ever(chalk.red('[MXC Tip(tmpl-vars)] undeclare variable:' + lname), 'at', chalk.grey(sourceFile));
                     }
                     globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
                     if (globalExists[tname] > 3) {
                         if (e.refGlobalLeak && !e.refGlobalLeak['_' + lname]) {
                             e.refGlobalLeak['_' + lname] = 1;
-                            e.refGlobalLeak.reassigns.push(chalk.red('avoid reassign variable:' + lname) + ' at ' + chalk.grey(sourceFile));
+                            e.refGlobalLeak.reassigns.push(chalk.red('[MXC Tip(tmpl-vars)] avoid reassign variable:' + lname) + ' at ' + chalk.grey(sourceFile));
                         }
                     }
                 } else if (node.left.type == 'MemberExpression') {
@@ -421,7 +421,7 @@ module.exports = {
                         start = start.object;
                     } //模板中使用如<%list.x=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
                     if (!globalExists[start.name] || globalExists[start.name] === 1) {
-                        slog.ever(chalk.red('avoid writeback: ' + fn.slice(node.start, node.end)), 'at', chalk.grey(sourceFile));
+                        slog.ever(chalk.red('[MXC Tip(tmpl-vars)] avoid writeback: ' + fn.slice(node.start, node.end)), 'at', chalk.grey(sourceFile));
                     }
                 }
             },
@@ -489,7 +489,7 @@ module.exports = {
                     fns.push('){}');
                 }
                 if (e.checker.tmplCmdFnOrForOf) {
-                    slog.ever(chalk.red('avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
+                    slog.ever(chalk.red('[MXC Tip(tmpl-vars)] avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
                 }
                 let params = Object.create(null);
                 let pVarsMap = Object.create(null);
@@ -975,7 +975,7 @@ module.exports = {
             if (!info) {
                 let tipExpr = toOriginalExpr(srcExpr.trim());
                 expr = toOriginalExpr(expr);
-                slog.ever(chalk.red('can not resolve expr: ' + tipExpr), 'at', chalk.grey(sourceFile), 'check variable reference or global variable declaration');
+                slog.ever(chalk.red('[MXC Error(tmpl-vars)] can not resolve expr: ' + tipExpr), 'at', chalk.grey(sourceFile), 'check variable reference or global variable declaration');
                 return ['<%throw new Error("can not resolve bind expr: ' + expr + ' read more: https://github.com/thx/magix/issues/37")%>'];
             }
             if (info != '\x03' || info != '\x06') { //递归查找,第3种情况
@@ -1007,6 +1007,9 @@ module.exports = {
             };
         };
         let findRoot = expr => {
+            if (expr == '\x03') {
+                return '#';
+            }
             let ps = jsGeneric.splitExpr(expr);
             let head = ps[0];
             if (head == '\x03') {

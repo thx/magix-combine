@@ -12,7 +12,7 @@
     </div>
 </div>
 */
-let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
+let htmlParser = require('./html-parser');
 let tmplCmd = require('./tmpl-cmd');
 let configs = require('./util-config');
 let artExpr = require('./tmpl-art-ctrl');
@@ -22,13 +22,14 @@ let util = require('util');
 let regexp = require('./util-rcache');
 let slog = require('./util-log');
 let attrMap = require('./tmpl-attr-map');
+let tmplUnescape = require('html-entities-decoder');
 let chalk = require('chalk');
 let viewIdReg = /\x1f/g;
 let tmplCmdReg = /<%([@=!\x1a\x1c\x1d])?([\s\S]*?)%>/g;
 let closeReg = /\);?\s*$/;
 let artCtrlReg = /(?:<%'(\d+)\x11([^\x11]+)\x11'%>)?<%([@=!:~&])?([\s\S]+?)%>/g;
-let inReg = /\(([\s\S]+?)\s*,\s*([^),]+)\)\s*in\s+(\S+)/;
-let mathcer = /<%([@=!\x1a\x1c\x1d])?([\s\S]*?)%>|$/g;
+let inReg = /\(([\s\S]+?)\s*,\s*([^),]+),\s*([^),]+),\s*([^),]+)\)\s*in\s+(\S+)/;
+let mathcer = /<%([@=!\x1a\x1c\x1d*])?([\s\S]*?)%>|$/g;
 let escapeSlashRegExp = /\\|'/g;
 let escapeBreakReturnRegExp = /\r|\n/g;
 let suffixReg = /\+'';\s*/g;
@@ -42,10 +43,11 @@ let tmplCommandAnchorReg = /\u0007\d+\u0007/g;
 let ifExtractReg = /^(?:for|if)\(([\s\S]+?)\);?\s*$/;
 let commaExprReg = /(?:,''\)|(%>'));/g;
 let directReg = /\{\{&[\s\S]+?\}\}/g;
+let spreadAttrsReg = /\{\{\*[\s\S]+?\}\}/g;
 
-let matchedTagReg = /(<([^>\s\/]+)[^>]*>)([^<>]*?)(<\/\2>)/g;
 let tagReg = /<(\/?)[^>]+>/g;
-let storeMatchedTags = (tmpl, store) => {
+let matchedTagReg = /(<([^>\s\/]+)[^>]*>)([^<>]*?)(<\/\2>)/g;
+let storeInnerMatchedTags = (tmpl, store) => {
     let idx = store.___idx || 0;
     return tmpl.replace(matchedTagReg, (m, prefix, tag, content, suffix) => {
         let groups = [prefix, content, suffix];
@@ -76,6 +78,7 @@ let storeHTML = (tmpl, store) => {
 };
 let extractArtAndCtrlFrom = tmpl => {
     let result = [];
+    //console.log(tmpl);
     tmpl.replace(artCtrlReg, (match, line, art, operate, ctrl) => {
         result.push({
             origin: match,
@@ -87,7 +90,7 @@ let extractArtAndCtrlFrom = tmpl => {
     });
     return result;
 };
-let toFn = (key, tmpl, fromAttr, e) => {
+let toFn = (key, tmpl, fromAttr, e, decode) => {
     let index = 0,
         hasCtrl = false,
         hasOut = false,
@@ -110,6 +113,9 @@ let toFn = (key, tmpl, fromAttr, e) => {
             }
         }
         setStart = true;
+        if (decode) {
+            snippet = tmplUnescape(snippet);
+        }
         source += snippet;
         index = offset + match.length;
         let ctrl = tmpl.substring(index - match.length + 2 + (operate ? 1 : 0), index - 2);
@@ -124,7 +130,7 @@ let toFn = (key, tmpl, fromAttr, e) => {
         }
         if (operate == '@' || operate == '\x1d') {
             hasOut = true;
-            let out = operate == '@' ? `$i($$,${content})` : `(($_temp=${content})?$i($$,$_temp):null)`;
+            let out = operate == '@' ? `$i($_ref,${content})` : `(($_temp=${content})?$i($_ref,$_temp):null)`;
             if (configs.debug) {
                 if (preArt == offset) {
                     source += `$__ctrl='<%@${ctrl}%>',${out})+'`;
@@ -136,7 +142,7 @@ let toFn = (key, tmpl, fromAttr, e) => {
             }
         } else if (operate == '=' || operate == '\x1a') {
             hasOut = true;
-            let out = operate == '=' ? `$e(${content})` : `(($_temp=${content})?$e($_temp):null)`;
+            let out = operate == '=' ? `${content}` : `(($_temp=${content})?$_temp:null)`;
             if (configs.debug) {
                 if (preArt == offset) {
                     source += `$__ctrl='<%=${ctrl}%>',${out})+'`;
@@ -148,8 +154,8 @@ let toFn = (key, tmpl, fromAttr, e) => {
             }
         } else if (operate == '!' || operate == '\x1c') {
             if (!content.startsWith('$eu(') || !content.endsWith(')')) {
-                slog.ever(chalk.red(`unsupport {{!${content}}}`), 'file', chalk.grey(e.shortHTMLFile));
-                throw new Error('unsupport {{!' + content + '}}' + ' at file:' + e.shortHTMLFile);
+                slog.ever(chalk.red(`[MXC-Error(tmpl-quick)] unsupport {{!${content}}}`), 'file', chalk.grey(e.shortHTMLFile));
+                throw new Error('[MXC-Error(tmpl-quick)] unsupport {{!' + content + '}}' + ' at file:' + e.shortHTMLFile);
             }
             hasOut = true;
             let out = operate == '!' ? content : `(${content}||null)`;
@@ -161,6 +167,17 @@ let toFn = (key, tmpl, fromAttr, e) => {
                 }
             } else {
                 source += `'+${out}+'`;
+            }
+        } else if (operate == '*') {
+            hasOut = true;
+            if (configs.debug) {
+                if (preArt == offset) {
+                    source += `$__ctrl='<%*${ctrl}%>',${content})+'`;
+                } else {
+                    source += `'+($__ctrl='<%*${ctrl}%>',${content})+'`;
+                }
+            } else {
+                source += `'+${content}+'`;
             }
         } else if (content) {
             if (line > -1) {
@@ -184,7 +201,7 @@ let toFn = (key, tmpl, fromAttr, e) => {
     source += `';`;
     //console.log(source);
     source = source
-        .replace(viewIdReg, `'+$viewId+'`)
+        .replace(viewIdReg, `'+$_viewId+'`)
         .replace(reg, '');
     reg = regexp.get(`^${regexp.escape(key)}=''\\+`);
     source = source
@@ -218,7 +235,7 @@ let serAttrs = (key, value, fromAttr, e) => {
             returned: true
         };
     }
-    let { source, hasCtrl, hasOut, hasSnippet } = toFn(key, value, fromAttr, e);
+    let { source, hasCtrl, hasOut, hasSnippet } = toFn(key, value, fromAttr, e, true);
     if (hasCtrl && hasOut) {
         return {
             direct: false,
@@ -268,9 +285,11 @@ let getForContent = (cnt, e) => {
         return {
             art: fi.art,
             line: fi.line,
+            first: m[3],
+            last: m[4],
             value: m[1],
-            list: m[3],
-            key: m[2] || utils.uId('$q_key_', '', 1)
+            list: m[5],
+            key: m[2]
         };
     }
     throw new Error('bad loop ' + cnt + ' at ' + e.shortHTMLFile);
@@ -289,17 +308,18 @@ let getIfContent = (cnt, e) => {
             value: m[1]
         };
     }
-    throw new Error('bad if ' + cnt + ' at ' + e.shortHTMLFile);
+    throw new Error('[MXC-Error(tmpl-quick)] bad if ' + cnt + ' at ' + e.shortHTMLFile);
 };
 let parser = (tmpl, e) => {
+    //console.log(tmpl);
     let cmds = Object.create(null);
     tmpl = tmplCmd.store(tmpl, cmds);
     let current = {
         children: []
     };
     let stack = [current];
-    new HTMLParser(tmpl, {
-        html5: true,
+    htmlParser(tmpl, {
+        //html5: true,
         start(tag, attrs, unary) {
             tag = tag.toLowerCase();
             let token = {
@@ -315,7 +335,7 @@ let parser = (tmpl, e) => {
                     let t = tmplCmd.recover(a.value, cmds);
                     let fi = extractArtAndCtrlFrom(t);
                     if (fi.length > 1 || fi.length < 1) {
-                        throw new Error('bad direct tag ' + t + ' at ' + e.shortHTMLFile);
+                        throw new Error('[MXC-Error(tmpl-quick)] bad direct tag ' + t + ' at ' + e.shortHTMLFile);
                     }
                     fi = fi[0];
                     token.directArt = fi.art;
@@ -331,6 +351,8 @@ let parser = (tmpl, e) => {
                         type: a.name,
                         line: fi.line,
                         art: fi.art,
+                        first: fi.first,
+                        last: fi.last,
                         key: fi.key,
                         value: fi.value,
                         list: fi.list
@@ -356,7 +378,7 @@ let parser = (tmpl, e) => {
                     let t = tmplCmd.recover(a.value, cmds);
                     let fi = extractArtAndCtrlFrom(t);
                     if (fi.length > 1 || fi.length < 1) {
-                        throw new Error('bad for ' + t + ' at ' + e.shortHTMLFile);
+                        throw new Error('[MXC-Error(tmpl-quick)] bad for ' + t + ' at ' + e.shortHTMLFile);
                     }
                     fi = fi[0];
                     token.ctrls.push({
@@ -428,13 +450,23 @@ let Directives = {
     },
     'each'(ctrl, start, end, auto) {
         let shortList = utils.uId('$q_a_', '', 1);
+        let listCount = utils.uId('$q_c_', '', 1);
         let initial = ctrl.value.startsWith('$q_v_') ? '' : `let ${ctrl.value}=${shortList}[${ctrl.key}];`;
+        if (ctrl.first != -1) {
+            initial += `let ${ctrl.first}=${ctrl.key}===0;`;
+        }
+        let decs = `let ${ctrl.key}=0,${shortList}=${ctrl.list},${listCount}=${shortList}.length`;
+        if (ctrl.last != -1) {
+            let last = utils.uId('$q_lc_', '', 1);
+            decs += `,${last}=${listCount}-1`;
+            initial += `let ${ctrl.last}=${ctrl.key}===${last};`;
+        }
         if (configs.debug) {
             let art = `${auto ? '{{each ' : 'each="{{'}${ctrl.art}}}${auto ? '' : '"'}`;
             start.push(`$__line=${ctrl.line};$__art=${JSON.stringify(art)};`);
-            start.push(`$__ctrl=${JSON.stringify(`for(let ${ctrl.key}=0,${shortList}=${ctrl.list};${ctrl.key}<${shortList}.length;${ctrl.key}++){${initial}`)};`);
+            start.push(`$__ctrl=${JSON.stringify(`for(${decs};${ctrl.key}<${listCount};${ctrl.key}++){${initial}`)};`);
         }
-        start.push(`for(let ${ctrl.key}=0,${shortList}=${ctrl.list};${ctrl.key}<${shortList}.length;${ctrl.key}++){${initial}`);
+        start.push(`for(${decs};${ctrl.key}<${listCount};${ctrl.key}++){${initial}`);
         end.push('}');
     },
     'forin'(ctrl, start, end, auto) {
@@ -462,28 +494,51 @@ let preProcess = (src, e) => {
         tags = Object.create(null);
     src = src.replace(directReg, m => {
         return `<direct _code="${m.replace(/"/g, '&quot;')}"/>`;
+    }).replace(spreadAttrsReg, m => {
+        return `__sa__="${m.replace(/"/g, '&quot;')}"`;
     });
     src = artExpr.addLine(src);
     src = tmplCmd.store(src, cmds);
     src = tmplCmd.store(src, cmds, consts.artCommandReg);
-    src = storeMatchedTags(src, tags);
+    //以上处理模板命令，然后是合法的html标签
+    /*
+        我们要区别对待
+        1.
+         <div>
+            a
+                {{if cond}}
+                    b
+                {{/if}}
+            c
+         </div>
+        2.
+         <div>
+            {{if cond}}
+                <div>cond</div>
+            {{/if}}
+         </div>
+        
+        在文本中的命令语句与在标签中的命令语句处理不同，所以要先把最内部的处理下
+    */
+    src = storeInnerMatchedTags(src, tags);
+    src = storeHTML(src, tags);
     src = src.replace(tmplCommandAnchorReg, m => {
         let ref = cmds[m];
         if (ref) {
             let i = artExpr.extractArtInfo(ref);
             if (i) {
-                let { art, line, ctrls } = i;
+                let { art, ctrls, line } = i;
                 if (ctrls[0] == 'each') {
-                    return `<group _mxo each="{{${line}${art.substring(5)}}}">`;
+                    return `<group _mxo each="{{\x1e${line}${art.substring(5)}}}">`;
                 } else if (ctrls[0] == 'forin') {
-                    return `<group _mxo forin="{{${line}${art.substring(6)}}}">`;
+                    return `<group _mxo forin="{{\x1e${line}${art.substring(6)}}}">`;
                 } else if (ctrls[0] == 'for') {
-                    return `<group _mxo for="{{${line}${art.substring(4)}}}">`;
+                    return `<group _mxo for="{{\x1e${line}${art.substring(4)}}}">`;
                 } else if (ctrls[0] == 'if') {
-                    return `<group _mxo if="{{${line}${art.substring(3)}}}">`;
+                    return `<group _mxo if="{{\x1e${line}${art.substring(3)}}}">`;
                 } else if (ctrls[0] == 'else') {
                     if (ctrls[1] == 'if') {
-                        return `</group><group _mxo elif="{{${line}${art.substring(7)}}}">`;
+                        return `</group><group _mxo elif="{{\x1e${line}${art.substring(7)}}}">`;
                     }
                     return `</group><group _mxo else>`;
                 } else if (art.startsWith('/each') ||
@@ -521,13 +576,31 @@ let preProcess = (src, e) => {
                         expr = artExpr.extractAsExpr(asValue);
                     }
                     if (expr.bad || ctrls[1] != 'as') {
-                        slog.ever(chalk.red(`unsupport or bad ${k} {{${li.art}}} at line:${li.line}`), 'file', chalk.grey(e.shortHTMLFile));
-                        throw new Error(`unsupport or bad ${k} {{${li.art}}}`);
+                        slog.ever(chalk.red(`[MXC-Error(tmpl-quick)] unsupport or bad ${k} {{${li.art}}} at line:${li.line}`), 'file', chalk.grey(e.shortHTMLFile));
+                        throw new Error(`[MXC-Error(tmpl-quick)] unsupport or bad ${k} {{${li.art}}}`);
                     }
                     if (!expr.key) {
                         expr.key = utils.uId('$q_key_', '', 1);
                     }
-                    return `loop_declare="<%let ${expr.key},${expr.vars}=${ctrls[0]}[${expr.key}]%>" ${k}="<%'${li.line}\x11${li.art.replace(escapeSlashRegExp, '\\$&')}\x11'%><%(${expr.vars},${expr.key}) in ${ctrls[0]}%>"`;
+                    let firstAndLastVars = '';
+                    let flv = '';
+                    if (expr.first) {
+                        firstAndLastVars += ',' + expr.first;
+                        flv += expr.first;
+                    } else {
+                        firstAndLastVars += ',-1';
+                    }
+                    if (expr.last) {
+                        firstAndLastVars += ',' + expr.last;
+                        if (flv) {
+                            flv += ',';
+                        }
+                        flv += expr.last;
+                    } else {
+                        firstAndLastVars += ',-1';
+                    }
+
+                    return `loop_declare="<%let ${expr.key},${expr.vars}=${ctrls[0]}[${expr.key}]${flv}%>" ${k}="<%'${li.line}\x11${li.art.replace(escapeSlashRegExp, '\\$&')}\x11'%><%(${expr.vars},${expr.key}${firstAndLastVars}) in ${ctrls[0]}%>"`;
                 }
                 return _;
             }).replace(ifReg, (_, k, $, c) => {
@@ -545,7 +618,6 @@ let preProcess = (src, e) => {
         }
         return m;
     });
-    //console.log(src);
     for (let c in cmds) {
         let v = cmds[c];
         if (util.isString(v)) {
@@ -555,7 +627,6 @@ let preProcess = (src, e) => {
     }
     src = tmplCmd.recover(src, cmds);
     src = artExpr.recoverEvent(src);
-    //console.log(src);
     return src;
 };
 let combineSamePush = (src, pushed) => {
@@ -567,8 +638,8 @@ let combineSamePush = (src, pushed) => {
         if (i >= 0) {
             if (i == start && prev == p.key) {
                 ranges.push({
-                    start: i - 2,//$vnode.push($create());  trim );
-                    end: i + p.key.length + 6 //$vnode.push($create()); trim $vnode.push(
+                    start: i - 2,//$vnode_.push($_create());  trim );
+                    end: i + p.key.length + 6 //$vnode_.push($_create()); trim $vnode_.push(
                 });
             }
             start = i + p.src.length;
@@ -582,7 +653,6 @@ let combineSamePush = (src, pushed) => {
     return src;
 };
 let process = (src, e) => {
-    //console.log(src);
     let { cmds, tokens } = parser(src, e);
     let snippets = [];
     let vnodeDeclares = Object.create(null),
@@ -608,18 +678,17 @@ let process = (src, e) => {
                     outText = '$text';
                     safeguard = !text.hasSnippet;
                 }
-                let safe = safeguard ? `$text&&` : '';
                 if (vnodeInited[level] === 1) {
                     if (!safeguard) {
                         combinePushed.push({
-                            key: `$vnode${level}`,
-                            src: `$vnode${level}.push($create(0/*,$views*/,${outText}));`
+                            key: `$vnode_${level}`,
+                            src: `$vnode_${level}.push($_create(0,${outText}));`
                         });
                     }
-                    snippets.push(`${safe}$vnode${level}.push($create(0/*,$views*/,${outText}));`);
+                    snippets.push(`$vnode_${level}.push($_create(0,${outText}));`);
                 } else {
                     vnodeInited[level] = 1;
-                    snippets.push(`$vnode${level}=${safe}[$create(0/*,$views*/,${outText})];`);
+                    snippets.push(`$vnode_${level}=[$_create(0,${outText})];`);
                 }
             }
         } else {
@@ -645,16 +714,27 @@ let process = (src, e) => {
                     let oKey = a.name.replace(escapeSlashRegExp, '\\$&');
                     let key = `$$_${a.name.replace(/[^a-zA-Z]/g, '_')}`;
                     let attr = serAttrs(key, a.value, true, e);
+                    if (a.name == '__sa__') {
+                        attr.direct = false;
+                    }
                     if (attr.direct) {
-                        attrs[oKey] = attr.returned;
+                        if (hasCtrl) {
+                            ctrlAttrs.push(`$_attrs['${oKey}']=${attr.returned}`);
+                        } else {
+                            attrs[oKey] = attr.returned;
+                        }
                     } else {
-                        vnodeDeclares[key] = 1;
                         hasCtrl = true;
-                        ctrlAttrs.push(`${attr.returned};$attrs['${oKey}']=${key};`);
+                        if (a.name == '__sa__') {
+                            ctrlAttrs.push(`$_mix($_attrs,${attr.returned})`);
+                        } else {
+                            vnodeDeclares[key] = 1;
+                            ctrlAttrs.push(`${attr.returned};$_attrs['${oKey}']=${key};`);
+                        }
                     }
                 }
                 if (hasCtrl) {
-                    attrsStr = '$attrs={';
+                    attrsStr = '$_attrs={';
                     for (let p in attrs) {
                         attrsStr += `'${p}':${attrs[p]},`;
                     }
@@ -663,8 +743,8 @@ let process = (src, e) => {
                         attrsStr += c;
                     }
                     snippets.push(attrsStr);
-                    vnodeDeclares.$attrs = 1;
-                    attrsStr = '$attrs';
+                    vnodeDeclares.$_attrs = 1;
+                    attrsStr = '$_attrs';
                 } else {
                     attrsStr = '{';
                     for (let p in attrs) {
@@ -685,11 +765,11 @@ let process = (src, e) => {
             }
             snippets.push(`${start.join('')}`);
             if (node.children.length) {
-                vnodeDeclares['$vnode' + (level + 1)] = 1;
+                vnodeDeclares['$vnode_' + (level + 1)] = 1;
                 delete vnodeInited[level + 1];
                 let first = node.children[0];
                 if (first.hasCtrls) {
-                    snippets.push(`$vnode${level + 1}=[];`);
+                    snippets.push(`$vnode_${level + 1}=[];`);
                     vnodeInited[level + 1] = 1;
                 }
                 for (let e of node.children) {
@@ -701,27 +781,27 @@ let process = (src, e) => {
                     if (vnodeInited[level] === 1) {
                         //for translate to es3 
                         /*combinePushed.push({
-                            key: `$vnode${level}`,
-                            src: `$vnode${level}.push(...$vnode${level + 1});`
+                            key: `$vnode_${level}`,
+                            src: `$vnode_${level}.push(...$vnode_${level + 1});`
                         });*/
-                        snippets.push(`$vnode${level}.push(...$vnode${level + 1});`);
+                        snippets.push(`$vnode_${level}.push(...$vnode_${level + 1});`);
                     } else {
                         vnodeInited[level] = 1;
-                        snippets.push(`$vnode${level}=$vnode${level + 1};`);
+                        snippets.push(`$vnode_${level}=$vnode_${level + 1};`);
                     }
                 }
             } else if (node.tag == 'direct') {
                 snippets.push(`$__line=${node.directLine};$__art='{{${node.directArt}}}';$__ctrl='${node.directCtrl.replace(escapeSlashRegExp, '\\$&')}';`);
                 if (vnodeInited[level] === 1) {
-                    snippets.push(`if(${node.directCtrl}){$vnode${level}.push(${node.directCtrl});}`);
+                    snippets.push(`if(${node.directCtrl}){if($_is_array(${node.directCtrl})){$vnode_${level}.push(...${node.directCtrl})}else{$vnode_${level}.push(${node.directCtrl});}}`);
                 } else {
                     vnodeInited[level] = 1;
-                    snippets.push(`$vnode${level}=${node.directCtrl}?[${node.directCtrl}]:$empty_arr;`);
+                    snippets.push(`$vnode_${level}=${node.directCtrl}?$_is_array(${node.directCtrl})?${node.directCtrl}:[${node.directCtrl}]:$_empty_arr;`);
                 }
             } else {
                 let unary = node.unary ? '1' : '';
                 let props = hasAttrs ? attrsStr : unary ? '0' : '';
-                let children = node.children.length ? `$vnode${level + 1}` : props ? '0' : '';
+                let children = node.children.length ? `$vnode_${level + 1}` : props ? '0' : '';
                 let content = '';
                 if (children) {
                     content += ',' + children;
@@ -734,13 +814,13 @@ let process = (src, e) => {
                 }
                 if (vnodeInited[level] === 1) {
                     combinePushed.push({
-                        key: `$vnode${level}`,
-                        src: `$vnode${level}.push($create("${node.tag}"/*,$views*/${content}));`
+                        key: `$vnode_${level}`,
+                        src: `$vnode_${level}.push($_create("${node.tag}"${content}));`
                     });
-                    snippets.push(`$vnode${level}.push($create("${node.tag}"/*,$views*/${content}));`);
+                    snippets.push(`$vnode_${level}.push($_create("${node.tag}"${content}));`);
                 } else {
                     vnodeInited[level] = 1;
-                    snippets.push(`$vnode${level}=[$create("${node.tag}"/*,$views*/${content})];`);
+                    snippets.push(`$vnode_${level}=[$_create("${node.tag}"${content})];`);
                 }
             }
             snippets.push(end.join(''));
@@ -750,19 +830,19 @@ let process = (src, e) => {
     for (let t of tokens) {
         genElement(t, 0);
     }
-    let source = 'let $_temp,$vnode0=[],$empty_arr=[]';
+    let source = 'let $_temp,$vnode_0=[],$_empty_arr=[]';
     for (let key of e.globalVars) {
         source += `,${key}=$$.${key}`;
     }
     for (let vd in vnodeDeclares) {
         source += ',' + vd;
     }
-    source = `${source};\r\n${snippets.join('')}\r\nreturn $create($viewId/*,$views*/,$vnode0);`;
+    source = `${source};\r\n${snippets.join('')}\r\nreturn $_create($_viewId,$vnode_0);`;
     source = combineSamePush(source, combinePushed);
     if (configs.debug) {
         source = `let $__art,$__line,$__ctrl;try{${source}}catch(ex){let msg='render view error:'+(ex.message||ex);msg+='\\r\\n\\tsrc art: '+$__art+'\\r\\n\\tat line: '+$__line;msg+='\\r\\n\\ttranslate to: '+$__ctrl+'\\r\\n\\tat file:${e.shortHTMLFile}';throw msg;}`;
     }
-    source = `($$,$$ref,$create,$viewId,$e,$n,$eu,$i,$eq/*,$views*/)=>{${source}}`;
+    source = `($$,$_create,$_viewId,$_ref,$n,$eu,$i,$eq,$_is_array,$_mix)=>{${source}}`;
     //console.log(source);
     source = configs.compileTmplCommand(`${source}`, configs);
     //console.log(source);

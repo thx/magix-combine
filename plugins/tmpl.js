@@ -26,9 +26,11 @@ let md5 = require('./util-md5');
 let slog = require('./util-log');
 let tmplToFn = require('./tmpl-tofn');
 let tmplQuick = require('./tmpl-quick');
+let tmplL3 = require('./tmpl-l3');
 //let tmplDecode = require('./tmpl-decode');
 let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 
+let commentReg = /<!--[\s\S]*?-->/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
 let tmplVarsReg = /:(const|global|updateby)\[([^\[\]]*)\]/g;
 let artEngineReg = /:art(?:\s*=\s*(true|false))?(?:$|:)/;
@@ -39,64 +41,33 @@ let removeIdReg = /\u0001/g;
 let stringReg = /\u0017([^\u0017]*?)\u0017/g;
 let unsupportCharsReg = /[\u0000-\u0007\u0011-\u0019\u001e\u001f]/g;
 let globalTmplRootReg = /[\u0003\u0006]\./g;
-let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '');
+let globalRootReg = /\u0003/g;
+let commandAnchorRecover = (tmpl, refTmplCommands) => tmplCmd.recover(tmpl, refTmplCommands).replace(globalTmplRootReg, '').replace(globalRootReg, '$$$$');
 
-let oldMxEventReg = /\bmx-\w+\s*=\s*(['"])(\w+)<(?:stop|prevent|halt)>(?:{([\s\S]*?)})?\1/g;
-let mustache = /\{\{#\s*\w+|\{\{\{\w+/;
-let etpl = /\$\{[^{}]+?\}/;
-let bx = /\s+bx-(?:datakey|tmpl|path|config)\s*=\s*['"]/;
-let vframe = /<vframe\s+/;
-let oldMxEventReg1 = /\bmx-(?!view|vframe|keys|options|data|partial|init|html)[a-zA-Z]+\s*=\s*(['"])\w+(?:\{[\s\S]*?\})?\1/g;
-let bxCfg = /\bbx-config\s*=\s*"[^"]+"/g;
-let isOldTemplate = tmpl => {
-    oldMxEventReg.lastIndex = 0;
-    oldMxEventReg1.lastIndex = 0;
-    return oldMxEventReg.test(tmpl) ||
-        mustache.test(tmpl) ||
-        etpl.test(tmpl) ||
-        bx.test(tmpl) ||
-        vframe.test(tmpl) ||
-        oldMxEventReg1.test(tmpl);
+let brReg = /(?:\r\n|\r|\n)/;
+let brPlaceholder = m => {
+    let count = m.split(brReg).length;
+    return new Array(count).join('\n');
 };
-let storeOldEvent = (tmpl, dataset) => {
-    let index = 0;
-    return tmpl.replace(oldMxEventReg, m => {
-        let key = '\x1a' + (index++) + '\x1a';
-        dataset[key] = m;
-        return key;
-    }).replace(bxCfg, m => {
-        let key = '\x1a' + (index++) + '\x1a';
-        dataset[key] = m;
-        return key;
-    }).replace(oldMxEventReg1, m => {
-        let key = '\x1a' + (index++) + '\x1a';
-        dataset[key] = m;
-        return key;
-    });
-};
-let recoverOldEvent = (tmpl, dataset) => {
-    return tmpl.replace(/\x1a\d+\x1a/g, m => {
-        return dataset[m] || '';
-    });
-};
-let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang) => {
+let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang, ctrl) => {
     let key = magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
         if (unsupportCharsReg.test(fileContent)) {
-            slog.log(chalk.red(`unsupport character : ${unsupportCharsReg.source}`), 'at', chalk.magenta(e.shortHTMLFile));
-            reject(new Error('unsupport character'));
+            slog.log(chalk.red(`[MXC Error(tmpl)] unsupport character : ${unsupportCharsReg.source}`), 'at', chalk.magenta(e.shortHTMLFile));
+            reject(new Error('[MXC Error(tmpl)] unsupport character'));
             return;
         }
         e.templateLang = lang;
         try {
             fileContent = configs.compileTmplStart(fileContent, e);
         } catch (ex) {
-            slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever(chalk.red('[MXC Error(tmpl)] compile template error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
             return;
         }
+        fileContent = fileContent.replace(commentReg, brPlaceholder);
         if (flagsInfo.artEngine && magixTmpl) {
             if (configs.magixUpdaterQuick) {
                 fileContent = tmplQuick.preProcess(fileContent, e);
@@ -114,7 +85,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
                 artEngine: flagsInfo.artEngine
             }, e);
         } catch (ex) {
-            slog.ever(chalk.red('parser tmpl-customtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever(chalk.red('[MXC Error(tmpl)] parser tmpl-customtag error ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             ex.message += ' at ' + e.shortHTMLFile;
             reject(ex);
             return;
@@ -129,7 +100,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             try {
                 unmatchChecker(fileContent, e);
             } catch (ex) {
-                slog.ever(chalk.red('tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+                slog.ever(chalk.red('[MXC Error(tmpl)] tags unmatched ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
                 ex.message += ' at ' + e.shortHTMLFile;
                 reject(ex);
                 return;
@@ -169,7 +140,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
-            slog.ever(chalk.red('minify html error : ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+            slog.ever(chalk.red('[MXC Error(tmpl)] minify html error : ' + ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             reject(ex);
             return;
         }
@@ -182,7 +153,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
                 fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
                 //console.log(tmplCmd.recover(fileContent,refTmplCommands));
                 if (e.refLeakGlobal.exists) {
-                    slog.ever(chalk.red('segment failed'), 'at', chalk.magenta(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/thx/magix-combine/issues/21'));
+                    slog.ever(chalk.red('[MXC Error(tmpl)] segment failed'), 'at', chalk.magenta(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/thx/magix-combine/issues/21'));
                     if (e.refLeakGlobal.reassigns) {
                         e.refLeakGlobal.reassigns.forEach(it => {
                             slog.ever(it);
@@ -193,7 +164,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         }
 
         fileContent = configs.compileTmplEnd(fileContent);
-        fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
+        if (ctrl != 'bare') {
+            fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
+        }
         for (let p in refTmplCommands) {
             let cmd = refTmplCommands[p];
             if (util.isString(cmd)) {
@@ -211,6 +184,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             info = tmplPartial.process(fileContent, refTmplCommands, e, flagsInfo);
         }
         temp.info = info;
+        //console.log(info);
         fCache = temp;
     }
     return fCache;
@@ -234,7 +208,7 @@ module.exports = e => {
                 file = e.from;
             }
             if (singleFile || fs.existsSync(file)) {
-                let magixTmpl = ctrl != 'raw' || flags;
+                let magixTmpl = ctrl == 'updater' || flags;
                 let oldTemplate = false,
                     oldEventDataset = Object.create(null);
                 if (configs.disableMagixUpdater) {
@@ -243,8 +217,8 @@ module.exports = e => {
                 fileContent = singleFile ? e.contentInfo.template : fd.read(file);
                 if (magixTmpl &&
                     configs.checkOldTempalte &&
-                    isOldTemplate(fileContent)) {
-                    fileContent = storeOldEvent(fileContent, oldEventDataset);
+                    tmplL3.isOldTemplate(fileContent)) {
+                    fileContent = tmplL3.storeOldEvent(fileContent, oldEventDataset);
                     magixTmpl = false;
                     oldTemplate = true;
                     e.isOldTemplate = true;
@@ -254,7 +228,7 @@ module.exports = e => {
                 e.srcHTMLFile = file;
                 e.shortHTMLFile = file.replace(configs.moduleIdRemovedPath, '').substring(1);
                 if (ext != lang) {
-                    slog.ever(chalk.red('conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
+                    slog.ever(chalk.red('[MXC Tip(tmpl)] conflicting template language'), 'at', chalk.magenta(e.shortHTMLFile), 'near', chalk.magenta(match + ' and ' + e.contentInfo.templateTag));
                 }
                 let flagsInfo = {
                     artEngine: configs.tmplArtEngine,
@@ -287,11 +261,11 @@ module.exports = e => {
                         }
                     }
                 }
-                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang);
+                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang, ctrl);
                 if (magixTmpl) {
                     if (configs.magixUpdaterIncrement) {
                         let tmpl = fcInfo.info.tmpl;
-                        return configs.magixUpdaterQuick ? tmplQuick.process(tmpl, e) : tmplToFn(tmpl, e.shortHTMLFile,e.globalVars);
+                        return configs.magixUpdaterQuick ? tmplQuick.process(tmpl, e) : tmplToFn(tmpl, e.shortHTMLFile, e.globalVars);
                     }
                     let temp = {
                         html: fcInfo.info.tmpl,
@@ -302,7 +276,7 @@ module.exports = e => {
                     return JSON.stringify(temp);
                 }
                 if (oldTemplate) {
-                    fcInfo.info.tmpl = recoverOldEvent(fcInfo.info.tmpl, oldEventDataset);
+                    fcInfo.info.tmpl = tmplL3.recoverOldEvent(fcInfo.info.tmpl, oldEventDataset);
                 }
                 return JSON.stringify(fcInfo.info.tmpl);
             }

@@ -122,7 +122,7 @@ module.exports = (tmpl, e) => {
     for (let tag of tags) {
         if (tag.close) {
             if (!tagsStack.length) {
-                throw new Error(`${tag.match} doesn't have corresponding open tag at line  ${tag.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] ${tag.match} doesn't have corresponding open tag at line  ${tag.line}`);
             }
             let last = tagsStack.pop();
             if (tag.name != last.name) {
@@ -134,13 +134,13 @@ module.exports = (tmpl, e) => {
                 if (tag.name.startsWith('art\x11')) {
                     current = `art "${tag.close ? '/' : ''}${tag.name.substring(4)}"`;
                 }
-                throw new Error(`${current} at line ${tag.line} doesn't match ${before} at line ${last.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] ${current} at line ${tag.line} doesn't match ${before} at line ${last.line}`);
             }
         } else {
             tagsStack.push(tag);
         }
     }
     for (let tag of tagsStack) {
-        throw new Error(`unclosed tag ${tag.match} at line ${tag.line}`);
+        throw new Error(`[MXC Error(checker-tmpl-unmatch)] unclosed tag ${tag.match} at line ${tag.line}`);
     }
 };

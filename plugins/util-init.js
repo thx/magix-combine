@@ -32,13 +32,13 @@ module.exports = () => {
         }
         configs.tmplFileExtNamesReg = new RegExp('\\.(?:' + names.join('|') + ')$');
 
-        configs.htmlFileReg = new RegExp('([\'"])(raw|updater)?@[^\'"\\s@]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
+        configs.htmlFileReg = new RegExp('([\'"])(raw|updater|bare)?@[^\'"\\s@]+\\.(?:' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1');
         configs.htmlFileGlobalReg = new RegExp(configs.htmlFileReg, 'g');
 
         //模板处理，即处理view.html文件
-        configs.fileTmplReg = new RegExp('([\'"])(raw|updater)?\\u0012@([^\'"\\s@]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1', 'g');
+        configs.fileTmplReg = new RegExp('([\'"])(raw|updater|bare)?\\u0012@([^\'"\\s@]+)\\.(' + tmplExtNames.join('|') + ')((?::const\\[[^\\[\\]]*\\]|:global\\[[^\\[\\]]*\\]|:updateby\\[[^\\[\\]]*\\]|:art(?:\s*=\s*(?:true|false))?)+)?\\1', 'g');
 
-        configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep|html|static)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+        configs.tmplMxEventReg = /\bmx-(?!view|vframe|owner|autonomy|datafrom|guid|ssid|dep|html|static|is|as|type|name|from|to)([a-zA-Z]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
         if (configs.addTmplViewsToDependencies) {
             configs.tmplAddViewsToDependencies = true;

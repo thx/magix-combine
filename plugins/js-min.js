@@ -177,7 +177,7 @@ function jsmin(input, level, comment) {
                   }
                   break;
                 case EOF:
-                  throw 'Error: Unterminated comment.';
+                  throw '[MXC Error(js-min)] Error: Unterminated comment.';
                 default:
                   //modern JS engines handle string concats much better than the
                   //array+push+join hack.
@@ -195,7 +195,7 @@ function jsmin(input, level, comment) {
                   }
                   break;
                 case EOF:
-                  throw 'Error: Unterminated comment.';
+                  throw '[MXC Error(js-min)] Error: Unterminated comment.';
               }
             }
           }
@@ -234,7 +234,7 @@ function jsmin(input, level, comment) {
             break;
           }
           if (a <= '\n') {
-            throw 'Error: unterminated string literal: ' + a;
+            throw '[MXC Error(js-min)] Error: unterminated string literal: ' + a;
           }
           if (a == '\\') {
             r.push(a);
@@ -257,7 +257,7 @@ function jsmin(input, level, comment) {
           r.push(a);
           a = getc();
         } else if (a <= '\n') {
-          throw 'Error: unterminated Regular Expression literal';
+          throw '[MXC Error(js-min)] Error: unterminated Regular Expression literal';
         }
         r.push(a);
       }

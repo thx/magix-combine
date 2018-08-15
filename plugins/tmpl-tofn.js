@@ -27,7 +27,7 @@ module.exports = (tmpl, file, globalVars) => {
             }
             if (operate == `@`) {
                 hasAtRule = true;
-                source += `'+($expr='<%${operate + expr}%>',$i(${content}))+'`;
+                source += `'+($expr='<%${operate + expr}%>',$i($$ref,${content}))+'`;
             } else if (operate == `=`) {
                 source += `'+($expr='<%${operate + expr}%>',$e(${content}))+'`;
             } else if (operate == `!`) {
@@ -50,7 +50,7 @@ module.exports = (tmpl, file, globalVars) => {
         } else {
             if (operate == `@`) {
                 hasAtRule = true;
-                source += `'+$i(${content})+'`;
+                source += `'+$i($$ref,${content})+'`;
             } else if (operate == `=`) {
                 source += `'+$e(${content})+'`;
             } else if (operate == `!`) {
@@ -73,21 +73,25 @@ module.exports = (tmpl, file, globalVars) => {
     }
     source = source.replace(viewIdReg, `'+$viewId+'`);
 
-    let atRule = hasAtRule ? `,$i=(v,k,f)=>{for(f=$$ref[$g];--f;)if($$ref[k=$g+f]===v)return k;$$ref[k=$g+$$ref[$g]++]=v;return k;}` : '';
+    let atRule = hasAtRule ? `if(!$i){$i=(ref,v,k,f)=>{for(f=ref[$g];--f;)if(ref[k=$g+f]===v)return k;ref[k=$g+ref[$g]++]=v;return k;}}` : '';
 
-    let encode = `,$em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$n=v=>''+(v==null?'':v),$ef=m=>\`&\${$em[m]};\`,$e=v=>$n(v).replace($er,$ef)`;
+    let encode = `if(!$n){let $em={'&':'amp','<':'lt','>':'gt','"':'#34','\\'':'#39','\`':'#96'},$er=/[&<>"'\`]/g,$ef=m=>\`&\${$em[m]};\`;$n=v=>''+(v==null?'':v);$e=v=>$n(v).replace($er,$ef)}`;
 
-    let encodeURIMore = `,$um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=m=>$um[m],$uq=/[!')(*]/g,$eu=v=>encodeURIComponent($n(v)).replace($uq,$uf)`;
+    let encodeURIMore = `if(!$eu){let $um={'!':'%21','\\'':'%27','(':'%28',')':'%29','*':'%2A'},$uf=m=>$um[m],$uq=/[!')(*]/g;$eu=v=>encodeURIComponent($n(v)).replace($uq,$uf)}`;
 
-    let encodeQuote = `,$qr=/[\\\\'\"]/g,$eq=v=>$n(v).replace($qr,'\\\\$&')`;
+    let encodeQuote = `if(!$eq){let $qr=/[\\\\'\"]/g;$eq=v=>$n(v).replace($qr,'\\\\$&')}`;
 
     let vars = '';
     for (let key of globalVars) {
         vars += `,${key}=$$.${key}`;
     }
-    source = `if(!$$ref)$$ref=$$;let $g='\x1e',$_temp,$p=''${encode}${encodeURIMore}${encodeQuote}${atRule}${vars};${source}return $p`;
+    let fns = '';
+    if (configs.magixTmplFnInside) {
+        fns = `if(!$$ref)$$ref=$$;${encode}${encodeURIMore}${encodeQuote}${atRule};`;
+    }
+    source = `${fns}let $g='\x1e',$_temp,$p=''${vars};${source}return $p`;
 
-    source = configs.compileTmplCommand(`($$,$viewId,$$ref)=>{${source}}`, configs);
+    source = configs.compileTmplCommand(`($$,$viewId,$$ref,$e,$n,$eu,$i,$eq)=>{${source}}`, configs);
     if (source.startsWith('(function')) {
         source = source.substring(1).replace(closeReg, '');
     }

@@ -118,6 +118,6 @@ module.exports = (node, comments, tmpl, e) => {
     walk(node.body.body, 0);
     outerExprs.forEach(expr => {
         let part = tmpl.substring(expr.start, expr.end);
-        slog.ever(chalk.red('avoid nested loops'), 'at', chalk.gray(e.shortFrom), 'near\r\n', chalk.magenta(part));
+        slog.ever(chalk.magenta('[MXC Tip(checker-js-loop)]'), chalk.red('avoid nested loops'), 'at', chalk.gray(e.shortFrom), 'near\r\n', chalk.magenta(part));
     });
 };

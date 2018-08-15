@@ -4,7 +4,7 @@
     2.　检测循环嵌套
  */
 let acorn = require('./js-acorn');
-let serviceChecker = require('./checker-js-service');
+//let serviceChecker = require('./checker-js-service');
 let loopChecker = require('./checker-js-loop');
 //let thisChecker = require('./checker-js-this');
 module.exports = {
@@ -22,9 +22,9 @@ module.exports = {
             /*if (e.checker.jsThis) {
                 thisChecker(node, tmpl, e, ref); //this有可能被第三方编译工具编译，所以当第三方编译后的js代码不去检测
             }*/
-            if (e.checker.jsService) {
+            /*if (e.checker.jsService) {
                 serviceChecker(node, comments, tmpl, e);
-            }
+            }*/
         };
         acorn.walk(ast, {
             FunctionDeclaration: callChecker,

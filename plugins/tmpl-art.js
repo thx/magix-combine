@@ -143,7 +143,7 @@ let checkStack = (stack, key, code, e, lineNo) => {
     if (ctrl) {
         let l = ctrl(stack, lineNo);
         if (l) {
-            let args = [chalk.red(`unexpected {{${code}}} at line:${lineNo}`)];
+            let args = [chalk.red(`[MXC Error(tmpl-art)] unexpected {{${code}}} at line:${lineNo}`)];
             if (l.ctrl) {
                 args.push('unclosed', chalk.magenta(l.ctrl), `at line:${l.ln} , at file`);
             } else {
@@ -151,14 +151,14 @@ let checkStack = (stack, key, code, e, lineNo) => {
             }
             args.push(chalk.grey(e.shortHTMLFile));
             slog.ever.apply(slog, args);
-            throw new Error(`unexpected ${code}`);
+            throw new Error(`[MXC Error(tmpl-art)] unexpected ${code}`);
         }
     } else if (stack.length) {
         for (let s, i = stack.length; i--;) {
             s = stack[i];
-            slog.ever(chalk.red(`unclosed ${s.ctrl} at line:${s.ln}`), ', at file', chalk.grey(e.shortHTMLFile));
+            slog.ever(chalk.red(`[MXC Error(tmpl-art)] unclosed ${s.ctrl} at line:${s.ln}`), ', at file', chalk.grey(e.shortHTMLFile));
         }
-        throw new Error(`unclosed art ctrls at ${e.shortHTMLFile}`);
+        throw new Error(`[MXC Error(tmpl-art)] unclosed art ctrls at ${e.shortHTMLFile}`);
     }
 };
 let syntax = (code, stack, e, lineNo) => {
@@ -206,8 +206,8 @@ let syntax = (code, stack, e, lineNo) => {
             init = true;
         }
         if (asExpr.bad || ctrls[1] != 'as') {
-            slog.ever(chalk.red(`unsupport or bad each {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport or bad each {{' + code + '}}');
+            slog.ever(chalk.red(`[MXC Error(tmpl-art)] unsupport or bad each {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('[MXC Error(tmpl-art)] unsupport or bad each {{' + code + '}}');
         }
         let index = asExpr.key || utils.uId('$art_i', code);
         let refObj = longExpr.test(object) ? utils.uId('$art_obj', code) : object;
@@ -240,8 +240,8 @@ let syntax = (code, stack, e, lineNo) => {
             init = true;
         }
         if (asExpr.bad || ctrls[1] != 'as') {
-            slog.ever(chalk.red(`unsupport or bad forin {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
-            throw new Error('unsupport or bad forin {{' + code + '}}');
+            slog.ever(chalk.red(`[MXC Error(tmpl-art)] unsupport or bad forin {{${code}}} at line:${lineNo}`), 'file', chalk.grey(e.shortHTMLFile));
+            throw new Error('[MXC Error(tmpl-art)] unsupport or bad forin {{' + code + '}}');
         }
         let key1 = asExpr.key || utils.uId('$art_k', code);
         let refObj = longExpr.test(object) ? utils.uId('$art_obj', code) : object;
@@ -304,8 +304,8 @@ let findBestCode = (str, e, line) => {
     }
     if (!find) {
         if (maybeAt == -1) {
-            slog.ever(chalk.red('bad partial art: {{' + str.trim() + ' at line:' + line), 'at file', chalk.magenta(e.shortHTMLFile));
-            throw new Error('bad partial art: {{' + str.trim() + ' at line:' + line + ' at file:' + e.shortHTMLFile);
+            slog.ever(chalk.red('[MXC Error(tmpl-art)] bad partial art: {{' + str.trim() + ' at line:' + line), 'at file', chalk.magenta(e.shortHTMLFile));
+            throw new Error('[MXC Error(tmpl-art)] bad partial art: {{' + str.trim() + ' at line:' + line + ' at file:' + e.shortHTMLFile);
         } else {
             left = str.substring(0, maybeAt - 2);
             right = str.substring(maybeAt);

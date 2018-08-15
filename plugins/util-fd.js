@@ -44,6 +44,6 @@ let walk = (folder, callback) => { //遍历文件夹及子、孙文件夹下的�
 module.exports = {
     write: writeFile,
     copy: copyFile,
-    walk: walk,
+    walk,
     read: readFile
 };

@@ -34,7 +34,7 @@ let processFile = (from, to, inwatch) => { // d:\a\b.js  d:\c\d.js
                         fd.write(to, e.content);
                     }
                     if (configs.log && inwatch) {
-                        slog.ever('finish:', chalk.green(from));
+                        slog.ever('[MXC Tip(js)] finish:', chalk.green(from));
                     }
                     resolve();
                 }).catch(reject);

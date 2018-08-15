@@ -61,7 +61,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     } catch (ex) {
         let origin = params.substring(1, params.length - 1).replace(cmdPHReg, m => store[m]).replace(cmdReg, m => refTmplCommands[m]);
         let src = toSrc(origin);
-        slog.ever(chalk.red('encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'), 'e.g.', chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'));
+        slog.ever(chalk.red('[MXC Error(tmpl-attr-mxevent)] encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'), 'e.g.', chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'));
         throw ex;
     }
     let modifiers = [];
@@ -83,7 +83,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
                     .replace(cmdReg, m => refTmplCommands[m])
                     .replace(removeTempReg, '');
 
-                slog.ever(chalk.red('beware!'), 'You should use', chalk.magenta(tip), 'instead of', chalk.magenta(tipRaw), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
+                slog.ever(chalk.magenta(`[MXC Tip(tmpl-attr-mxevent)]`), chalk.red('beware!'), 'You should use', chalk.magenta(tip), 'instead of', chalk.magenta(tipRaw), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
             }
             let eq = jsGeneric.escapeQ(replacement, q);
             replacement = replacement.replace(cmdPHReg, m => store[m]);
@@ -123,7 +123,7 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
                         if (oCmd) {
                             oCmd.replace(unsupportOutCmdReg, m => {
                                 m = m.replace(removeTempReg, '');
-                                slog.ever(chalk.red('unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
+                                slog.ever(chalk.red('[MXC Error(tmpl-attr-mxevent)] unsupport ' + m), 'at', chalk.grey(e.shortHTMLFile), 'in', chalk.magenta(mxEvent.replace(removeTempReg, '')));
                             });
                         }
                     });

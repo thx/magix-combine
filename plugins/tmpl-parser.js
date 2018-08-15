@@ -1,4 +1,4 @@
-let HTMLParser = require('html-minifier/src/htmlparser').HTMLParser;
+let htmlParser = require('./html-parser');
 let tmplTags = require('./tmpl-tags');
 let chalk = require('chalk');
 let slog = require('./util-log');
@@ -11,11 +11,11 @@ module.exports = (input, htmlFile) => {
     let id = 0;
     let tokensMap = Object.create(null);
     tokens.__map = tokensMap;
-    new HTMLParser(input, {
-        html5: true,
+    htmlParser(input, {
+        //html5: true,
         start(tag, attrs, unary) {
             if (htmlFile && upperCaseReg.test(tag)) {
-                slog.ever(chalk.red('avoid use ' + tag), 'at', chalk.magenta(htmlFile), 'use ', chalk.red(tag.toLowerCase()), 'instead');
+                slog.ever(chalk.red('[MXC Tip(tmpl-parser)] avoid use ' + tag), 'at', chalk.magenta(htmlFile), 'use ', chalk.red(tag.toLowerCase()), 'instead');
             }
             tag = tag.toLowerCase();
             let ic = tag.indexOf('-');
@@ -77,8 +77,12 @@ module.exports = (input, htmlFile) => {
                     token.mxvAutoKey = a.value;
                 } else if (temp == 'mxv') {
                     token.mxvKey = a.value;
+                } else if (temp == 'mx-is') {
+                    token.hasMxIs = true;
                 } else if (temp == '_mxa') {
                     token.mxsAttrKey = a.value;
+                } else if (temp === '_mxo') {
+                    token.mxViewOwner = a.value;
                 } else if (temp == 'mx-static' || temp == 'mxs') {
                     token.userStaticKey = a.value || true;
                 } else if (temp == 'mx-static-attr' || temp == 'mxa') {

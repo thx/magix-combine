@@ -12,7 +12,7 @@ module.exports = (e, tagName, match, refTmplCommands, toSrc) => {
             value = tmplCmd.recover(value, refTmplCommands);
             value = configs.tmplImgSrcMatched(value);
             if (e.checker.tmplAttrImg) {
-                slog.ever('tmpl-attr-img match:', toSrc(value), chalk.grey(e.shortHTMLFile));
+                slog.ever('[MXC Tip(tmpl-attr-img)] match:', toSrc(value), chalk.grey(e.shortHTMLFile));
             }
             return 'src=' + q + value + q;
         });

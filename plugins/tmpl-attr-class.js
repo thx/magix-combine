@@ -30,7 +30,7 @@ module.exports = {
                             deps.addFileDepend(f, e.from, e.to);
                         });
                     } else {
-                        throw new Error(`can not find class name "${key}" at file "${e.from}" in which files`);
+                        throw new Error(`[MXC Error(tmpl-attr-class)] can not find class name "${key}" at file "${e.from}" in which files`);
                     }
                 } else {
                     checker.CSS.markUndeclared(e.srcHTMLFile, key);

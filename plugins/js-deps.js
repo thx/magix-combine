@@ -15,6 +15,7 @@ let importReg = /import\s+(?:([^;\r\n]+?)from\s+)?(['"])([^'"]+)\2([\r\n;,])?/;
 let requireReg = /(?:((?:var|let|const)\s+|,|\s|^)\s*([^=\s]+)\s*=\s*)?\brequire\s*\(\s*(['"])([^\(\)]+)\3\s*\)([\r\n;,\s])?/;
 let dimportReg = /import\s*\(([^\(\);\r\n]+)\)/;
 let styleReg = /^(global|ref|names)?@?([\w\.\-\/\\]+?(?:\.css|\.less|\.scss|\.sass|\.mx|\.mmx|\.style))$/;
+let noncharReg = /[^a-zA-Z\d]/g;
 let removeRequiresLoader = {
     kissy: 1,
     kissy_es: 1
@@ -25,6 +26,7 @@ module.exports = {
         let vars = [];
         let noKeyDeps = [];
         let nearestMagixVarName = 'Magix';
+        let prepend = '';
         if (e.addWrapper) {
             let depsInfo = jsModuleParser.process(e.content);
             depsInfo = depsInfo.reverse();
@@ -36,7 +38,7 @@ module.exports = {
                     if (offset < last && last < (offset + match.length)) {
                         let info = depsInfo.pop();
                         let m;
-                        let vId, mId, prefix, tail;
+                        let vId, mId, prefix, tail, dynamicVId = 0;
                         if (info.type == 'require') {
                             m = match.match(requireReg);
                             prefix = m[1] || '';
@@ -56,8 +58,29 @@ module.exports = {
                             vId = '';
                             mId = m[1];
                         }
-                        if (configs.magixModuleIds.indexOf(mId) !== -1) {
-                            nearestMagixVarName = vId;
+                        //是否是magix模块
+                        let isMagix = configs.magixModuleIds.indexOf(mId) !== -1;
+                        //如果是magix模板或移除require语句
+                        if (isMagix || removeRequiresLoader[e.loader]) {
+                            //如果依赖是参数或且不存在变量声明
+                            if (info.isParam && !vId) {
+                                dynamicVId = 1;//动态变量
+                                vId = '$dynamic_name_' + mId.replace(noncharReg, '_');
+                            }
+                            if (isMagix) {
+                                nearestMagixVarName = vId;
+                            }
+                        }
+                        if (info.isParam &&
+                            isMagix &&
+                            !removeRequiresLoader[e.loader]) {
+                            prepend = this.getImport({
+                                prefix: 'let ',
+                                tail: ';\n',
+                                vId,
+                                mId,
+                                type: 'require'
+                            }, e);
                         }
                         let reqInfo = {
                             prefix,
@@ -65,6 +88,7 @@ module.exports = {
                             raw: match,
                             type: info.type,
                             vId,
+                            dynamicVId,
                             mId,
                             magix: nearestMagixVarName
                         };
@@ -87,38 +111,13 @@ module.exports = {
             });
             deps = deps.concat(noKeyDeps);
         }
+        e.content = prepend + e.content;
         e.deps = deps;
         e.vars = vars;
         e.requires = deps;
         return Promise.resolve(e);
     },
-    getReqReplacement(reqInfo, e) {
-        configs.resolveRequire(reqInfo, e);
-        if (reqInfo.hasOwnProperty('replacement')) {
-            return reqInfo.replacement;
-        }
-        if (configs.importCssSyntax) {
-            let sm = reqInfo.mId.match(styleReg);
-            if (sm) {
-                let [, prefix, name] = sm;
-                let dId = reqInfo.mId;
-                let replacement = reqInfo.prefix;
-                if (prefix) {
-                    dId = JSON.stringify(dId);
-                } else {
-                    dId = `${reqInfo.magix}.applyStyle(${JSON.stringify('@' + name)})`;
-                }
-                if (reqInfo.vId) {
-                    replacement += reqInfo.vId + ' = ';
-                }
-                reqInfo.isCss = true;
-                return replacement + dId + reqInfo.tail;
-            }
-        }
-        //kissy要删除require信息
-        if (removeRequiresLoader[e.loader] || !reqInfo.mId) {
-            return '';
-        }
+    getImport(reqInfo, e) {
         if (!reqInfo.mId.startsWith('.')) {
             let i = reqInfo.mId.indexOf('/');
             if (i > -1) {
@@ -147,5 +146,40 @@ module.exports = {
         }
         replacement += reqInfo.tail;
         return replacement;
+    },
+    getReqReplacement(reqInfo, e) {
+        configs.resolveRequire(reqInfo, e);
+        if (reqInfo.hasOwnProperty('replacement')) {
+            return reqInfo.replacement;
+        }
+        if (!reqInfo.mId) {
+            return '';
+        }
+        if (configs.importCssSyntax) {
+            let sm = reqInfo.mId.match(styleReg);
+            if (sm) {
+                let [, prefix, name] = sm;
+                let dId = reqInfo.mId;
+                let replacement = reqInfo.prefix;
+                if (prefix) {
+                    dId = JSON.stringify(dId);
+                } else {
+                    dId = `${reqInfo.magix}.applyStyle(${JSON.stringify('@' + name)})`;
+                }
+                if (reqInfo.vId) {
+                    replacement += reqInfo.vId + ' = ';
+                }
+                reqInfo.isCss = true;
+                return replacement + dId + reqInfo.tail;
+            }
+        }
+        if (reqInfo.dynamicVId) {
+            return reqInfo.vId;
+        }
+        //kissy要删除require信息
+        if (removeRequiresLoader[e.loader]) {
+            return '';
+        }
+        return this.getImport(reqInfo, e);
     }
 };

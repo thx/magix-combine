@@ -94,7 +94,7 @@ let processContent = (from, to, content, inwatch) => {
         }
     }
     if (configs.log && inwatch) {
-        slog.ever('compile:', chalk.blue(from));
+        slog.ever('[MXC Tip(js-content)] compile:', chalk.blue(from));
     }
     return before.then(content => {
         if (util.isString(content)) {
@@ -111,13 +111,14 @@ let processContent = (from, to, content, inwatch) => {
         try {
             ast = acorn.parse(tmpl, comments);
         } catch (ex) {
-            slog.ever('parse js ast error:', chalk.red(ex.message), tmpl);
+            let msg = [chalk.red(`[MXC Error(js-content)]`), 'Parse js ast error:', chalk.red(ex.message), tmpl];
             let arr = tmpl.split(lineBreakReg);
             let line = ex.loc.line - 1;
             if (arr[line]) {
-                slog.ever('near code:', chalk.green(arr[line]));
+                msg.push('near code:', chalk.green(arr[line]));
             }
-            slog.ever(chalk.red('js file: ' + e.from));
+            msg.push(chalk.red('js file: ' + e.from));
+            slog.ever.apply(slog, msg);
             return Promise.reject(ex);
         }
         let modifiers = [];
@@ -161,7 +162,9 @@ let processContent = (from, to, content, inwatch) => {
                 }).replace(doubleAtReg, '@');
                 add = true;
             } else if (configs.htmlFileReg.test(raw)) {
-                node.raw = raw.replace(configs.htmlFileGlobalReg, (m, q, ctrl) => m.replace('@', (ctrl || 'updater') + '\u0012@'));
+                node.raw = raw.replace(configs.htmlFileGlobalReg, (m, q, ctrl) => {
+                    return m.replace('@', (ctrl ? '' : 'updater') + '\u0012@');
+                });
                 add = true;
             } else if (othersFileReg.test(raw)) {
                 let replacement = '';

@@ -22,6 +22,8 @@ let tagReg = /<([^>\s\/]+)([^>]*?)(\/)?>/g;
 let staticKeyReg = /\s*_mxs="[^"]+"/g;
 let attrKeyReg = /\s*_mxa="[^"]+"/g;
 let mxvKeyReg = /\s*_mxv="[^"]+"/g;
+let mxViewOwnerReg = /\s*_mxo="[^"]+"/g;
+let mxIntactReg = /\s*mx-intact(?:\s*=\s*(['"])[^'"]+\1)?/;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let forceStaticKey = /\s+mx-static(?:-attr)?(?:\s*=\s*(['"])[^'"]+\1)?/;
 let ifForReg = /\s*(?:if|for|for_declare)\s*=\s*"[^"]+"/g;
@@ -33,15 +35,18 @@ module.exports = (tmpl, file) => {
         tKey = ' _mxv="' + g++ + '"';
         tKey += ' _mxs="' + g++ + '"';
         tKey += ' _mxa="' + g++ + '"';
+        if (configs.magixVframeHost) {
+            tKey += ' _mxo="' + g++ + '"';
+        }
         return '<' + tag + tKey + attrs + (close || '') + '>';
     });
     let tokens = tmplParser(tmpl);
     let keysMap = Object.create(null),
         userKeysMap = Object.create(null),
         userAttrKeysMap = Object.create(null);
-    let removeChildrenStaicKeys = (children, keys) => {
+    let removeChildrenStaticKeys = (children, keys) => {
         for (let c of children) {
-            if (c.children) removeChildrenStaicKeys(c.children, keys);
+            if (c.children) removeChildrenStaticKeys(c.children, keys);
             let key = ' _mxs="' + c.mxsKey + '"';
             if (keys.indexOf(key) == -1) {
                 keys.push(key);
@@ -61,10 +66,14 @@ module.exports = (tmpl, file) => {
                         walk(n.children);
                     }
                 }
+                if (!n.hasMxView && n.mxViewOwner) {
+                    keys.push(' _mxo="' + n.mxViewOwner + '"');
+                }
                 let html = tmpl.substring(n.start, n.end)
                     .replace(staticKeyReg, '')
                     .replace(attrKeyReg, '')
-                    .replace(mxvKeyReg, '');
+                    .replace(mxvKeyReg, '')
+                    .replace(mxViewOwnerReg, '');
                 if (configs.magixUpdaterQuick) {
                     html = html.replace(ifForReg, '');
                 }
@@ -89,8 +98,14 @@ module.exports = (tmpl, file) => {
                 } else {
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
                 }
+
+
+                //清理mxv
+                //先清理
+                //quick模板不用处理，在magix/quick.js中已自动处理了mxv
                 if (configs.magixUpdaterQuick) {
                     keys.push(' _mxv="' + n.mxvAutoKey + '"');
+                    delete n.mxvAutoKey;
                 } else {
                     if (n.mxvKey) {
                         keys.push(' _mxv="' + n.mxvAutoKey + '"');
@@ -127,11 +142,12 @@ module.exports = (tmpl, file) => {
                         delete n.mxvAutoKey;
                     }
                 }
+
                 if (tmplCommandAnchorRegTest.test(html)) {
                     if (n.userStaticKey) {
                         userKeysMap[' _mxs="' + n.mxsKey + '"'] = n.userStaticKey;
                         if (n.children && n.userStaticKey !== 'false') {
-                            removeChildrenStaicKeys(n.children, keys);
+                            removeChildrenStaticKeys(n.children, keys);
                         }
                     } else {
                         removeStaticKey = true;
@@ -152,11 +168,14 @@ module.exports = (tmpl, file) => {
                             break;
                         }
                     }
-                    if (!hasMxv) {
-                        removeChildrenStaicKeys(n.children, keys);
+                    if (!hasMxv && !n.hasMxIs) {
+                        removeChildrenStaticKeys(n.children, keys);
                     }
                 }
                 if (!removeStaticKey) {
+                    if (n.hasMxIs) {
+                        keys.push(' _mxs="' + n.mxsKey + '"');
+                    }
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
                 }
             }
@@ -190,7 +209,9 @@ module.exports = (tmpl, file) => {
             }
             return ' mxa="' + r + '"';
         }).replace(mxvKeyReg, ' mxv')
-            .replace(forceStaticKey, '');
+            .replace(forceStaticKey, '')
+            .replace(mxIntactReg, 'mxi')
+            .replace(mxViewOwnerReg, ' mxo="\x1f"');
     });
     return tmpl;
 };

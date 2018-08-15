@@ -1,3 +1,17 @@
+## 3.11.12
+1. 模板中支持`this`传递当前整个数据对象
+2. 调整`js`代码的翻译，支持`wrap(require('module'))`的模块处理
+3. 调整旧模板的处理，方便后期移除
+4. 修正`quick`模板的翻译
+5. 保留`mx-is`,`mx-as`,`mx-type`,`mx-name`等
+6. 重写`html parser`
+7. 关闭`Service Checker`
+8. 增加`<mx-link>`及`<mx-router>`内置组件，更方便的书写页面跳转
+9. 输出消息带前缀
+10. 修复`art`中`if`语句的识别
+11. 调整`vnode`的生成：提前`decode`
+12. 修复模板`raw`前缀，新增`bare`前缀
+
 ## 3.11.11
 1. `each`语句支持`each list as value key last first`开始与结束`2`个布尔值
 2. 增加`concurrentTask`配置，并发情况下，生成的`key`是不固定的，可把该值设为`1`来确保生成相同的`key`

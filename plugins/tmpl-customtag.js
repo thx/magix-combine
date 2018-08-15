@@ -23,21 +23,13 @@ let atpath = require('./util-atpath');
 let consts = require('./util-const');
 let sep = path.sep;
 let cmdNumReg = /^\x07\d+$/;
-let selfClose = {
-    input: 1,
-    br: 1,
-    hr: 1,
-    img: 1,
-    embed: 1,
-    source: 1,
-    area: 1,
-    param: 1,
-    col: 1
-};
+let selfClose = require('./html-selfclose-tags');
 let uncheckTags = {
     'mx-view': 1,
     'mx-include': 1,
-    'mx-vframe': 1
+    'mx-vframe': 1,
+    'mx-link': 1,
+    'mx-router': 1
 };
 let tagReg = /\btag\s*=\s*"([^"]+)"/;
 let attrNameValueReg = /(^|\s|\x07)([^=\/\s\x07]+)(?:\s*=\s*(["'])([\s\S]*?)\3)?/g;
@@ -46,10 +38,20 @@ let tmplAttrsReg = /\$\{attrs\.([a-zA-Z_]+)\}/g;
 let tmplContentReg = /\$\{content\}/g;
 let attrAtStartContentHolderReg = /\x03/g;
 let mxViewAttrHolderReg = /\x02/g;
+let atReg = /@/g;
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]*?)\1/;
 let fileCache = Object.create(null);
 let processedGalleryInfo = Symbol('gallery.info.processed');
+
+let isReservedAttr = key => {
+    return key.startsWith('mx-') ||
+        key.startsWith('data-') ||
+        key.startsWith('native-') ||
+        key.startsWith('#') ||
+        key.startsWith('@native-') ||
+        key.startsWith('@#');
+};
 
 let relativeReg = /\.{1,2}\//g;
 let addAtIfNeed = tmpl => {
@@ -81,13 +83,7 @@ let splitAttrs = (tag, attrs) => {
             return m;
         }
         prefix = prefix || '';
-        if (!attrsMap[key] &&
-            !key.startsWith('mx-') &&
-            !key.startsWith('data-') &&
-            !key.startsWith('native-') &&
-            !key.startsWith('#') &&
-            !key.startsWith('@native-') &&
-            !key.startsWith('@#')) {
+        if (!attrsMap[key] && !isReservedAttr(key)) {
             if (key.startsWith('@view-')) {
                 key = 'view-@' + key.substring(6);
             } else if (!key.startsWith('view-')) {
@@ -163,13 +159,7 @@ let innerView = (result, info, gRoot, map, extInfo) => {
         }
         let viewKey = false;
         let originalKey = key;
-        if (!allAttrs.hasOwnProperty(key) &&
-            !key.startsWith('mx-') &&
-            !key.startsWith('data-') &&
-            !key.startsWith('native-') &&
-            !key.startsWith('#') &&
-            !key.startsWith('@native-') &&
-            !key.startsWith('@#')) {
+        if (!allAttrs.hasOwnProperty(key) && !isReservedAttr(key)) {
             if (key.startsWith('@view-')) {
                 key = 'view-@' + key.substring(6);
             } else if (!key.startsWith('view-')) {
@@ -225,15 +215,70 @@ let innerView = (result, info, gRoot, map, extInfo) => {
     let html = `<${tag} ${attrs}`;
     let unary = selfClose.hasOwnProperty(tag);
     if (unary) {
-        html += `/`;
-    }
-    html += `>${result.content}`;
-    if (!unary) {
+        html += `/>`;
+    } else {
+        html += `>${result.content}`;
         html += `</${tag}>`;
     }
     return html;
 };
-
+let innerLink = (result) => {
+    let tag = 'a';
+    let href = '', paramKey = 0;
+    let attrs = result.attrs;
+    attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, value) => {
+        if (cmdNumReg.test(m)) {
+            return m;
+        }
+        if (key == 'to' || key == 'href') {
+            href = value;
+            return '';
+        }
+        if (key == 'tag') {
+            tag = value;
+            return '';
+        }
+        return m;
+    });
+    let allAttrs = attrMap.getAll(tag);
+    attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, value) => {
+        if (cmdNumReg.test(m)) {
+            return m;
+        }
+        prefix = prefix || '';
+        if (!allAttrs.hasOwnProperty(key) && !isReservedAttr(key)) {
+            if (key.startsWith('@param-')) {
+                key = 'param-@' + key.substring(7);
+            } else if (!key.startsWith('param-')) {
+                key = 'param-' + key;
+            }
+            paramKey = 1;
+        }
+        if (key.startsWith('native-')) {
+            key = key.substring(7);
+        } else if (key.startsWith('#')) {
+            key = key.substring(1);
+        } else if (key.startsWith('@native-')) {
+            key = '@' + key.substring(8);
+        } else if (key.startsWith('@#')) {
+            key = '@' + key.substring(2);
+        }
+        if (q === undefined && paramKey) {
+            q = '"';
+            value = '';
+        }
+        return prefix + key + '=' + q + value + q;
+    });
+    let html = `<${tag}  href="${href}" ${attrs}`;
+    let unary = selfClose.hasOwnProperty(tag);
+    if (unary) {
+        html += `/>`;
+    } else {
+        html += `>${result.content}`;
+        html += `</${tag}>`;
+    }
+    return html;
+};
 let innerInclude = (result, info) => {
     let file = '';
     let attrs = {};
@@ -247,7 +292,7 @@ let innerInclude = (result, info) => {
         }
     });
     if (!fs.existsSync(file)) {
-        slog.ever(chalk.red('can not find file:' + file), 'for tag', chalk.magenta('<' + result.tag + ' ' + src + '>'), 'at', chalk.magenta(info.shortOwnerHTMLFile));
+        slog.ever(chalk.red('[MXC Error(tmpl-customtag)] can not find file:' + file), 'for tag', chalk.magenta('<' + result.tag + ' ' + src + '>'), 'at', chalk.magenta(info.shortOwnerHTMLFile));
         return '';
     } else {
         let content = '';
@@ -270,7 +315,7 @@ let innerInclude = (result, info) => {
             content = configs.compileTmplStart(content, info);
             content = configs.compileTmplEnd(content, info);
         } catch (ex) {
-            slog.ever(chalk.red('compile template error ' + ex.message), 'at', chalk.magenta(info.shortHTMLFile));
+            slog.ever(chalk.red('[MXC Error(tmpl-customtag)] compile template error ' + ex.message), 'at', chalk.magenta(info.shortHTMLFile));
         }
         return content;
     }
@@ -324,6 +369,7 @@ module.exports = {
             let content = '',
                 attrs = '',
                 children = [];
+            //console.log(tmpl,n);
             if (n.hasAttrs) {
                 attrs = tmpl.substring(n.attrsStart, n.attrsEnd);
             }
@@ -406,7 +452,7 @@ module.exports = {
                                 cfg = require(configFile);
                                 for (let p in cfg) {
                                     if (!p.startsWith(main)) {
-                                        throw new Error('bad config at ' + configFile + '. Only property key starts with ' + main + ' support');
+                                        throw new Error('[MXC Error(tmpl-customtag)] bad config at ' + configFile + '. Only property key starts with ' + main + ' support');
                                     }
                                 }
                             }
@@ -461,18 +507,22 @@ module.exports = {
             }
             let tip = uncheckTags[result.tag];
             if (tip && tip !== 1) {
-                slog.ever(chalk.red('can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile), tip.msg, chalk.magenta(tip.resolve));
+                slog.ever(chalk.red('[MXC Error(tmpl-custom)] can not process tag: ' + result.tag), 'at', chalk.magenta(e.shortHTMLFile), tip.msg, chalk.magenta(tip.resolve));
             }
             let update = false;
             if (n.pfx == 'mx') {
                 if (result.mainTag == 'view' || result.mainTag == 'vframe') {
                     if (result.mainTag == 'view') {
-                        slog.ever(chalk.red('deprecated tag: mx-view'), 'at', chalk.magenta(e.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
+                        slog.ever(chalk.red('[MXC Tip(tmpl-custom)] deprecated tag: mx-view'), 'at', chalk.magenta(e.shortHTMLFile), 'use', chalk.magenta('mx-vframe'), 'instead');
                     }
                     content = innerView(result);
                     update = true;
                 } else if (result.mainTag == 'include') {
                     content = innerInclude(result, extInfo);
+                    update = true;
+                } else if (result.mainTag == 'link' ||
+                    result.mainTag == 'router') {
+                    content = innerLink(result, extInfo);
                     update = true;
                 }
             }
@@ -528,7 +578,7 @@ module.exports = {
                             let ex1 = cmdContent.isArt ? `{{=data.${key}}}` : `<%=data.${key}%>`;
                             let ex2 = cmdContent.isArt ? `{{!data.${key}}}` : `<%!data.${key}%>`;
                             let ex3 = cmdContent.isArt ? `{{@data.${key}}}` : `<%@data.${key}%>`;
-                            slog.ever(chalk.red('check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex0 + '" or ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
+                            slog.ever(chalk.red('[MXC Tip(tmpl-custom)] check attribute ' + key + '=' + q + cmdContent.origin + q), 'at', chalk.magenta(e.shortHTMLFile), 'the attribute value only support expression like ' + key + '="' + ex0 + '" or ' + key + '="' + ex1 + '" or ' + key + '="' + ex2 + '" or ' + key + '="' + ex3 + '"');
                         }
                     } else if (content === 'false' ||
                         content === '0' ||
@@ -564,7 +614,8 @@ module.exports = {
             let tag = result.tag;
             let attrs = result.attrs;
             attrs = attrs.replace(attrNameValueReg, m => {
-                return atpath.resolveContent(m, e.moduleId, '\x03');
+                return atpath.resolveContent(m, e.moduleId, '\x03')
+                    .replace(atReg, '\x03');
             });
             let html = `<${tag} ${attrs}`;
             let unary = selfClose.hasOwnProperty(tag);

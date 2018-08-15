@@ -321,7 +321,7 @@ let addAttrs = (tag, tmpl, info, refTmplCommands, e, hasSubView, kInfo) => {
             if (attrsKeys[info.keys[i]]) m = m ? m | 2 : 2;
             mask += m + '';
             if (m === 0) {
-                slog.ever('check key word:', chalk.red(info.keys[i]), ' relate file:', chalk.grey(e.shortFrom));
+                slog.ever('[MXC-Tip(tmpl-partial)] check key word:', chalk.red(info.keys[i]), ' relate file:', chalk.grey(e.shortFrom));
             }
         }
         //最后产出的结果可能如：

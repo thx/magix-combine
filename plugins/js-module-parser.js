@@ -7,7 +7,7 @@ module.exports = {
         try {
             ast = acorn.parse(tmpl);
         } catch (ex) {
-            slog.ever(chalk.red('parse js error at js-module-parser'), ex.message, 'near', tmpl.substring(Math.max(0, ex.pos - 20), Math.min(ex.pos + 20, tmpl.length)));
+            slog.ever(chalk.red(`[MXC Error(js-module-parser)]`), ex.message, 'near', tmpl.substring(Math.max(0, ex.pos - 20), Math.min(ex.pos + 20, tmpl.length)));
             throw ex;
         }
         let modules = [];
@@ -29,6 +29,10 @@ module.exports = {
                 if (node.arguments.length == 1) {
                     let a0 = node.arguments[0];
                     let callee = node.callee;
+                    let last = modules[modules.length - 1];
+                    if (last && !last.isParam && node.start < last.start && node.end > last.end) {
+                        last.isParam = true;
+                    }
                     if (callee.type == 'Identifier' &&
                         a0.type == 'Literal' &&
                         callee.name == 'require') {

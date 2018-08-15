@@ -48,7 +48,7 @@ module.exports = {
         css: true, //样式
         cssUrl: false, //样式中的url
         jsLoop: true, //js循环
-        jsService: true, //js接口服务
+        //jsService: true, //js接口服务
         //jsThis: true, //js this别名
         tmplCmdSyntax: true,//命令语法检查
         tmplAttrImg: false, //模板img属性
@@ -105,7 +105,9 @@ module.exports = {
     tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplStaticAnalyze: true,//模板静态节点分析
     disableMagixUpdater: false,
+    magixVframeHost: false,
     magixUpdaterIncrement: false,
+    magixTmplFnInside: true,
     magixUpdaterQuick: false,//quick模板
     selectorSilentErrorCss: false,//css选择器处理失败时，使用原有的选择器还是提示用户出错
     sourceMapCss: false,
@@ -142,6 +144,11 @@ module.exports = {
                     i.attrs += ' class="hp100 fl none"';
                 }
                 return `<div ${i.attrs}>${i.content}</div>`;
+            },
+            'mx-link'(i) {
+                let e = i.seprateAttrs('a');
+                console.log(e);
+                return `<a mx-view="" ${e.viewAttrs}></a>`
             }
         }
     },

@@ -50,7 +50,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
             }
             sass.render(cssCompileConfigs, (err, result) => {
                 if (err) {
-                    slog.ever(e.ext.substring(1) + ' error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
+                    slog.ever(chalk.red('[MXC Error(css-read)]'), 'compile sass error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
                     return reject(err);
                 }
                 let map = sourceMap(result.map ? result.map.toString() : '', e.file, {
@@ -78,7 +78,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
             }
             less.render(e.content, cssCompileConfigs, (err, result) => {
                 if (err) {
-                    slog.ever('less error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
+                    slog.ever(chalk.red('[MXC Error(css-read)]'), 'compile less error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
                     return reject(err);
                 }
                 let map = sourceMap(configs.debug && configs.sourceMapCss ? result.map : '', e.file);
@@ -131,7 +131,7 @@ module.exports = (file, e, source, ext, refInnerStyle) => {
             let type = info.styleType;
             if (ext != '.mx' && ext != '.mmx') {
                 if (type && type != ext) {
-                    slog.ever(chalk.red('conflicting style language'), 'at', chalk.magenta(shortFile), 'near', chalk.magenta(source + ' and ' + info.styleTag));
+                    slog.ever(chalk.red('[MXC Error(css-read)] conflicting style language'), 'at', chalk.magenta(shortFile), 'near', chalk.magenta(source + ' and ' + info.styleTag));
                 }
             }
             compileContent(file, info.style, ext, resolve, reject, shortFile);
