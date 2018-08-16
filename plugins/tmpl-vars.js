@@ -56,7 +56,7 @@ let stripNum = str => str.replace(hreg, '$1');
     each: 1
 };*/
 let leftOuputReg = /\u0018",/g;
-let rightOutputReg = /,"/g;
+let rightOutputReg = /,\s*"/g;
 let efCache = Object.create(null);
 let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:user.name<change,input>({refresh:true,required:true})%>  =>  evts:change,input  expr user.name  fns  {refresh:true,required:true}
     let c = efCache[expr];
@@ -72,7 +72,7 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:us
     }
     let firstComma = expr.indexOf(',');
     if (firstComma > -1) {
-        fns = expr.slice(firstComma + 2, -1);
+        fns = expr.substring(firstComma + 1).trim().slice(1, -1);
         expr = expr.substring(0, firstComma);
         fns = fns.replace(leftOuputReg, '\'<%@').replace(rightOutputReg, '%>\'');
     }
@@ -166,7 +166,7 @@ module.exports = {
             if (operate) {
                 start = 3;
                 if (content.trim()) {
-                    content = '(' + content + ')';
+                    content = '[' + content + ']';
                 }
             }
             let source = tmpl.substring(index, offset + start);

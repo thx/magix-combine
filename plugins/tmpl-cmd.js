@@ -93,7 +93,7 @@ module.exports = {
                 let start = 2;
                 if (operate) {
                     start = 3;
-                    content = '(' + content + ')';
+                    content = '[' + content + ']';
                 }
                 let source = tmpl.substring(index, offset + start);
                 let key = '\u0005' + (htmlIndex++) + '\u0005';
@@ -114,7 +114,6 @@ module.exports = {
                 c = c.replace(lineBreakReg, '');
                 return '<%' + (o || '') + c + '%>';
             });
-            //console.log(tmpl);
             tmpl = tmpl.replace(emptyCmdReg, '');
         }
         return tmpl;

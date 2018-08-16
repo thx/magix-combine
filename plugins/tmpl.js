@@ -143,6 +143,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             temp.events = tmplEvents;
         }
         fileContent = tmplAttr.process(fileContent, e, refTmplCommands);
+        //console.log(fileContent);
         try {
             fileContent = tmplCmd.tidy(fileContent);
         } catch (ex) {
