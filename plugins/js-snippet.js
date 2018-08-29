@@ -6,7 +6,7 @@ let configs = require('./util-config');
 let path = require('path');
 let fs = require('fs');
 let sep = path.sep;
-let fileReg = /(['"])\u0012@([^'"]+)\.([a-z]{2,})\1;?/g;
+let fileReg = /(['"])([a-z,]+)?\u0012@([^'"]+)\.([a-z]{2,})\1;?/g;
 let checker = require('./checker');
 module.exports = e => {
     return new Promise((resolve, reject) => {
@@ -22,11 +22,16 @@ module.exports = e => {
                 resolve(e);
             }
         };
-        let readFile = (key, file) => {
+        let readFile = (key, file, ctrl) => {
             count++;
             let to = path.resolve(configs.compiledFolder + file.replace(configs.moduleIdRemovedPath, ''));
             if (fs.existsSync(file)) {
-                e.processContent(file, to, '', false).then(info => {
+                let ctrls = ctrl.split(',');
+                let c = {};
+                for (let r of ctrls) {
+                    c[r] = true;
+                }
+                e.processContent(file, to, '', false, c).then(info => {
                     contentCache[key] = info.content;
                     count--;
                     if (!count) {
@@ -43,12 +48,12 @@ module.exports = e => {
             }
         };
         let tasks = [];
-        e.content.replace(fileReg, (m, q, name, ext) => {
+        e.content.replace(fileReg, (m, q, ctrl, name, ext) => {
             let file = path.resolve(path.dirname(e.from) + sep + name + '.' + ext);
             if (e.from && e.to) {
                 deps.addFileDepend(file, e.from, e.to);
             }
-            tasks.push([m, file]);
+            tasks.push([m, file, ctrl || '']);
         });
         if (tasks.length) {
             let i = 0;

@@ -180,10 +180,10 @@ module.exports = (e, inwatch) => {
                                         cloneAssign(gCSSNamesMap, cssNamesMap);
                                         cloneAssign(gCSSTagToFiles, cssTagsToFiles);
                                         cssGlobal.addReserved(cssNamesMap);
-                                        checker.CSS.fileToSelectors(file, cssNamesMap, inwatch);
-                                        checker.CSS.fileToTags(file, cssTagsMap, inwatch);
+                                        //checker.CSS.fileToSelectors(file, cssNamesMap, inwatch);
+                                        //checker.CSS.fileToTags(file, cssTagsMap, inwatch);
                                     }
-                                    checker.CSS.markGlobal(e.from, 'global@' + name + ext);
+                                    //checker.CSS.markGlobal(e.from, 'global@' + name + ext);
                                 }
                             }
                         }

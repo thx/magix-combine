@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "3.11.16",
+  "version": "3.11.17",
   "description": "合并Magix View的html,js,css成一个js文件，并检测html,js,css中可能存在的问题",
   "main": "index.js",
   "types": "index.d.ts",
@@ -16,18 +16,18 @@
     "offline"
   ],
   "dependencies": {
-    "acorn": "5.5.x",
+    "acorn": "5.7.x",
     "acorn-dynamic-import": "3.0.x",
     "acorn-es7-plugin": "1.1.x",
     "acorn5-object-spread": "5.1.x",
-    "autoprefixer": "8.5.x",
+    "autoprefixer": "9.1.x",
     "chalk": "2.4.x",
-    "cssnano": "3.10.x",
+    "cssnano": "4.0.x",
     "html-entities-decoder": "1.0.x",
     "html-minifier": "3.5.x",
-    "less": "2.7.x",
+    "less": "3.8.x",
     "node-sass": "4.9.x",
-    "postcss": "6.0.x",
+    "postcss": "7.0.x",
     "string-width": "2.1.x"
   },
   "author": "xinglie <xinglie.lkf@taobao.com>",

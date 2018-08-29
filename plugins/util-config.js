@@ -17,7 +17,8 @@ module.exports = {
     commonFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
     compiledFolder: 'src', //经该工具编译到的源码文件夹，该文件夹下的js可以直接运行
     cssnano: { //css压缩选项
-        safe: true,
+        //safe: true,
+        from: undefined,
         autoprefixer: false,
         minifyFontValues: false
     },
@@ -107,6 +108,7 @@ module.exports = {
     magixVframeHost: false,
     magixUpdaterIncrement: false,
     magixTmplFnInside: true,
+    magixUpdaterBindExpression: true,
     magixUpdaterQuick: false,//quick模板
     selectorSilentErrorCss: false,//css选择器处理失败时，使用原有的选择器还是提示用户出错
     sourceMapCss: false,
@@ -119,13 +121,13 @@ module.exports = {
     jsFileExtNames: ['js', 'mjs', 'mx', 'mmx', 'ts', 'mts', 'jsx', 'es', 'tsx', 'mtsx'], //选择编译时的后缀名
     galleries: {
         mxRoot: 'app/gallery/',
+        gRoot: 'app/gallery/',
+        glRoot: 'app/gallery-local/',
+        wRoot: 'app/widget/',
         mxMap: {
             //'mx-popover': compound('span'),
             //'mx-popover.index': compound('span'),
             'mx-number': {
-                _class: ' input pr'
-            },
-            'mx-number.index': {
                 _class: ' input pr'
             },
             'mx-loading'() {
@@ -135,19 +137,6 @@ module.exports = {
             },
             'mx-dropdown.item'(i) {
                 return `<i ${i.attrs} class="none">${i.content}</i>`;
-            },
-            'mx-carousel.panel'(i) {
-                if (i.attrsMap.class) {
-                    i.attrs = i.attrs.replace(classReg, '$& hp100 fl none');
-                } else {
-                    i.attrs += ' class="hp100 fl none"';
-                }
-                return `<div ${i.attrs}>${i.content}</div>`;
-            },
-            'mx-link'(i) {
-                let e = i.seprateAttrs('a');
-                console.log(e);
-                return `<a mx-view="" ${e.viewAttrs}></a>`
             }
         }
     },

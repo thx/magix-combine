@@ -345,6 +345,10 @@ declare module "magix-combine" {
          */
         magixUpdaterIncrement?: boolean
         /**
+         * 是否启用双向绑定时生成唯一一个mxe属性，默认true
+         */
+        magixUpdaterBindExpression?: boolean
+        /**
          * 是否启用quick模板
          */
         magixUpdaterQuick?: boolean

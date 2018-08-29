@@ -18,6 +18,7 @@ let util = require('util');
 let chalk = require('chalk');
 let tmplParser = require('./tmpl-parser');
 let attrMap = require('./tmpl-attr-map');
+let customConfig = require('./tmpl-customtag-cfg');
 let duAttrChecker = require('./checker-tmpl-duattr');
 let atpath = require('./util-atpath');
 let consts = require('./util-const');
@@ -53,6 +54,37 @@ let isReservedAttr = key => {
         key.startsWith('@#');
 };
 
+let toNativeKey = key => {
+    if (key.startsWith('native-')) {
+        key = key.substring(7);
+    } else if (key.startsWith('#')) {
+        key = key.substring(1);
+    } else if (key.startsWith('@native-')) {
+        key = '@' + key.substring(8);
+    } else if (key.startsWith('@#')) {
+        key = '@' + key.substring(2);
+    } else if (key.startsWith('#@')) {
+        key = '@' + key.substring(2);
+    }
+    return key;
+};
+
+let toParamKey = (key, prefix) => {
+    let c = prefix.length;
+    if (key.startsWith(`@${prefix}-`)) {
+        key = `${prefix}-@` + key.substring(c + 2);
+    } else if (key.startsWith('@*')) {
+        key = `${prefix}-@` + key.substring(2);
+    } else if (key.startsWith('*@')) {
+        key = `${prefix}-@` + key.substring(2);
+    } else if (key.startsWith('*')) {
+        key = `${prefix}-` + key.substring(1);
+    } else if (!key.startsWith(prefix + '-')) {
+        key = prefix + '-' + key;
+    }
+    return key;
+};
+
 let relativeReg = /\.{1,2}\//g;
 let addAtIfNeed = tmpl => {
     return tmpl.replace(relativeReg, (m, offset, c) => {
@@ -63,14 +95,13 @@ let addAtIfNeed = tmpl => {
         return '@' + m;
     });
 };
-let splitAttrs = (tag, attrs) => {
+let splitAttrs = (tag, type, attrs) => {
     let viewAttrs = '';
     let viewAttrsMap = {};
     attrs = attrs.replace(tagReg, (m, t) => {
         tag = t;
         return '';
     });
-    let type = '';
     if (tag == 'input') {
         let m = attrs.match(inputTypeReg);
         if (m) {
@@ -84,11 +115,7 @@ let splitAttrs = (tag, attrs) => {
         }
         prefix = prefix || '';
         if (!attrsMap[key] && !isReservedAttr(key)) {
-            if (key.startsWith('@view-')) {
-                key = 'view-@' + key.substring(6);
-            } else if (!key.startsWith('view-')) {
-                key = 'view-' + key;
-            }
+            key = toParamKey(key, 'view');
             if (q === undefined && !content) {
                 q = '"';
                 content = 'true';
@@ -98,14 +125,9 @@ let splitAttrs = (tag, attrs) => {
             return '';
         }
         let tValue = (q === undefined && content === undefined) ? '' : `=${q}${content}${q}`;
-        if (key.startsWith('native-')) {
-            return prefix + key.substring(7) + tValue;
-        } else if (key.startsWith('#')) {
-            return prefix + key.substring(1) + tValue;
-        } else if (key.startsWith('@native-')) {
-            return prefix + '@' + key.substring(8) + tValue;
-        } else if (key.startsWith('@#')) {
-            return prefix + '@' + key.substring(2) + tValue;
+        let nkey = toNativeKey(key);
+        if (nkey != key) {
+            return prefix + nkey + tValue;
         }
         return m;
     }).trim();
@@ -114,14 +136,16 @@ let splitAttrs = (tag, attrs) => {
         tag,
         unaryTag: selfClose.hasOwnProperty(tag),
         attrs,
+        paramAttrs: viewAttrs,
         viewAttrs,
+        paramAttrsMap: viewAttrsMap,
         viewAttrsMap
     };
 };
 let innerView = (result, info, gRoot, map, extInfo) => {
     if (info) {
         result.mxView = gRoot + info.path;
-        result.seprateAttrs = tag => splitAttrs(info.tag || tag || 'div', result.attrs);
+        result.seprateAttrs = (tag, type) => splitAttrs(info.tag || tag || 'div', type, result.attrs);
     }
     if (util.isObject(info) && util.isFunction(info.processor)) {
         return info.processor(result, map, extInfo) || '';
@@ -141,6 +165,8 @@ let innerView = (result, info, gRoot, map, extInfo) => {
         let m = attrs.match(inputTypeReg);
         if (m) {
             type = m[2];
+        } else if (info && info.type) {
+            type = info.type;
         }
     }
     let allAttrs = attrMap.getAll(tag, type);
@@ -160,21 +186,10 @@ let innerView = (result, info, gRoot, map, extInfo) => {
         let viewKey = false;
         let originalKey = key;
         if (!allAttrs.hasOwnProperty(key) && !isReservedAttr(key)) {
-            if (key.startsWith('@view-')) {
-                key = 'view-@' + key.substring(6);
-            } else if (!key.startsWith('view-')) {
-                key = 'view-' + key;
-            }
+            key = toParamKey(key, 'view');
             viewKey = true;
-        }
-        if (key.startsWith('native-')) {
-            key = key.substring(7);
-        } else if (key.startsWith('#')) {
-            key = key.substring(1);
-        } else if (key.startsWith('@native-')) {
-            key = '@' + key.substring(8);
-        } else if (key.startsWith('@#')) {
-            key = '@' + key.substring(2);
+        } else {
+            key = toNativeKey(key);
         }
         //处理其它属性
         if (info) {
@@ -247,21 +262,10 @@ let innerLink = (result) => {
         }
         prefix = prefix || '';
         if (!allAttrs.hasOwnProperty(key) && !isReservedAttr(key)) {
-            if (key.startsWith('@param-')) {
-                key = 'param-@' + key.substring(7);
-            } else if (!key.startsWith('param-')) {
-                key = 'param-' + key;
-            }
+            key = toParamKey(key, 'param');
             paramKey = 1;
-        }
-        if (key.startsWith('native-')) {
-            key = key.substring(7);
-        } else if (key.startsWith('#')) {
-            key = key.substring(1);
-        } else if (key.startsWith('@native-')) {
-            key = '@' + key.substring(8);
-        } else if (key.startsWith('@#')) {
-            key = '@' + key.substring(2);
+        } else {
+            key = toNativeKey(key);
         }
         if (q === undefined && paramKey) {
             q = '"';
@@ -269,7 +273,7 @@ let innerLink = (result) => {
         }
         return prefix + key + '=' + q + value + q;
     });
-    let html = `<${tag}  href="${href}" ${attrs}`;
+    let html = `<${tag} href="${href}" ${attrs}`;
     let unary = selfClose.hasOwnProperty(tag);
     if (unary) {
         html += `/>`;
@@ -436,7 +440,7 @@ module.exports = {
                 }
                 if (hasGallery) {
                     let i = gMap[result.tag];
-                    if (!i) {
+                    if (!i || !i[processedGalleryInfo]) {
                         let subs = result.subTags.slice(0, -1);
                         if (subs.length) {
                             subs = subs.join(sep);
@@ -446,19 +450,10 @@ module.exports = {
                         let main = (n.group ? '' : n.pfx + '-') + result.mainTag;
                         let cpath = path.join(configs.moduleIdRemovedPath, gRoot, main, subs);
                         if (fs.existsSync(cpath)) {
-                            let cfg = {};
-                            let configFile = path.join(cpath, '_config.js');
-                            if (fs.existsSync(configFile)) {
-                                cfg = require(configFile);
-                                for (let p in cfg) {
-                                    if (!p.startsWith(main)) {
-                                        throw new Error('[MXC Error(tmpl-customtag)] bad config at ' + configFile + '. Only property key starts with ' + main + ' support');
-                                    }
-                                }
-                            }
+                            let cfg = customConfig(cpath, main);
                             if (cfg.hasOwnProperty(result.tag)) {
                                 gMap[result.tag] = cfg[result.tag];
-                            } else {
+                            } else if (!i) {
                                 gMap[result.tag] = {
                                     path: vpath
                                 };
@@ -553,7 +548,8 @@ module.exports = {
                 prefix = prefix || '';
                 if (key.startsWith('@')) {
                     if (key.startsWith('@@')) {
-                        m = prefix + '\x03' + key.substring(2) + (q ? q + content + q : '');
+                        update = true;
+                        m = prefix + '\x03' + key.substring(2) + (q ? '=' + q + content + q : '');
                     } else if (tmplCommandAnchorReg.test(content)) {
                         key = key.substring(1);
                         let cmdContent = tmplCmd.extractCmdContent(content, cmdCache);

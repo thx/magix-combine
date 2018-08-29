@@ -16,6 +16,7 @@ let slog = require('./util-log');
 let regexp = require('./util-rcache');
 let md5 = require('./util-md5');
 let jsGeneric = require('./js-generic');
+let consts = require('./util-const');
 let tmplCmdReg = /<%([@=!:~\x1a-\x1d&*])?([\s\S]*?)%>|$/g;
 let tagReg = /<([^>\s\/\u0007]+)([^>]*)>/g;
 let bindReg = /([^>\s\/=]+)\s*=\s*(["'])(<%'\x17\d+\x11[^\x11]+\x11\x17'%>)?<%([:\x1b])([\s\S]+?)%>\s*\2/g;
@@ -34,7 +35,6 @@ let scharReg = /(?:`;|;`)/g;
 let stringReg = /^['"]/;
 let bindEventParamsReg = /^\s*"([^"]+)",/;
 let removeTempReg = /[\u0002\u0001\u0003\u0006]\.?/g;
-let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/;
 let artCtrlsReg = /<%'\x17\d+\x11([^\x11]+)\x11\x17'%>(<%[\s\S]+?%>)/g;
 let cmap = {
     [vphUse]: '\u0001',
@@ -349,8 +349,8 @@ module.exports = {
             if (stringReg.test(node.raw)) {
                 let q = node.raw.match(stringReg)[0];
                 let key = '\x04' + (stringIndex++) + '\x04';
-                if (revisableReg.test(node.raw) && !configs.debug) {
-                    node.raw = node.raw.replace(revisableReg, m => {
+                if (consts.revisableReg.test(node.raw) && !configs.debug) {
+                    node.raw = node.raw.replace(consts.revisableReg, m => {
                         return md5(m, 'revisableString', '_');
                     });
                 }
@@ -1095,7 +1095,11 @@ module.exports = {
                     自定义的情况下，输入源可以有多个，那么当我们绑定时，需要知道当前绑定表达式对应的属性是什么，从而来确定如何从输入源中把数据取出来
                 */
                 if (attrName && attrName.startsWith('view-')) {
-                    e += `,a:'${attrName.substring(5)}'`;
+                    let an = attrName.substring(5);
+                    if (an.startsWith('@')) {
+                        an = an.substring(1);
+                    }
+                    e += `,a:'${an}'`;
                 }
                 e += '}';
                 mxeInfo.push(e);
@@ -1123,11 +1127,15 @@ module.exports = {
             });
 
             if (findCount > 0) {
-                let mxe = '\x1f_' + mxeCount.toString(16);
-                if (syncPaths.length) {
-                    mxe += '_' + syncPaths.join('_');
+                let bindExpr = ``;
+                if (configs.magixUpdaterBindExpression) {
+                    let mxe = '\x1f_' + mxeCount.toString(16);
+                    if (syncPaths.length) {
+                        mxe += '_' + syncPaths.join('_');
+                    }
+                    bindExpr = ` mxe="${mxe}"`;
                 }
-                attrs = ' mxe="' + mxe + '" mxc="[' + mxeInfo.join(',') + ']" ' + attrs;
+                attrs = bindExpr + ' mxc="[' + mxeInfo.join(',') + ']" ' + attrs;
                 mxeCount++;
             }
             if (configs.magixUpdaterIncrement) {

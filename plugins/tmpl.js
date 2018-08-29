@@ -27,8 +27,8 @@ let slog = require('./util-log');
 let tmplToFn = require('./tmpl-tofn');
 let tmplQuick = require('./tmpl-quick');
 let tmplL3 = require('./tmpl-l3');
+let consts = require('./util-const');
 //let tmplDecode = require('./tmpl-decode');
-let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
 
 let commentReg = /<!--[\s\S]*?-->/g;
 let htmlCommentCelanReg = /<!--[\s\S]*?-->/g;
@@ -98,6 +98,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             reject(ex);
             return;
         }
+        //console.log(fileContent);
         if (flagsInfo.artEngine && magixTmpl && srcContent != fileContent) {
             if (configs.magixUpdaterQuick) {
                 fileContent = tmplQuick.preProcess(fileContent, e);
@@ -132,7 +133,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         //fileContent = tmplCmd.compress(fileContent, e.isOldTemplate);
         fileContent = tmplCmd.store(fileContent, refTmplCommands); //模板命令移除，防止影响分析
         if (!configs.debug) {
-            fileContent = fileContent.replace(revisableReg, m => {
+            fileContent = fileContent.replace(consts.revisableGReg, m => {
                 let src = tmplCmd.recover(m, refTmplCommands);
                 checker.Tmpl.checkStringRevisable(m, src, e);
                 return md5(m, 'revisableString', configs.revisableStringPrefix);

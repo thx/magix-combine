@@ -126,16 +126,16 @@ let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, name
         namesToFiles[name + '!s'][transformSelector] = file;
     }
     if (lazyGlobal) { //在文件中才标识的
-        let list = namesToFiles[name + '!r'];
-        if (list && list.length >= 0) {
-            if (!list[file]) {
-                list[file] = 1;
-                list.push(file);
-            }
-        } else {
-            namesToFiles[name + '!r'] = [file];
-        }
-        checker.CSS.markLazyDeclared(name);
+        // let list = namesToFiles[name + '!r'];
+        // if (list && list.length >= 0) {
+        //     if (!list[file]) {
+        //         list[file] = 1;
+        //         list.push(file);
+        //     }
+        // } else {
+        //     namesToFiles[name + '!r'] = [file];
+        // }
+        //checker.CSS.markLazyDeclared(name);
     } else {
         namesToFiles[name + '!r'] = [file];
     }
@@ -190,7 +190,7 @@ let cssNameNewProcessor = (css, ctx) => {
 };
 let cssNameGlobalProcessor = (css, ctx) => {
     let pInfo = cssParser(css, ctx.shortFile);
-    if (pInfo.nests.length) {
+    if (pInfo.nests.length && !ctx.lazyGlobal) {
         checker.CSS.markGlobal(ctx.file, '"' + pInfo.nests.join('","') + '"');
     }
     let tokens = pInfo.tokens;

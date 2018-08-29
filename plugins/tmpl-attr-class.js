@@ -17,7 +17,7 @@ module.exports = {
     process(tmpl, cssNamesMap, refTmplCommands, e) {
         let tempCache = Object.create(null);
         let tagsCache = Object.create(null);
-        let classResult = (m, h, key) => {
+        let classResult = (m, h, key, fromCmd) => {
             if (numReg.test(key)) return m; //纯数字的是模板命令，选择器不可能是纯数字
             let r = cssNamesMap[key];
             if (!tempCache[key]) {
@@ -32,7 +32,7 @@ module.exports = {
                     } else {
                         throw new Error(`[MXC Error(tmpl-attr-class)] can not find class name "${key}" at file "${e.from}" in which files`);
                     }
-                } else {
+                } else if (!fromCmd) {
                     checker.CSS.markUndeclared(e.srcHTMLFile, key);
                 }
             }
@@ -40,7 +40,7 @@ module.exports = {
         };
         let cmdProcessor = (m, key) => {
             if (key) {
-                return key.replace(classNameReg, classResult);
+                return key.replace(classNameReg, (m, h, key) => classResult(m, h, key, true));
             }
             return key;
         };
@@ -55,7 +55,7 @@ module.exports = {
                     }
                 });
             }
-            return 'class="' + c.replace(classNameReg, classResult) + '"';
+            return 'class="' + c.replace(classNameReg, (m, h, key) => classResult(m, h, key, false)) + '"';
         };
         let pureProcessor = (match, tag, content) => {
             content.replace(attrReg, (m, name) => {

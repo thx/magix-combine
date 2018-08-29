@@ -21,6 +21,7 @@ let fileCache = require('./js-fcache');
 let jsSnippet = require('./js-snippet');
 let jsHeader = require('./js-header');
 let acorn = require('./js-acorn');
+let consts = require('./util-const');
 
 let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
 let mxTailReg = /\.m?mx$/;
@@ -29,14 +30,13 @@ let stringReg = /^['"]/;
 let moduleIdReg = /^(['"])(@moduleId)\1$/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
 let cssFileGlobalReg = new RegExp(cssFileReg, 'g');
-let othersFileReg = /(['"])([a-z,]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
-let revisableReg = /@\{[a-zA-Z\.0-9\-\~#_]+\}/g;
+let othersFileReg = /(['"])([a-z,&]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
 let doubleAtReg = /@@/g;
 /*
     '#snippet';
     '#exclude(define,beforeProcessor,after)';
  */
-let processContent = (from, to, content, inwatch) => {
+let processContent = (from, to, content, inwatch, parentCtrl) => {
     if (!content) content = fd.read(from);
     let contentInfo;
     if (mxTailReg.test(from)) {
@@ -45,6 +45,15 @@ let processContent = (from, to, content, inwatch) => {
     }
 
     let headers = jsHeader(content);
+    if (parentCtrl) {
+        if (parentCtrl.raw) {
+            headers.addWrapper = false;
+            headers.ignoreAllProcessor = true;
+        }
+        if (parentCtrl.snippet) {
+            headers.isSnippet = true;
+        }
+    }
     content = headers.content;
 
     let key = [inwatch, headers.addWrapper].join('\u0000');
@@ -142,7 +151,7 @@ let processContent = (from, to, content, inwatch) => {
             }
             let add = false;
             if (!configs.debug) {
-                node.raw = node.raw.replace(revisableReg, m => {
+                node.raw = node.raw.replace(consts.revisableGReg, m => {
                     add = true;
                     return md5(m, 'revisableString', configs.revisableStringPrefix);
                 });
@@ -171,15 +180,26 @@ let processContent = (from, to, content, inwatch) => {
                 raw.replace(othersFileReg, (m, q, actions, file) => {
                     if (actions) {
                         actions = actions.split(',');
-                        //let as = [];
-                        //if (actions.indexOf('compile') > -1) {
-                        //    as.push('compile');
-                        //}
-                        replacement = q + /*as.join('') +*/ '\u0012@' + file + q;
-                        if (actions.indexOf('top') > -1) {
+                        let acts = '', toTop = false, toBottom = false;
+                        for (let a of actions) {
+                            if (a == 'top') {
+                                if (!toBottom) {
+                                    toTop = true;
+                                }
+                            } else if (a == 'bottom') {
+                                if (!toTop) {
+                                    toBottom = true;
+                                }
+                            } else {
+                                acts += a + ',';
+                            }
+                        }
+
+                        replacement = q + acts.slice(0, -1) + /*as.join('') +*/ '\u0012@' + file + q;
+                        if (toTop) {
                             toTops.push(replacement);
                             replacement = '';
-                        } else if (actions.indexOf('bottom') > -1) {
+                        } else if (toBottom) {
                             toBottoms.push(replacement);
                             replacement = '';
                         }
