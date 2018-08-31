@@ -19,6 +19,7 @@ let utils = require('./util');
 let slog = require('./util-log');
 let fileCache = require('./js-fcache');
 let jsSnippet = require('./js-snippet');
+let jsBare = require('./js-bare');
 let jsHeader = require('./js-header');
 let acorn = require('./js-acorn');
 let consts = require('./util-const');
@@ -27,10 +28,11 @@ let lineBreakReg = /\r\n?|\n|\u2028|\u2029/;
 let mxTailReg = /\.m?mx$/;
 let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
-let moduleIdReg = /^(['"])(@moduleId)\1$/;
+let moduleIdReg = /@(?:moduleId|id)/;
+let bareFileInc = /bare@([\w\.\-\/\\]+)/;
 let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
 let cssFileGlobalReg = new RegExp(cssFileReg, 'g');
-let othersFileReg = /(['"])([a-z,&]+)?@([\w\.\-\/\\]+\.[a-z]{2,})\1;?/;
+let othersFileReg = /([a-z,&]+)?@([\w\.\-\/\\]+\.[a-z]{2,})/;
 let doubleAtReg = /@@/g;
 /*
     '#snippet';
@@ -150,19 +152,28 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
                 if (!stringReg.test(node.raw)) return;
             }
             let add = false;
+            let raw = node.raw;
             if (!configs.debug) {
-                node.raw = node.raw.replace(consts.revisableGReg, m => {
+                node.raw = raw.replace(consts.revisableGReg, m => {
                     add = true;
                     return md5(m, 'revisableString', configs.revisableStringPrefix);
                 });
             }
-            let raw = node.raw;
-            if (tl && raw == '@moduleId') {
-                node.raw = e.moduleId;
-                add = true;
-            } else if (moduleIdReg.test(raw)) {
-                node.raw = raw.replace(moduleIdReg, '$1' + e.moduleId + '$1');
-                add = true;
+            if (moduleIdReg.test(raw)) {
+                let m = raw.match(moduleIdReg);
+                let c = raw[0] + m[0] + raw[0];
+                if (tl || c == raw) {
+                    raw = tl ? e.moduleId : raw[0] + e.moduleId + raw[0];
+                    node.raw = raw;
+                    add = true;
+                }
+            } else if (bareFileInc.test(raw)) {
+                let m = raw.match(bareFileInc);
+                let c = raw[0] + m[0] + raw[0];
+                if (tl || c == raw) {
+                    node.raw = raw.replace('@', '\x12@');
+                    add = true;
+                }
             } else if (cssFileReg.test(raw)) {
                 node.raw = raw.replace(cssFileGlobalReg, (m, offset) => {
                     let c = raw.charAt(offset - 1);
@@ -171,44 +182,60 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
                 }).replace(doubleAtReg, '@');
                 add = true;
             } else if (configs.htmlFileReg.test(raw)) {
-                node.raw = raw.replace(configs.htmlFileGlobalReg, (m, q, ctrl) => {
-                    return m.replace('@', (ctrl ? '' : 'updater') + '\u0012@');
-                });
-                add = true;
+                let m = raw.match(configs.htmlFileReg);
+                let c = raw[0] + m[0] + raw[0];
+                if (tl || c == raw) {
+                    node.raw = raw.replace(configs.htmlFileGlobalReg, (m, ctrl) => {
+                        return m.replace('@', (ctrl ? '' : 'updater') + '\x12@');
+                    });
+                    add = true;
+                }
             } else if (othersFileReg.test(raw)) {
-                let replacement = '';
-                raw.replace(othersFileReg, (m, q, actions, file) => {
-                    if (actions) {
-                        actions = actions.split(',');
-                        let acts = '', toTop = false, toBottom = false;
-                        for (let a of actions) {
-                            if (a == 'top') {
-                                if (!toBottom) {
-                                    toTop = true;
+                let m = raw.match(othersFileReg);
+                let c = raw[0] + m[0] + raw[0];
+                if (tl || c == raw) {
+                    let replacement = '';
+                    raw.replace(othersFileReg, (m, actions, file) => {
+                        if (actions) {
+                            actions = actions.split(',');
+                            let acts = '', toTop = false, toBottom = false;
+                            for (let a of actions) {
+                                if (a == 'top') {
+                                    if (!toBottom) {
+                                        toTop = true;
+                                    }
+                                } else if (a == 'bottom') {
+                                    if (!toTop) {
+                                        toBottom = true;
+                                    }
+                                } else {
+                                    acts += a + ',';
                                 }
-                            } else if (a == 'bottom') {
-                                if (!toTop) {
-                                    toBottom = true;
-                                }
-                            } else {
-                                acts += a + ',';
                             }
-                        }
 
-                        replacement = q + acts.slice(0, -1) + /*as.join('') +*/ '\u0012@' + file + q;
-                        if (toTop) {
-                            toTops.push(replacement);
-                            replacement = '';
-                        } else if (toBottom) {
-                            toBottoms.push(replacement);
-                            replacement = '';
+                            replacement = JSON.stringify(acts.slice(0, -1) + '\@' + file).replace('@', '\x12@');
+                            if (toTop) {
+                                toTops.push(replacement);
+                                replacement = '';
+                                if (tl) {
+                                    node.start--;
+                                    node.end++;
+                                }
+                            } else if (toBottom) {
+                                toBottoms.push(replacement);
+                                replacement = '';
+                                if (tl) {
+                                    node.start--;
+                                    node.end++;
+                                }
+                            }
+                        } else {
+                            replacement = raw.replace(/@/g, '\u0012@');
                         }
-                    } else {
-                        replacement = raw.replace(/@/g, '\u0012@');
-                    }
-                });
-                node.raw = replacement;
-                add = true;
+                    });
+                    node.raw = replacement;
+                    add = true;
+                }
             } else if (configs.useAtPathConverter) {
                 //字符串以@开头，且包含/
                 let i = tl ? 0 : 1;
@@ -293,6 +320,8 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
         }
         e.content = tmpl;
         return Promise.resolve(e);
+    }).then(e => {
+        return jsBare(e);
     }).then(e => {
         if (headers.ignoreAllProcessor) {
             return Promise.resolve(e);

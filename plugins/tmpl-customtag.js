@@ -109,6 +109,7 @@ let splitAttrs = (tag, type, attrs) => {
         }
     }
     let attrsMap = attrMap.getAll(tag, type);
+    let aMap = Object.create(null);
     attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, content) => {
         if (cmdNumReg.test(m)) {
             return m;
@@ -123,6 +124,8 @@ let splitAttrs = (tag, type, attrs) => {
             viewAttrs += ' ' + key + '="' + content + '"';
             viewAttrsMap[key.substring(5)] = content;
             return '';
+        } else {
+            aMap[key] = content;
         }
         let tValue = (q === undefined && content === undefined) ? '' : `=${q}${content}${q}`;
         let nkey = toNativeKey(key);
@@ -136,6 +139,7 @@ let splitAttrs = (tag, type, attrs) => {
         tag,
         unaryTag: selfClose.hasOwnProperty(tag),
         attrs,
+        attrsMap: aMap,
         paramAttrs: viewAttrs,
         viewAttrs,
         paramAttrsMap: viewAttrsMap,
@@ -218,6 +222,10 @@ let innerView = (result, info, gRoot, map, extInfo) => {
                 let v = info[p];
                 if (p.startsWith('_')) {
                     p = p.slice(1);
+                } else if (!allAttrs.hasOwnProperty(p) && !isReservedAttr(p)) {
+                    p = toParamKey(p, 'view');
+                } else {
+                    p = toNativeKey(p);
                 }
                 attrs += ` ${p}="${v}"`;
             }
@@ -403,6 +411,7 @@ module.exports = {
                 mainTag,
                 subTags,
                 attrs,
+                attrsKV: n.attrsKV,
                 attrsMap: n.attrsMap,
                 content,
                 children
@@ -460,9 +469,9 @@ module.exports = {
                             }
                         } else {
                             //当文件不存在时，不检查，直接使用用户配置的路径
-                            gMap[result.tag] = {
+                            gMap[result.tag] = Object.assign({}, i, {
                                 path: vpath
-                            };
+                            });
                             /*uncheckTags[result.tag] = {
                                 resolve: cpath + sep,
                                 msg: 'folder not found. try path'

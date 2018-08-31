@@ -4,10 +4,10 @@
 let deps = require('./util-deps');
 let configs = require('./util-config');
 let path = require('path');
+let checker = require('./checker');
 let fs = require('fs');
 let sep = path.sep;
-let fileReg = /(['"])([a-z,]+)?\u0012@([^'"]+)\.([a-z]{2,})\1;?/g;
-let checker = require('./checker');
+let fileReg = /(['"`])([a-z,]+)?\u0012@([^'"`]+)\.([a-z]{2,})\1;?/g;
 module.exports = e => {
     return new Promise((resolve, reject) => {
         let contentCache = Object.create(null),
@@ -16,9 +16,7 @@ module.exports = e => {
         let resume = () => {
             if (!resumed) {
                 resumed = true;
-                e.content = e.content.replace(fileReg, m => {
-                    return contentCache[m] || m;
-                });
+                e.content = e.content.replace(fileReg, m => contentCache[m]);
                 resolve(e);
             }
         };
@@ -40,7 +38,7 @@ module.exports = e => {
                 }).catch(reject);
             } else {
                 checker.CSS.markUnexists(file, e.from);
-                contentCache[key] = 'throw new Error("unfound:' + file + '");';
+                contentCache[key] = '(()=>{throw new Error("unfound:' + file + '")})()';
                 count--;
                 if (!count) {
                     resume();

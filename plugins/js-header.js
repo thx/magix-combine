@@ -59,7 +59,7 @@ module.exports = (content) => {
     });*/
     snippetReg.lastIndex = 0;
     let isSnippet = snippetReg.test(content);
-    content = content.replace(snippetReg, '');
+    content = content.replace(snippetReg, '\n');
     let loader;
     content = content.replace(loaderReg, (m, q, type) => {
         loader = type;

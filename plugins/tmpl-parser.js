@@ -35,6 +35,7 @@ module.exports = (input, htmlFile) => {
                 pfx = tag.slice(0, i);
             }
             let attrsMap = Object.create(null);
+            let attrsKV = Object.create(null);
             let token = {
                 id: 't' + id++,
                 tag,
@@ -42,6 +43,7 @@ module.exports = (input, htmlFile) => {
                 group: i != -1 && i == ip,
                 attrs,
                 attrsMap,
+                attrsKV,
                 childrenRange: [],
                 hasContent: true,
                 start: pos
@@ -100,11 +102,13 @@ module.exports = (input, htmlFile) => {
                             quote: a.quote,
                             value: a.value
                         };
+                        attrsKV[a.name] = a.value;
                     }
                 } else if (!tmplCommandAnchorReg.test(a.name)) {
                     attrsMap[a.name] = {
                         unary: true
                     };
+                    attrsKV[a.name] = true;
                 }
                 pos = input.indexOf(temp, pos) + temp.length;
             }

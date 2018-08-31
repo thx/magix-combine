@@ -57,7 +57,7 @@ let refProcessor = (relateFile, file, ext, name, e) => {
         if (e) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
-                throw new Error('[MXC Error(css-selector)] not found ' + name + ' at scoped.style');
+                throw new Error('[MXC Error(css-selector)] can not found ' + name + ' at scoped.style');
             }
             let dFiles = e.globalCssNamesInFiles[name + '!r'];
             dFiles.forEach(f => {
@@ -85,7 +85,7 @@ let refProcessor = (relateFile, file, ext, name, e) => {
         if (e && configs.scopedCssMap[file]) {
             let sname = e.globalCssNamesMap[name];
             if (!sname) {
-                throw new Error('[MXC Error(css-selector)] not found ' + name + ' at ' + file);
+                throw new Error('[MXC Error(css-selector)] can not found ' + name + ' at ' + file);
             }
             let dFiles = e.globalCssNamesInFiles[name + '!r'];
             dFiles.forEach(f => {
@@ -126,15 +126,15 @@ let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, name
         namesToFiles[name + '!s'][transformSelector] = file;
     }
     if (lazyGlobal) { //在文件中才标识的
-        // let list = namesToFiles[name + '!r'];
-        // if (list && list.length >= 0) {
-        //     if (!list[file]) {
-        //         list[file] = 1;
-        //         list.push(file);
-        //     }
-        // } else {
-        //     namesToFiles[name + '!r'] = [file];
-        // }
+        let list = namesToFiles[name + '!r'];
+        if (list && list.length >= 0) {
+            if (!list[file]) {
+                list[file] = 1;
+                list.push(file);
+            }
+        } else {
+            namesToFiles[name + '!r'] = [file];
+        }
         //checker.CSS.markLazyDeclared(name);
     } else {
         namesToFiles[name + '!r'] = [file];

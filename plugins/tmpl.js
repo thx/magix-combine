@@ -49,7 +49,7 @@ let brPlaceholder = m => {
     let count = m.split(brReg).length;
     return new Array(count).join('\n');
 };
-let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang, ctrl) => {
+let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang) => {
     let key = magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
@@ -172,9 +172,9 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         }
 
         fileContent = configs.compileTmplEnd(fileContent);
-        if (ctrl != 'bare') {
-            fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
-        }
+        //if (ctrl != 'bare') {
+        fileContent = tmplClass.process(fileContent, cssNamesMap, refTmplCommands, e); //处理class name
+        //}
         for (let p in refTmplCommands) {
             let cmd = refTmplCommands[p];
             if (util.isString(cmd)) {
@@ -268,7 +268,7 @@ module.exports = e => {
                         }
                     }
                 }
-                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang, ctrl);
+                let fcInfo = processTmpl(fileContent, fileContentCache, cssNamesMap, magixTmpl, e, reject, file, flagsInfo, lang);
                 if (magixTmpl) {
                     if (configs.magixUpdaterIncrement) {
                         let tmpl = fcInfo.info.tmpl;
