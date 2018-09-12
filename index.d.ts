@@ -96,18 +96,18 @@ declare module "magix-combine" {
          * 样式
          */
         css: boolean
-        /**
-         * 样式中的url
-         */
-        cssUrl: boolean
-        /**
-         * js循环
-         */
-        jsLoop: boolean
-        /**
-         * js接口服务
-         */
-        jsService: boolean
+        // /**
+        //  * 样式中的url
+        //  */
+        // cssUrl: boolean
+        // /**
+        //  * js循环
+        //  */
+        // jsLoop: boolean
+        // /**
+        //  * js接口服务
+        //  */
+        // jsService: boolean
         /**
          * js this别名
          */
@@ -120,7 +120,7 @@ declare module "magix-combine" {
         /**
          * 模板img属性
          */
-        tmplAttrImg: boolean
+        //tmplAttrImg: boolean
         /**
          * 不允许的标签
          */
@@ -156,7 +156,7 @@ declare module "magix-combine" {
         /**
          * 标签配对
          */
-        tmplTagsMatch: boolean
+        //tmplTagsMatch: boolean
     }
     /**
      * 组件信息对象
@@ -413,14 +413,13 @@ declare module "magix-combine" {
          * 结束转换模板
          */
         compileTmplEnd?: (tmpl: string) => string
+
         /**
-         * 对css中匹配到的url做处理
+         * 处理样式内容
          */
-        cssUrlMatched?: (url: string) => string
-        /**
-         * 对模板中img标签src的url做处理
-         */
-        tmplImgSrcMatched?: (url: string) => string
+        cssConentProcessor?: (content: string, shortName: string, e: ICombineResult) => Promise<string>
+
+        applyStyleProcessor?: () => string
         /**
          * 加工处理模块id
          */

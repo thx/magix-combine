@@ -116,11 +116,11 @@ module.exports = (tmpl, e) => {
     for (let tag of tags) {
         if (tag.close) {
             if (!tagsStack.length) {
-                throw new Error(`[MXC Error(checker-tmpl-unmatch)] ${recover(tag.match)} doesn't have corresponding open tag at line  ${tag.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] "${recover(tag.match)}" doesn't have corresponding open tag at line  ${tag.line}`);
             }
             let last = tagsStack.pop();
             if (tag.name != last.name) {
-                let before = `open tag ${recover(last.match)}`;
+                let before = `open tag "${recover(last.match)}"`;
                 if (last.name.startsWith('art\x11')) {
                     before = `art "${last.close ? '/' : ''}${last.name.substring(4)}"`;
                 }
@@ -128,13 +128,13 @@ module.exports = (tmpl, e) => {
                 if (tag.name.startsWith('art\x11')) {
                     current = `art "${tag.close ? '/' : ''}${tag.name.substring(4)}"`;
                 }
-                throw new Error(`[MXC Error(checker-tmpl-unmatch)] ${current} at line ${tag.line} doesn't match ${before} at line ${last.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] "${current}" at line ${tag.line} doesn't match "${before}" at line ${last.line}`);
             }
         } else {
             tagsStack.push(tag);
         }
     }
     for (let tag of tagsStack) {
-        throw new Error(`[MXC Error(checker-tmpl-unmatch)] unclosed tag ${recover(tag.match)} at line ${tag.line}`);
+        throw new Error(`[MXC Error(checker-tmpl-unmatch)] unclosed tag "${recover(tag.match)}" at line ${tag.line}`);
     }
 };

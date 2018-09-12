@@ -605,7 +605,7 @@ let build = (tmpl, refTmplCommands, e, extInfo) => {
             }
         }
     };
-    let tokens = tmplParser(tmpl);
+    let tokens = tmplParser(tmpl, e.shortHTMLFile);
     walk(tokens);
     let r = getRange(0, tmpl.length, modifiers);
     for (let i = r.length, m; i--;) {

@@ -40,7 +40,7 @@ module.exports = (tmpl, file) => {
         }
         return '<' + tag + tKey + attrs + (close || '') + '>';
     });
-    let tokens = tmplParser(tmpl);
+    let tokens = tmplParser(tmpl, file);
     let keysMap = Object.create(null),
         userKeysMap = Object.create(null),
         userAttrKeysMap = Object.create(null);

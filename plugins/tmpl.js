@@ -158,7 +158,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
                     fileContent = tmplStatic(fileContent, e.shortHTMLFile);
                 }
             } else {
-                fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal);
+                fileContent = tmplGuid.add(fileContent, refTmplCommands, e.refLeakGlobal, e);
                 //console.log(tmplCmd.recover(fileContent,refTmplCommands));
                 if (e.refLeakGlobal.exists) {
                     slog.ever(chalk.red('[MXC Error(tmpl)] segment failed'), 'at', chalk.magenta(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/thx/magix-combine/issues/21'));

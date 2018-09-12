@@ -52,11 +52,12 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
                 if (info.exists && info.content) {
                     let cmtStore = Object.create(null);
                     let currentFile = info.file;
+                    let shortFile = currentFile.replace(configs.moduleIdRemovedPath, '').substring(1);
                     let cssNamesKey = genCssNamesKey(configs.debug ? currentFile : 'scoped.style');
                     let css = cssComment.store(info.content, cmtStore);//.replace(cssCommentReg, '');
                     try {
                         cssNameGlobalProcessor(css, {
-                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').substring(1), //短文件名
+                            shortFile, //短文件名
                             globalGuid: globalGuid,
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
@@ -80,6 +81,7 @@ let processGlobal = ctx => { //处理全局样式，因全局样式过于自由�
                     globalStyle += css;
                     globalStyles.push({
                         css,
+                        short: shortFile,
                         map: info.map,
                         key: cssNamesKey
                     });
@@ -121,6 +123,8 @@ let processScope = ctx => {
                 let cssTagsMap = Object.create(null);
                 let currentFile = i.file;
                 let cssNamesKey = genCssNamesKey(configs.debug ? currentFile : 'scoped.style');
+
+                let shortFile = currentFile.replace(configs.moduleIdRemovedPath, '').substring(1);
                 if (i.exists && i.content) {
                     let cmtStore = Object.create(null);
                     let c = cssComment.store(i.content, cmtStore);//.replace(cssCommentReg, '');
@@ -129,7 +133,7 @@ let processScope = ctx => {
                     });
                     try {
                         c = cssNameNewProcessor(c, {
-                            shortFile: currentFile.replace(configs.moduleIdRemovedPath, '').substring(1),
+                            shortFile,
                             namesMap: globalCssNamesMap,
                             namesToFiles: globalCssNamesInFiles,
                             namesKey: cssNamesKey,
@@ -152,6 +156,7 @@ let processScope = ctx => {
                     scopedStyles.push({
                         css: c,
                         map: i.map,
+                        short: shortFile,
                         key: cssNamesKey
                     });
                     scopedStyle += c;
@@ -161,6 +166,7 @@ let processScope = ctx => {
                     scopedStyles.push({
                         css: `.unfound[file="${currentFile}"]{}`,
                         map: i.map,
+                        short: shortFile,
                         key: cssNamesKey
                     });
                 }

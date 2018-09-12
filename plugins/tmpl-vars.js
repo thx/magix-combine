@@ -1123,7 +1123,7 @@ module.exports = {
                 art = art || '';
                 transformEvent(exprInfo, m, null, art);
                 findCount++;
-                return '';
+                return ' ';
             });
 
             if (findCount > 0) {

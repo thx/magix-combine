@@ -8,13 +8,11 @@ let configs = require('./util-config');
 let atpath = require('./util-atpath');
 let cssAtRule = require('./css-atrule');
 let cssFileRead = require('./css-read');
-let cssUrl = require('./css-url');
 let deps = require('./util-deps');
 let checker = require('./checker');
 let cssGlobal = require('./css-global');
 let cssComment = require('./css-comment');
 let utils = require('./util');
-let urlReg = /url\(([^\)]+)\)/g;
 let cloneAssign = utils.cloneAssign;
 let {
     cssNameNewProcessor,
@@ -49,7 +47,6 @@ module.exports = (e, inwatch) => {
     let gCSSNamesToFiles = Object.create(null);
     let currentFile = '';
     let cssContentCache = Object.create(null);
-    let cssUrlCache = {};
     let gCSSTagToFiles = Object.create(null);
 
     return cssGlobal.process({
@@ -212,24 +209,30 @@ module.exports = (e, inwatch) => {
                             }
                             replacement = q + c + q;
                         } else { //输出整个css文件内容
-                            fileContent = fileContent.replace(urlReg, (m, u) => {
-                                return cssUrlCache[u] || '';
-                            });
                             if (configs.debug) {
                                 if (r.map) {
                                     fileContent += r.map;
-                                    replacement = JSON.stringify([cssNamesKey, fileContent]).slice(1, -1);
+                                    let c = JSON.stringify(fileContent);
+                                    c = configs.applyStyleProcessor(c, shortCssFile, cssNamesKey, e);
+                                    replacement = JSON.stringify(cssNamesKey) + ',' + c;
                                 } else if (r.styles) {
-                                    let a = [];
+                                    replacement = '[';
                                     for (let s of r.styles) {
-                                        a.push(s.key, s.css + (s.map || ''));
+                                        let c = JSON.stringify(s.css + (s.map || ''));
+                                        c = configs.applyStyleProcessor(c, s.short, s.key, e);
+                                        replacement += JSON.stringify(s.key) + ',' + c + ',';
                                     }
-                                    replacement = JSON.stringify(a);
+                                    replacement = replacement.slice(0, -1);
+                                    replacement += ']';
                                 } else {
-                                    replacement = JSON.stringify([cssNamesKey, fileContent]).slice(1, -1);
+                                    let c = JSON.stringify(fileContent);
+                                    c = configs.applyStyleProcessor(c, shortCssFile, cssNamesKey, e);
+                                    replacement = JSON.stringify(cssNamesKey) + ',' + c;
                                 }
                             } else {
-                                replacement = JSON.stringify([cssNamesKey, fileContent]).slice(1, -1);
+                                let c = JSON.stringify(fileContent);
+                                c = configs.applyStyleProcessor(c, shortCssFile, cssNamesKey, e);
+                                replacement = JSON.stringify(cssNamesKey) + ',' + c;
                             }
                         }
                         tail = tail ? tail : '';
@@ -244,20 +247,21 @@ module.exports = (e, inwatch) => {
                         resume();
                     }
                 };
-                let processUrl = (css, sname) => {
-                    css.replace(urlReg, (m, u) => {
-                        count++;
-                        if (cssUrlCache.hasOwnProperty(u)) {
-                            check();
-                        } else {
-                            cssUrlCache[u] = 1;
-                            cssUrl(u, sname, e).then(c => {
-                                cssUrlCache[u] = c;
-                                check();
-                            }).catch(reject);
+                let setFileCSS = (file, shortCssFile, css) => {
+                    let p = configs.cssContentProcessor(css, shortCssFile, e);
+                    if (!p.then) {
+                        p = Promise.resolve(p);
+                    }
+                    p.then(css => {
+                        cssContentCache[file].css = css;
+                        check();
+                    }, error => {
+                        if (e.contentInfo) {
+                            file += '@' + e.contentInfo.fileName;
                         }
+                        reject(error);
+                        check();
                     });
-                    return css;
                 };
                 let processFile = (match, name, ext, file) => {
                     count++; //记录当前文件个数，因为文件读取是异步，我们等到当前模块依赖的css都读取完毕后才可以继续处理
@@ -329,9 +333,10 @@ module.exports = (e, inwatch) => {
                                 cssContentCache[file].map = info.map;
                                 cssContentCache[file].styles = info.styles;
                                 if (!configs.debug) {
-                                    cssnano.process(info.content, Object.assign({}, configs.cssnano)).then(r => {
-                                        cssContentCache[file].css = processUrl(r.css, shortCssFile);
-                                        check();
+                                    cssnano.process(info.content,
+                                        Object.assign({}, configs.cssnano)
+                                    ).then(r => {
+                                        setFileCSS(file, shortCssFile, r.css);
                                     }, error => {
                                         if (e.contentInfo) {
                                             file += '@' + e.contentInfo.fileName;
@@ -343,9 +348,7 @@ module.exports = (e, inwatch) => {
                                     let cssStr = info.content;
                                     let store = cmtStores[file] = Object.create(null);
                                     cssStr = cssComment.store(cssStr, store);
-                                    cssStr = processUrl(cssStr, shortCssFile);
-                                    cssContentCache[file].css = cssStr;
-                                    check();
+                                    setFileCSS(file, shortCssFile, cssStr);
                                 }
                             } else {
                                 check();

@@ -8,7 +8,6 @@ let jsContent = require('./plugins/js-content');
 let deps = require('./plugins/util-deps');
 let checker = require('./plugins/checker');
 let cssGlobal = require('./plugins/css-global');
-let cssUrl = require('./plugins/css-url');
 let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
 let slog = require('./plugins/util-log');
@@ -71,7 +70,6 @@ module.exports = {
         checker.CSS.reset();
         jsFileCache.clear(from);
         cssGlobal.reset(from);
-        cssUrl.clear();
     },
     config(cfg) {
         for (let p in cfg) {

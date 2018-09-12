@@ -277,7 +277,7 @@ let extractDeclares = cnt => {
 let getForContent = (cnt, e) => {
     let fi = extractArtAndCtrlFrom(cnt);
     if (fi.length > 1 || fi.length < 1) {
-        throw new Error('bad loop ' + cnt + ' at ' + e.shortHTMLFile);
+        throw new Error('[MXC-Error(tmpl-quick)] bad loop ' + cnt + ' at ' + e.shortHTMLFile);
     }
     fi = fi[0];
     let m = fi.ctrl.match(inReg);
@@ -292,12 +292,12 @@ let getForContent = (cnt, e) => {
             key: m[2]
         };
     }
-    throw new Error('bad loop ' + cnt + ' at ' + e.shortHTMLFile);
+    throw new Error('[MXC-Error(tmpl-quick)] bad loop ' + cnt + ' at ' + e.shortHTMLFile);
 };
 let getIfContent = (cnt, e) => {
     let fi = extractArtAndCtrlFrom(cnt);
     if (fi.length > 1 || fi.length < 1) {
-        throw new Error('bad if ' + cnt + ' at ' + e.shortHTMLFile);
+        throw new Error('[MXC-Error(tmpl-quick)] bad if ' + cnt + ' at ' + e.shortHTMLFile);
     }
     fi = fi[0];
     let m = fi.ctrl.match(ifExtractReg);

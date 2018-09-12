@@ -47,12 +47,12 @@ module.exports = {
     revisableStringPrefix: '',//set default value at util-init.js
     checker: {
         css: true, //样式
-        cssUrl: false, //样式中的url
+        //cssUrl: false, //样式中的url
         jsLoop: true, //js循环
         //jsService: true, //js接口服务
         //jsThis: true, //js this别名
         tmplCmdSyntax: true,//命令语法检查
-        tmplAttrImg: false, //模板img属性
+        //tmplAttrImg: false, //模板img属性
         tmplDisallowedTag: true, //不允许的标签
         tmplAttrDangerous: true, //危险的属性
         tmplAttrAnchor: true, //检测anchor类标签
@@ -179,11 +179,11 @@ module.exports = {
     compileTmplEnd(tmpl) {
         return tmpl;
     },
-    cssUrlMatched(url) { //样式中匹配到url时的处理器
-        return url;
+    cssContentProcessor(css) { //处理内容
+        return css;
     },
-    tmplImgSrcMatched(url) { //模板中匹配到img标签时的处理器
-        return url;
+    applyStyleProcessor(r){
+        return r;
     },
     resolveModuleId(id) { //处理模块id时的处理器
         return id;

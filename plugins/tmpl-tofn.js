@@ -4,6 +4,8 @@ let escapeBreakReturnRegExp = /\r|\n/g;
 let mathcer = /<%([@=!])?([\s\S]*?)%>|$/g;
 let viewIdReg = /\x1f/g;
 let closeReg = /\);?\s*$/;
+let extraPlusReg = /\$p\+='';/g;
+let extraStringReg = /\$p\+=''\+/g;
 module.exports = (tmpl, file, globalVars) => {
     // Compile the template source, escaping string literals appropriately.
     let index = 0;
@@ -42,6 +44,9 @@ module.exports = (tmpl, file, globalVars) => {
                 } else {
                     source += `';`;
                 }
+                if (source.endsWith(`+'';`)) {
+                    source = source.substring(0, source.length - 4) + ';';
+                }
                 if (expr) {
                     source += `$expr='<%` + expr + `%>';`;
                 }
@@ -59,15 +64,19 @@ module.exports = (tmpl, file, globalVars) => {
                 }
                 source += `'+${content}+'`;
             } else if (content) {
-                source += `';${content};$p+='`;
+                source += `';`;
+                if (source.endsWith(`+'';`)) {
+                    source = source.substring(0, source.length - 4) + ';';
+                }
+                source += `${content};$p+='`;
             }
         }
         // Adobe VMs need the match returned to produce the correct offset.
         return match;
     });
-    //console.log(source);
     source += `';`;
-
+    source = source.replace(extraPlusReg, '')
+        .replace(extraStringReg, '$p+=');
     if (configs.debug) {
         source = `let $expr,$art,$line;try{${source}}catch(ex){let msg='render view error:'+(ex.message||ex);if($art)msg+='\\r\\n\\tsrc art:{{'+$art+'}}\\r\\n\\tat line:'+$line;msg+='\\r\\n\\t'+($art?'translate to:':'expr:');msg+=$expr+'\\r\\n\\tat file:${file}';throw msg;}`;
     }

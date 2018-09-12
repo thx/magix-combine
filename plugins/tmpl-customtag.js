@@ -449,7 +449,7 @@ module.exports = {
                 }
                 if (hasGallery) {
                     let i = gMap[result.tag];
-                    if (!i || !i[processedGalleryInfo]) {
+                    if ((!i || !i[processedGalleryInfo]) && !util.isFunction(i)) {
                         let subs = result.subTags.slice(0, -1);
                         if (subs.length) {
                             subs = subs.join(sep);
@@ -489,23 +489,14 @@ module.exports = {
                     if (!i[processedGalleryInfo]) {
                         if (util.isFunction(i)) {
                             i = {
-                                processor: i.processor || i,
-                                tag: i.tag || '',
-                                isolated: i.isolated || 0
+                                processor: i
                             };
                             gMap[result.tag] = i;
                         }
-                        if (i) {
-                            //临时兼容
-                            if (i.isolated) {
-                                delete i.processor;
-                                delete i.isolated;
-                            }
-                            if (!i.path) {
-                                i.path = vpath;
-                            }
-                            i[processedGalleryInfo] = 1;
+                        if (!i.path) {
+                            i.path = vpath;
                         }
+                        i[processedGalleryInfo] = 1;
                     }
                 }
             }
@@ -660,7 +651,7 @@ module.exports = {
                     pathname = configs.mxViewProcessor({
                         path: pathname,
                         pkgName: e.pkgName
-                    }) || pathname;
+                    }, e) || pathname;
                     let view = pathname;
                     if (params.length) {
                         view += `?${params.join('&')}`;

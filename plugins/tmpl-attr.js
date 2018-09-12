@@ -3,7 +3,6 @@
  */
 let attrMxEvent = require('./tmpl-attr-mxevent');
 let attrMxView = require('./tmpl-attr-mxview');
-let attrImg = require('./tmpl-attr-img');
 let attrLink = require('./tmpl-attr-link');
 let checker = require('./checker');
 let tmplCmd = require('./tmpl-cmd');
@@ -35,7 +34,6 @@ module.exports = {
             match = attrMxEvent(e, match, refTmplCommands, toSrc);
             match = attrMxView(e, match, refTmplCommands, toSrc);
             match = attrLink(e, tagName, match, refTmplCommands, toSrc);
-            match = attrImg(e, tagName, match, refTmplCommands, toSrc);
             match = checker.Tmpl.checkTag(e, tagName, match, toSrc);
             return match;
         });

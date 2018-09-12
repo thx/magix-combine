@@ -108,9 +108,9 @@ let collectGuids = (nodes, removedGuids) => { //移除某个节点下的所有gu
     }
 };
 module.exports = {
-    add(tmpl, tmplCommands, refLealGlobal) {
+    add(tmpl, tmplCommands, refLealGlobal, e) {
         let g = 0;
-        let tokens = tmplParser(tmpl);
+        let tokens = tmplParser(tmpl, e.shortHTMLFile);
         //let r = tmpl.replace(selfCloseTag, '').replace(subReg, '');
         let r = getContentExceptTags(tmpl, tokens);
 
@@ -137,7 +137,7 @@ module.exports = {
             return '<' + tag + tKey + attrs + (close ? close : '') + '>';
         });
         //console.log(tmpl);
-        tokens = tmplParser(tmpl);
+        tokens = tmplParser(tmpl, e.shortHTMLFile);
         let getRemovedGuids = (tmpl) => {
             //如果移除子节点后无模板命令和属性中的模板命令，则移除guid
             //如果剩余内容+属性配对，则保留guid
