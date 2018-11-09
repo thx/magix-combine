@@ -53,7 +53,7 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
     let key = magixTmpl + holder + fileContent;
     let fCache = cache[key];
     if (!fCache) {
-        if (unsupportCharsReg.test(fileContent)) {
+        if (configs.debug && unsupportCharsReg.test(fileContent)) {
             slog.log(chalk.red(`[MXC Error(tmpl)] unsupport character : ${unsupportCharsReg.source}`), 'at', chalk.magenta(e.shortHTMLFile));
             reject(new Error('[MXC Error(tmpl)] unsupport character'));
             return;
@@ -74,13 +74,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             }
             fileContent = tmplArt(fileContent, e);
         }
-        try {
-            unmatchChecker(fileContent, e);
-        } catch (ex) {
-            slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
-            ex.message += ' at ' + e.shortHTMLFile;
-            reject(ex);
-            return;
+        if (configs.debug) {
+            try {
+                unmatchChecker(fileContent, e);
+            } catch (ex) {
+                slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+                ex.message += ' at ' + e.shortHTMLFile;
+                reject(ex);
+                return;
+            }
         }
         let srcContent = fileContent;
         try {
@@ -105,13 +107,15 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
             }
             fileContent = tmplArt(fileContent, e);
         }
-        try {
-            unmatchChecker(fileContent, e);
-        } catch (ex) {
-            slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
-            ex.message += ' at ' + e.shortHTMLFile;
-            reject(ex);
-            return;
+        if (configs.debug) {
+            try {
+                unmatchChecker(fileContent, e);
+            } catch (ex) {
+                slog.ever(chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
+                ex.message += ' at ' + e.shortHTMLFile;
+                reject(ex);
+                return;
+            }
         }
 
         let temp = Object.create(null);

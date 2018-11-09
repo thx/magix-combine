@@ -1,5 +1,7 @@
 
 let empty = require('./html-selfclose-tags');
+let slog = require('./util-log');
+let chalk = require('chalk');
 let IS_REGEX_CAPTURING_BROKEN = false;
 'x'.replace(/x(.)?/g, function (m, g) {
     IS_REGEX_CAPTURING_BROKEN = g === '';
@@ -17,88 +19,101 @@ let qnameCapture = (() => {
     startTagOpen = new RegExp('^<' + qnameCapture),
     startTagClose = /^\s*(\/?)>/,
     endTag = new RegExp('^<\\/' + qnameCapture + '[^>]*>');
+let SBCSpace = /\u3000/;
 let doctype = /^<!DOCTYPE [^>]+>/i;
-let attribute = /^\s*([^\s"'<>/=]+)(?:\s*((?:=))[ \t\n\f\r]*(?:"([^"]*)"+|'([^']*)'+|([^ \t\n\f\r"'`=<>]+)))?/;
-module.exports = (html, handler) => {
-    let last;
-    let parseStartTag = (input, pos) => {
-        let start = input.match(startTagOpen);
-        if (start) {
-            let match = {
-                tagName: start[1],
-                attrs: []
-            };
-            input = input.slice(start[0].length);
-            pos += start[0].length;
-            let end, attr;
-            while (!(end = input.match(startTagClose)) && (attr = input.match(attribute))) {
-                input = input.slice(attr[0].length);
-                pos += attr[0].length;
-                match.attrs.push(attr);
-            }
-            if (end) {
-                match.unarySlash = end[1];
-                match.rest = input.slice(end[0].length);
-                pos += end[0].length;
-                match.endPos = pos;
-                return match;
+let attribute = /^\s*([^\s"'<>/=]+)(?:\s*((?:=))[ \t\n\f\r]*(?:"([^"]*)"+|'([^']*)'+|([^ \t\n\f\r"'`=<>\\\/]+)))?/;
+let parseStartTag = (input, pos) => {
+    let start = input.match(startTagOpen);
+    if (start) {
+        let match = {
+            tagName: start[1],
+            attrs: [],
+            attrsMap: {}
+        };
+        input = input.slice(start[0].length);
+        pos += start[0].length;
+        let end, attr;
+        while (!(end = input.match(startTagClose)) &&
+            (attr = input.match(attribute))) {
+            input = input.slice(attr[0].length);
+            pos += attr[0].length;
+            match.attrs.push(attr);
+            match.attrsMap[attr[1]] = attr[3];
+            if (attr[5] && SBCSpace.test(attr[5])) {
+                slog.ever(chalk.magenta('[MXC Tip(html-parser)] You use a SCB spance here:"' + attr[0] + '"'));
             }
         }
-    };
-    let handleStartTag = (match, pos, endPos) => {
-        let tagName = match.tagName;
-        let unarySlash = match.unarySlash;
-
-        var unary = empty[tagName] || !!unarySlash;
-
-        let attrs = match.attrs.map((args) => {
-            let name, value, customOpen, customClose, customAssign, quote;
-
-            // hackish work around FF bug https://bugzilla.mozilla.org/show_bug.cgi?id=369778
-            if (IS_REGEX_CAPTURING_BROKEN && args[0].indexOf('""') === -1) {
-                if (args[3] === '') { delete args[3]; }
-                if (args[4] === '') { delete args[4]; }
-                if (args[5] === '') { delete args[5]; }
+        if (end) {
+            if (start[1] == 'mx-table.scrollbar') {
+                //console.log(end,input.slice(pos-20,-1));
             }
+            match.unarySlash = end[1];
+            match.rest = input.slice(end[0].length);
+            pos += end[0].length;
+            match.endPos = pos;
+            return match;
+        }
+    }
+};
+let handleStartTag = (match, pos, endPos, handler) => {
+    let tagName = match.tagName;
+    let unarySlash = match.unarySlash;
 
-            let populate = (index) => {
-                customAssign = args[index];
-                value = args[index + 1];
-                if (typeof value !== 'undefined') {
-                    return '"';
-                }
-                value = args[index + 2];
-                if (typeof value !== 'undefined') {
-                    return '\'';
-                }
-                value = args[index + 3];
-                return '';
-            };
+    var unary = empty[tagName] || !!unarySlash;
+    let attrsMap = {};
+    let attrs = match.attrs.map((args) => {
+        let name, value, customAssign, quote;
 
-            let j = 1;
+        // hackish work around FF bug https://bugzilla.mozilla.org/show_bug.cgi?id=369778
+        if (IS_REGEX_CAPTURING_BROKEN && args[0].indexOf('""') === -1) {
+            if (args[3] === '') { delete args[3]; }
+            if (args[4] === '') { delete args[4]; }
+            if (args[5] === '') { delete args[5]; }
+        }
 
-            if (!name && (name = args[j])) {
-                quote = populate(j + 1);
+        let populate = (index) => {
+            customAssign = args[index];
+            value = args[index + 1];
+            if (typeof value !== 'undefined') {
+                return '"';
             }
+            value = args[index + 2];
+            if (typeof value !== 'undefined') {
+                return '\'';
+            }
+            value = args[index + 3];
+            return '';
+        };
 
-            return {
-                name: name,
-                value: value,
-                customAssign: customAssign || '=',
-                customOpen: customOpen || '',
-                customClose: customClose || '',
-                quote: quote || ''
-            };
+        let j = 1;
+
+        if (!name && (name = args[j])) {
+            quote = populate(j + 1);
+        }
+        attrsMap[name] = value;
+        return {
+            name: name,
+            value: value,
+            assign: customAssign || '=',
+            quote: quote || ''
+        };
+    });
+
+    if (!unary) {
+        unarySlash = '';
+    }
+
+    if (handler.start) {
+        handler.start(tagName, attrs, unary, {
+            unarySlash,
+            attrsMap,
+            start: pos,
+            end: endPos
         });
-
-        if (!unary) {
-            unarySlash = '';
-        }
-
-        if (handler.start) {
-            handler.start(tagName, attrs, unary, unarySlash, pos, endPos);
-        }
-    };
+    }
+};
+let parser = (html, handler) => {
+    let last;
     let pos = 0;
     while (html) {
         last = html;
@@ -162,7 +177,7 @@ module.exports = (html, handler) => {
             if (startTagMatch) {
                 html = startTagMatch.rest;
                 //console.log('===', html, startTagMatch);
-                handleStartTag(startTagMatch, pos, pos = startTagMatch.endPos);
+                handleStartTag(startTagMatch, pos, pos = startTagMatch.endPos, handler);
                 let tn = startTagMatch.tagName;
                 if (tn == 'script' || tn == 'style') {
                     let reg = new RegExp(new RegExp('([\\s\\S]*?)(</' + tn + '[^>]*>)', 'i'));
@@ -197,3 +212,8 @@ module.exports = (html, handler) => {
         }
     }
 };
+
+parser.parseStartTag = match => {
+    return parseStartTag(match, 0);
+};
+module.exports = parser;

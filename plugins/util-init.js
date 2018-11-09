@@ -94,5 +94,8 @@ module.exports = () => {
             }
         }
         configs.galleryPrefixes = galleryPrefixes;
+
+        configs.selectorKeepNameReg = /(--)[\w-]+$/;
+        configs.selectorDSEndReg = /--$/;
     }
 };

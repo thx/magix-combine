@@ -120,7 +120,7 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
         let ast;
         let comments = {};
         try {
-            ast = acorn.parse(tmpl, comments);
+            ast = acorn.parse(tmpl, comments, e.from);
         } catch (ex) {
             let msg = [chalk.red(`[MXC Error(js-content)]`), 'Parse js ast error:', chalk.red(ex.message), tmpl];
             let arr = tmpl.split(lineBreakReg);
@@ -304,7 +304,9 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
                 }
             }
         });
-        checker.JS.check(comments, tmpl, e, ast);
+        if (configs.debug) {
+            checker.JS.check(comments, tmpl, e, ast);
+        }
         modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
             return a.start - b.start;
         });

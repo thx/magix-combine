@@ -138,6 +138,7 @@ let processScope = ctx => {
                             namesToFiles: globalCssNamesInFiles,
                             namesKey: cssNamesKey,
                             cNamesMap: cssNamesMap,
+                            globalReservedMap,
                             cNamesToFiles: globalCssNamesInFiles,
                             addToGlobalCSS: true,
                             file: currentFile,
@@ -147,6 +148,8 @@ let processScope = ctx => {
                     } catch (e) {
                         reject(e);
                     }
+                    //console.log(globalCssNamesInFiles);
+                    //console.log(cssNamesMap);
                     c = cssAtRule(c, cssNamesKey, true, {
                         globalReservedMap
                     });
@@ -159,10 +162,10 @@ let processScope = ctx => {
                         short: shortFile,
                         key: cssNamesKey
                     });
-                    scopedStyle += c;
+                    //scopedStyle += c;
                 } else if (!i.exists) { //未找到
                     checker.CSS.markUnexists(currentFile, '/scoped.style');
-                    scopedStyle += ` .unfound[file="${currentFile}"]{}`;
+                    //scopedStyle += ` .unfound[file="${currentFile}"]{}`;
                     scopedStyles.push({
                         css: `.unfound[file="${currentFile}"]{}`,
                         map: i.map,
@@ -181,6 +184,7 @@ let processScope = ctx => {
                     add(rs[i]);
                 }
                 //if (!configs.compressCss) {
+                let hasSameName = false;
                 let sToKeys = Object.create(null); //重名
                 let namesToFiles = globalCssNamesInFiles;
                 let namesMap = globalCssNamesMap;
@@ -189,18 +193,22 @@ let processScope = ctx => {
                     let sameSelectors = namesToFiles[p + '!s'];
                     let values = Object.values(sameSelectors); //处理重名的情况
                     if (values.length > 1) {
+                        hasSameName = true;
                         namesToFiles[p + '!r'] = values;
                         let key = '';
-                        if (!configs.debug) { //压缩
-                            key = genCssSelector(p, genCssNamesKey(values[0]), globalReservedMap);
-                        } else { //非压缩时，采用这个重名在这几个文件中的路径做为key,如 mx-app-snippets-list-and-app-snippets-form
+                        let pf = p.replace(configs.selectorKeepNameReg, '$1');
+                        let tl = p.replace(pf, '');
+                        if (configs.debug) {
+                            //非压缩时，采用这个重名在这几个文件中的路径做为key,如 mx-app-snippets-list-and-app-snippets-form
                             let keys = [],
                                 k;
                             for (let i = 0; i < values.length; i++) {
                                 k = genCssNamesKey(values[i], i);
                                 keys.push(k);
                             }
-                            key = genCssSelector(p, keys.join('-and-'), globalReservedMap);
+                            key = genCssSelector(pf, keys.join('-and-'), globalReservedMap) + tl;
+                        } else { //压缩
+                            key = genCssSelector(pf, genCssNamesKey(values[0]), globalReservedMap) + tl;
                         }
                         namesMap[p] = key;
                         for (let z in sameSelectors) {
@@ -208,16 +216,20 @@ let processScope = ctx => {
                         }
                     }
                 }
-                let tokens = cssParser(scopedStyle, 'scoped.style').tokens;
-                for (let i = tokens.length - 1; i >= 0; i--) {
-                    let token = tokens[i];
-                    let id = token.name;
-                    if (token.type == 'class') {
-                        if (sToKeys[id]) { //修改样式，只处理重名的，因为要对重名的样式重新命名
-                            scopedStyle = scopedStyle.substring(0, token.start) + sToKeys[id] + scopedStyle.substring(token.end);
+                for (let s of scopedStyles) {
+                    let { tokens } = cssParser(s.css, s.short);
+                    for (let i = tokens.length - 1; i >= 0; i--) {
+                        let token = tokens[i];
+                        let id = token.name;
+                        if (token.type == 'class') {
+                            if (sToKeys[id]) { //修改样式，只处理重名的，因为要对重名的样式重新命名
+                                s.css = s.css.substring(0, token.start) + sToKeys[id] + s.css.substring(token.end);
+                            }
                         }
                     }
+                    scopedStyle += s.css;
                 }
+
                 resolve(ctx);
             }).catch(reject);
         }
@@ -228,6 +240,7 @@ module.exports = {
         if (!globalPromise) {
             globalPromise = Promise.resolve(info);
             globalPromise = globalPromise.then(processGlobal).then(processScope).then(() => {
+                //console.log('out',globalCssNamesMap,globalCssNamesInFiles);
                 return {
                     globalReservedMap,
                     globalStyle,

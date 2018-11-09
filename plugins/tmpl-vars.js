@@ -82,7 +82,7 @@ let extractFunctions = expr => { //获取绑定的其它附加信息，如 <%:us
     });
 };
 
-let viewAttrReg = /\bview-([\w\-@]+)=(["'])([\s\S]*?)\2/g;
+let viewAttrReg = /\s(?:view-|\*)([\w\-@]+)=(["'])([\s\S]*?)\2/g;
 
 /*
 let getMemberExpr = (node, fn) => {
@@ -134,6 +134,14 @@ let getSafeguardExpression = (i, fn) => {
     }
     return getMemberExpr(node, fn);
 };*/
+let IdReg = /(?:[\x03\x06]\.|\x01\d+)[\x24\x30-\x39\x41-\x5a\x5f\x61-\x7a]+/g;
+let ExtractIds = v => {
+    let keys = [];
+    v.replace(IdReg, m => {
+        keys.push(m);
+    });
+    return keys;
+};
 /*
     \u0000  `反撇
     \u0001  模板中局部变量  用
@@ -181,7 +189,7 @@ module.exports = {
         //return;
         //console.log(fn);
         try {
-            ast = acorn.parse(fn);
+            ast = acorn.parse(fn, null, sourceFile);
         } catch (ex) {
             slog.ever('[MXC Error(tmpl-vars)] parse html cmd ast error:', chalk.red(ex.message), 'at', chalk.magenta(e.shortHTMLFile));
             slog.ever('[MXC Error(tmpl-vars)] current state:', fn);
@@ -215,9 +223,9 @@ module.exports = {
             });
         };
         let fnRange = [];
-        let blockRange = [{ start: 0, end: fn.length }];
-        let vds = [];
-        let blockVariableMap = Object.create(null);
+        //let blockRange = [{ start: 0, end: fn.length }];
+        //let vds = [];
+        //let blockVariableMap = Object.create(null);
         let compressVarToOriginal = Object.create(null);
         let constVars = Object.assign(Object.create(null), extInfo.tmplScopedConstVars);
         let patternChecker = node => {
@@ -229,9 +237,9 @@ module.exports = {
             ArrayPattern: patternChecker,
             ObjectPattern: patternChecker,
             ForOfStatement: patternChecker,
-            BlockStatement(node) {
-                blockRange.push(node);
-            },
+            // BlockStatement(node) {
+            //     blockRange.push(node);
+            // },
             CallExpression(node) { //方法调用
                 let vname = '';
                 let callee = node.callee;
@@ -286,65 +294,65 @@ module.exports = {
                             break;
                     }
                 }
-            },
+            }/*,
             VariableDeclaration(node) {
                 if (node.kind == 'let' || node.kind == 'const') {
                     vds.push(node);
                 }
-            }
+            }*/
         });
-        blockRange.sort((a, b) => a.start - b.start);
-        for (let vd of vds) {
-            let range;
-            for (let br of blockRange) {
-                if (vd.start > br.start && vd.end < br.end) {
-                    range = br;
-                }
-            }
-            if (range) {
-                let key = range.start + '~' + range.end;
-                if (!blockVariableMap[key]) {
-                    blockVariableMap[key] = Object.create(null);
-                }
-                for (let d of vd.declarations) {
-                    if (!d.id.name.startsWith('$art_')) {
-                        blockVariableMap[key][d.id.name] = utils.uId('$rewrite_scoped_' + d.id.name + '_', tmpl, true);
-                    }
-                }
-            }
-        }
-        let varsReplace = node => {
-            let map;
-            for (let br of blockRange) {
-                if (node.start > br.start && node.end < br.end) {
-                    let key = br.start + '~' + br.end;
-                    let m = blockVariableMap[key];
-                    if (m && m[node.name]) {
-                        map = m;
-                    }
-                }
-            }
-            if (map) {
-                modifiers.push({
-                    start: node.start,
-                    end: node.end,
-                    name: map[node.name],
-                });
-            }
-        };
-        acorn.walk(ast, {
-            VariableDeclarator(node) {
-                varsReplace(node.id);
-            },
-            Identifier: varsReplace
-        });
-        modifiers.sort((a, b) => a.start - b.start);
-        for (let i = modifiers.length - 1, m; i >= 0; i--) {
-            m = modifiers[i];
-            fn = fn.substring(0, m.start) + m.name + fn.substring(m.end);
-        }
+        // blockRange.sort((a, b) => a.start - b.start);
+        // for (let vd of vds) {
+        //     let range;
+        //     for (let br of blockRange) {
+        //         if (vd.start > br.start && vd.end < br.end) {
+        //             range = br;
+        //         }
+        //     }
+        //     if (range) {
+        //         let key = range.start + '~' + range.end;
+        //         if (!blockVariableMap[key]) {
+        //             blockVariableMap[key] = Object.create(null);
+        //         }
+        //         for (let d of vd.declarations) {
+        //             if (!d.id.name.startsWith('$art_')) {
+        //                 blockVariableMap[key][d.id.name] = utils.uId('$rewrite_scoped_' + d.id.name + '_', tmpl, true);
+        //             }
+        //         }
+        //     }
+        // }
+        // let varsReplace = node => {
+        //     let map;
+        //     for (let br of blockRange) {
+        //         if (node.start > br.start && node.end < br.end) {
+        //             let key = br.start + '~' + br.end;
+        //             let m = blockVariableMap[key];
+        //             if (m && m[node.name]) {
+        //                 map = m;
+        //             }
+        //         }
+        //     }
+        //     if (map) {
+        //         modifiers.push({
+        //             start: node.start,
+        //             end: node.end,
+        //             name: map[node.name],
+        //         });
+        //     }
+        // };
+        // acorn.walk(ast, {
+        //     VariableDeclarator(node) {
+        //         varsReplace(node.id);
+        //     },
+        //     Identifier: varsReplace
+        // });
+        // modifiers.sort((a, b) => a.start - b.start);
+        // for (let i = modifiers.length - 1, m; i >= 0; i--) {
+        //     m = modifiers[i];
+        //     fn = fn.substring(0, m.start) + m.name + fn.substring(m.end);
+        // }
         modifiers = [];
-        ast = acorn.parse(fn);
+        ast = acorn.parse(fn, null, sourceFile);
         let processString = node => { //存储字符串，减少分析干扰
             if (stringReg.test(node.raw)) {
                 let q = node.raw.match(stringReg)[0];
@@ -406,6 +414,7 @@ module.exports = {
                         });
                     }
                     if (!globalExists[tname] || globalExists[tname] === 1) { //模板中使用如<%list=20%>这种，虽然可以，但是不建议使用，因为在模板中可以修改js中的数据，这是非常不推荐的
+                        //console.log(fn);
                         slog.ever(chalk.red('[MXC Tip(tmpl-vars)] undeclare variable:' + lname), 'at', chalk.grey(sourceFile));
                     }
                     globalExists[tname] = (globalExists[tname] || 0) + 1; //记录某个变量被重复赋值了多少次，重复赋值时，在子模板拆分时会有问题
@@ -488,7 +497,7 @@ module.exports = {
                 } else {
                     fns.push('){}');
                 }
-                if (e.checker.tmplCmdFnOrForOf) {
+                if (e.checker.tmplCmdFnOrForOf && configs.debug) {
                     slog.ever(chalk.red('[MXC Tip(tmpl-vars)] avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
                 }
                 let params = Object.create(null);
@@ -723,7 +732,7 @@ module.exports = {
         //modifiers = [];
         //console.log(fn,compressVarToOriginal,modifiers);
         //重新遍历变量带前缀的代码
-        ast = acorn.parse(fn);
+        ast = acorn.parse(fn, null, sourceFile);
         //let recordLoop = node => {
         //    modifiers.push({
         //        key: '\u0019',
@@ -1021,18 +1030,20 @@ module.exports = {
             if (!info) {
                 return null;
             }
-            if (info != '\x03' || info != '\x06') {
-                return findRoot(info);
-            }
-            return null;
+            return findRoot(info);
         };
         let extractMxViewRootKeys = attrs => {
             let keys = [];
             let takeKeys = (m, c, v) => {
                 if (c == '@') {
-                    m = findRoot(v);
-                    if (m && keys.indexOf(m) === -1) {
-                        keys.push(m);
+                    let ks = ExtractIds(v);
+                    if (ks.length) {
+                        for (let k of ks) {
+                            m = findRoot(k);
+                            if (m && keys.indexOf(m) === -1) {
+                                keys.push(m);
+                            }
+                        }
                     }
                 }
             };

@@ -64,6 +64,7 @@ module.exports = {
     },
     tmplFileExtNames: ['html', 'haml', 'pug', 'jade', 'tpl'], //模板后缀
     tmplConstVars: {
+        id: 1,
         vId: 1,
         viewId: 1
     }, //模板中不会变的变量，减少子模板的分析
@@ -182,7 +183,7 @@ module.exports = {
     cssContentProcessor(css) { //处理内容
         return css;
     },
-    applyStyleProcessor(r){
+    applyStyleProcessor(r) {
         return r;
     },
     resolveModuleId(id) { //处理模块id时的处理器

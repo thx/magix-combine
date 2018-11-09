@@ -23,7 +23,7 @@ let staticKeyReg = /\s*_mxs="[^"]+"/g;
 let attrKeyReg = /\s*_mxa="[^"]+"/g;
 let mxvKeyReg = /\s*_mxv="[^"]+"/g;
 let mxViewOwnerReg = /\s*_mxo="[^"]+"/g;
-let mxIntactReg = /\s*mx-intact(?:\s*=\s*(['"])[^'"]+\1)?/;
+let mxDiffReg = /\s*mx-diff(?:\s*=\s*(['"])[^'"]+\1)?/;
 let tmplCommandAnchorRegTest = /\u0007\d+\u0007/;
 let forceStaticKey = /\s+mx-static(?:-attr)?(?:\s*=\s*(['"])[^'"]+\1)?/;
 let ifForReg = /\s*(?:if|for|for_declare)\s*=\s*"[^"]+"/g;
@@ -122,6 +122,7 @@ module.exports = (tmpl, file) => {
                             */
                             if (c.mxvKey ||
                                 c.mxvAutoKey ||
+                                c.forceDiff ||
                                 c.tag == 'input' ||
                                 c.tag == 'direct' ||
                                 c.tag == 'textarea' ||
@@ -133,11 +134,11 @@ module.exports = (tmpl, file) => {
                                 break;
                             }
                         }
-                        if (!hasSubView) {
+                        if (!hasSubView && !n.forceDiff) {
                             keys.push(' _mxv="' + n.mxvAutoKey + '"');
                             delete n.mxvAutoKey;
                         }
-                    } else {
+                    } else if (!n.forceDiff) {
                         keys.push(' _mxv="' + n.mxvAutoKey + '"');
                         delete n.mxvAutoKey;
                     }
@@ -158,6 +159,7 @@ module.exports = (tmpl, file) => {
                     for (let c of n.children) {
                         if (c.mxvKey ||
                             c.mxvAutoKey ||
+                            c.forceDiff ||
                             c.tag == 'group' ||
                             c.tag == 'input' ||
                             c.tag == 'textarea' ||
@@ -168,12 +170,12 @@ module.exports = (tmpl, file) => {
                             break;
                         }
                     }
-                    if (!hasMxv && !n.hasMxIs) {
+                    if (!hasMxv && !n.hasMxIs && !n.forceDiff) {
                         removeChildrenStaticKeys(n.children, keys);
                     }
                 }
                 if (!removeStaticKey) {
-                    if (n.hasMxIs) {
+                    if (n.hasMxIs || n.forceDiff) {
                         keys.push(' _mxs="' + n.mxsKey + '"');
                     }
                     keys.push(' _mxa="' + n.mxsAttrKey + '"');
@@ -210,7 +212,7 @@ module.exports = (tmpl, file) => {
             return ' mxa="' + r + '"';
         }).replace(mxvKeyReg, ' mxv')
             .replace(forceStaticKey, '')
-            .replace(mxIntactReg, 'mxi')
+            .replace(mxDiffReg, '')
             .replace(mxViewOwnerReg, ' mxo="\x1f"');
     });
     return tmpl;

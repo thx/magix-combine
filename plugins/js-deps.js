@@ -28,7 +28,7 @@ module.exports = {
         let nearestMagixVarName = 'Magix';
         let prepend = '';
         if (e.addWrapper) {
-            let depsInfo = jsModuleParser.process(e.content);
+            let depsInfo = jsModuleParser.process(e.content, e.from);
             depsInfo = depsInfo.reverse();
             e.content = e.content.replace(depsReg, (match, offset) => {
                 if (depsInfo.length) {

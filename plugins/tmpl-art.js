@@ -156,7 +156,7 @@ let checkStack = (stack, key, code, e, lineNo) => {
     } else if (stack.length) {
         for (let s, i = stack.length; i--;) {
             s = stack[i];
-            slog.ever(chalk.red(`[MXC Error(tmpl-art)] unclosed ${s.ctrl} at line:${s.ln}`), ', at file', chalk.grey(e.shortHTMLFile));
+            slog.ever(chalk.red(`[MXC Error(tmpl-art)] unclosed "${s.ctrl}" at line:${s.ln}`), ', at file', chalk.grey(e.shortHTMLFile));
         }
         throw new Error(`[MXC Error(tmpl-art)] unclosed art ctrls at ${e.shortHTMLFile}`);
     }
@@ -254,7 +254,7 @@ let syntax = (code, stack, e, lineNo) => {
         let fi = artExpr.extractForExpr(expr);
         return `${src}<%for(${fi.expr}){%>`;
     } else if (key == 'set') {
-        return `${src}<%let ${ctrls.join(' ')};%>`;
+        return `${src}<%var ${ctrls.join(' ')};%>`;
     } else if (key == '/if' ||
         key == '/each' ||
         key == '/forin' ||

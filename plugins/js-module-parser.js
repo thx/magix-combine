@@ -2,10 +2,10 @@ let acorn = require('./js-acorn');
 let slog = require('./util-log');
 let chalk = require('chalk');
 module.exports = {
-    process(tmpl) {
+    process(tmpl, sourceFile) {
         let ast;
         try {
-            ast = acorn.parse(tmpl);
+            ast = acorn.parse(tmpl, null, sourceFile);
         } catch (ex) {
             slog.ever(chalk.red(`[MXC Error(js-module-parser)]`), ex.message, 'near', tmpl.substring(Math.max(0, ex.pos - 20), Math.min(ex.pos + 20, tmpl.length)));
             throw ex;

@@ -104,6 +104,19 @@ a[mx-view] [view-text] [attr] [prop]{//tip
 fieldset[disabled] .form-control{//tip
 
 }
+
+div ~ div{
+  color:red
+}
+
+
+.\\1d306\\01d306{
+  color:red
+}
+
+[name="foo\\.baz"]{
+  color:red
+}
 `;
 // let t1=`
 // a.span{//tip

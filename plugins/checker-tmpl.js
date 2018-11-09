@@ -5,6 +5,8 @@ let chalk = require('chalk');
 let slog = require('./util-log');
 let fcache = require('./util-fcache');
 let tmplCmd = require('./tmpl-cmd');
+let htmlParser = require('./html-parser');
+let configs = require('./util-config');
 /**
  * Camelize a hyphen-delimited string.
  */
@@ -26,19 +28,6 @@ let hyphenate = fcache(str => {
         .replace(hyphenateRE, '-$1')
         .toLowerCase();
 });
-//是否添加了noopener
-let safedReg = /\brel\s*=\s*(["'])[^'"]*?noopener[^'"]*?\1/i;
-//新窗口打开，对于target="_self"这种写法是多余的
-let newWindowReg = /\btarget\s*=\s*(['"])[^'"]+\1/i;
-//检测各种可能执行代码的情况
-let dangerousAttrReg = /\b(on[a-z]+)\s*=\s*(['"]?)[^>]+?\2/gi;
-
-//let jsProtocalWithHrefReg = /\bhref\s*=\s*(['"]?)javascript:([\s\S]*?)\1/i;
-
-let targetSelfReg = /\btarget\s*=\s*(['"])_self\1/g;
-let allowClickReg = /\bonclick\s*=\s*(['"])return\s+false;*\1/;
-//let voidReg = /void\([\s\S]+?\);?/;
-let sandboxReg = /\bsandbox\s*=\s*(["'])[^'"]*?\1/;
 let disallowedTags = {
     script: 1,
     style: 1,
@@ -57,43 +46,40 @@ let disallowedTags = {
     空白符　1-32
  */
 module.exports = {
-    checkTag(e, tagName, match, toSrc) {
+    checkTag(e, match, toSrc) {
+        if (!configs.debug) return match;
+        let tagInfo = htmlParser.parseStartTag(match);
+        let tagName = tagInfo.tagName;
+        let attrsMap = tagInfo.attrsMap;
         let tn = tagName.toLowerCase();
         let newMatch = toSrc(match);
         if (e.checker.tmplAttrAnchor && (tn == 'a' || tn == 'area')) {
-            if (targetSelfReg.test(match)) {
+            if (attrsMap.target == '_self') {
                 slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove unnecessary target="_self"'), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
-            }
-            // let m = match.match(jsProtocalWithHrefReg);
-            // if (m) {
-            //     let am = m[2].match(voidReg);
-            //     if (am) {
-            //         slog.ever(chalk.red('remove unnecessary ' + am[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch);
-            //     }
-            //     if (!allowClickReg.test(match)) {
-            //         slog.ever(chalk.red('avoid use ' + m[0]), 'at', chalk.grey(e.shortHTMLFile), 'in', newMatch, 'more info:', chalk.magenta('http://www.360doc.com/content/16/0427/18/32095775_554304106.shtml'));
-            //     }
-            // }
-            if (newWindowReg.test(match) && !safedReg.test(match)) {
+            } else if (attrsMap.target &&
+                (!attrsMap.rel ||
+                    attrsMap.rel.indexOf('noopener') === -1)) {
                 slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('add rel="noopener noreferrer" to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('https://github.com/asciidoctor/asciidoctor/issues/2071'));
             }
         } else if (e.checker.tmplDisallowedTag && disallowedTags.hasOwnProperty(tn)) {
             slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove tag ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), (tn == 'style') ? ('use' + chalk.red(' Magix.applyStyle') + ' instead') : '');
         } else if (e.checker.tmplAttrIframe && tn == 'iframe') {
-            if (!sandboxReg.test(match)) {
+            if (!attrsMap.sandbox) {
                 slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('add sandbox to ' + newMatch), 'at', chalk.grey(e.shortHTMLFile), 'more info:', chalk.magenta('http://www.w3school.com.cn/tags/att_iframe_sandbox.asp'));
             }
         }
         if (e.checker.tmplAttrDangerous) {
-            match.replace(dangerousAttrReg, (m, attr) => {
-                if (allowClickReg.test(m)) return;
-                slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove dnagerous attr ' + attr), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta(m));
-            });
+            for (let a of tagInfo.attrs) {
+                if (a[1].startsWith('on')) {
+                    slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('remove dnagerous attr ' + a[1]), 'at', chalk.grey(e.shortHTMLFile), 'near', newMatch);
+                }
+            }
         }
 
         return match;
     },
     checkMxEventName(eventName, e) {
+        if (!configs.debug) return;
         upperCaseReg.lastIndex = 0;
         if (e.checker.tmplAttrMxEvent && upperCaseReg.test(eventName)) {
             eventName = 'mx-' + eventName;
@@ -101,11 +87,13 @@ module.exports = {
         }
     },
     checkMxEvengSingQuote(single, match, e) {
+        if (!configs.debug) return;
         if (e.checker.tmplAttrMxEvent && single) {
             slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use single quote:' + match), 'at', chalk.grey(e.shortHTMLFile), 'use double quote instead');
         }
     },
     checkMxEventParams(eventName, params, match, e) {
+        if (!configs.debug) return;
         if (e.checker.tmplAttrMxEvent) {
             if (params.charAt(0) != '{' || params.charAt(params.length - 1) != '}') {
                 slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.magenta('not recommended event params:' + match), 'at', chalk.grey(e.shortHTMLFile), 'replace it like', chalk.magenta('mx-' + eventName + '="({p1:\'p1\',p2:\'p2\'})"'));
@@ -113,6 +101,7 @@ module.exports = {
         }
     },
     checkMxEventParamsCMD(operate, mxEvent, e, srcStr) {
+        if (!configs.debug) return;
         if (e.checker.tmplAttrMxEvent) {
             let i = tmplCmd.extactCmd(srcStr, ['!', '@']);
             if (operate == '!') {
@@ -124,7 +113,7 @@ module.exports = {
     },
     checkMxViewParams(paramName, e, prefix = 'view-') {
         let hname = hyphenate(paramName);
-        if (e.checker.tmplAttrMxView) {
+        if (e.checker.tmplAttrMxView && configs.debug) {
             upperCaseReg.lastIndex = 0;
             if (upperCaseReg.test(paramName)) {
                 slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use ' + prefix + paramName + ' or ' + paramName), 'at', chalk.grey(e.shortHTMLFile), 'use', chalk.red(prefix + hname + ' or ' + hname), 'instead', 'more info:', chalk.magenta('https://github.com/thx/magix/issues/35'));
@@ -135,15 +124,18 @@ module.exports = {
         return paramName;
     },
     checkAtAttr(expr, e) {
+        if (!configs.debug) return;
         slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('unsupport ' + expr), 'at', chalk.grey(e.shortHTMLFile));
     },
     checkMxViewParamsEscape(operate, match, view, e) {
+        if (!configs.debug) return;
         if (e.checker.tmplAttrMxView && operate === '!') {
             let i = tmplCmd.extactCmd(match, ['!']);
             slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('avoid use ' + i.match), 'at', chalk.grey(e.shortHTMLFile), 'near', chalk.magenta('mx-view="' + view + '"'), 'use', chalk.red(`${i.open}=${i.content}${i.close}`), 'or', chalk.red(`${i.open}@${i.content}${i.close}`), 'instead');
         }
     },
     checkStringRevisable(content, match, e) {
+        if (!configs.debug) return;
         if (tmplCommandAnchorReg.test(content)) {
             slog.ever(chalk.magenta('[MXC Tip(checker-tmpl)]'), chalk.red('unsupport ' + match), 'at', chalk.grey(e.shortHTMLFile));
         }

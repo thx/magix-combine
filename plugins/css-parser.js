@@ -19,6 +19,7 @@ let atRuleSearchContent = {
 };
 let atRuleIgnoreContent = {
     page: 1,
+    global: 1,
     '-webkit-keyframes': 1,
     '-moz-keyframes': 1,
     '-ms-keyframes': 1,
@@ -32,7 +33,8 @@ let atRuleIgnoreContent = {
 let unpackPseudos = {
     has: 1,
     not: 1,
-    matches: 1
+    matches: 1,
+    where: 1//
 };
 let quotes = {
     '"': 1,
@@ -259,6 +261,7 @@ let parse = (css, file) => {
                     continue;
                 }
                 current++;
+                let begin = current;
                 let id = getNameAndGo();
                 if (css.charAt(current) === '(') {
                     //debugger;
@@ -277,6 +280,15 @@ let parse = (css, file) => {
                         let ti = css.indexOf(')', current);
                         if (ti > -1) {
                             current = ti + 1;
+                            if (id == 'global') {
+                                let range = css.substring(begin - 1, current);
+                                tokens.push({
+                                    type: 'global',
+                                    start: begin - 1,
+                                    content: range.slice(8, -1),
+                                    end: current
+                                });
+                            }
                         }
                     }
                 }
@@ -321,7 +333,18 @@ let parse = (css, file) => {
                 skipAtRuleUntilLeftBrace();
                 processRules();
             } else if (atRuleIgnoreContent.hasOwnProperty(name)) {
+                //let start = current;
+                let cStart = current;
                 skipAtRuleContent();
+                if (name == 'global') {
+                    let left = css.indexOf('{', cStart);
+                    tokens.push({
+                        type: 'global',
+                        start: start,
+                        end: current,
+                        content: css.slice(left + 1, current - 1)
+                    });
+                }
             } else {
                 skipAtRule();
                 if (name == 'import') {

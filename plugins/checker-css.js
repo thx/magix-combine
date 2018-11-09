@@ -28,7 +28,7 @@ module.exports = {
         }
     },
     clearUsed(from) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         for (let p in fileSelectorsUsed) {
             let fInfo = fileSelectorsUsed[p];
             if (fInfo) {
@@ -40,7 +40,7 @@ module.exports = {
         }
     },
     clearUsedTags(from) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         for (let p in fileTagsUsed) {
             let fInfo = fileTagsUsed[p];
             if (fInfo) {
@@ -52,7 +52,7 @@ module.exports = {
         }
     },
     fileToTags(file, tags, processUsed) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         if (!filesToTags[file]) {
             filesToTags[file] = Object.assign(Object.create(null), tags);
             let a = markUsedTempTags[file];
@@ -75,7 +75,7 @@ module.exports = {
         }
     },
     fileToSelectors(file, selectors, processUsed) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         if (!filesToSelectors[file]) {
             filesToSelectors[file] = Object.assign(Object.create(null), selectors);
             let a = markUsedTemp[file];
@@ -98,7 +98,7 @@ module.exports = {
         }
     },
     markExists(name, currentFile, prevFiles) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         let key = [name, currentFile, prevFiles].join('\u0000');
         if (!existsSelectors[key]) {
             existsSelectors[key] = true;
@@ -110,14 +110,14 @@ module.exports = {
         }
     },
     markUnexists(name, currentFile) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         if (!unexists[currentFile]) {
             unexists[currentFile] = Object.create(null);
         }
         unexists[currentFile][name] = name;
     },
     markUsed(files, selectors, host) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -140,6 +140,13 @@ module.exports = {
                         sInfo[host] = 1;
                     }
                     delete info[selector];
+                    if (configs.selectorDSEndReg.test(selector)) {
+                        for (let p in info) {
+                            if (p.indexOf(selector) === 0) {
+                                delete info[p];
+                            }
+                        }
+                    }
                 });
             } else {
                 let a = markUsedTemp[file];
@@ -149,7 +156,7 @@ module.exports = {
         });
     },
     markUsedTags(files, tags, host) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         if (!Array.isArray(files)) {
             files = [files];
         }
@@ -182,14 +189,14 @@ module.exports = {
         });
     },
     markLazyDeclared(selector) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         for (let p in filesUndeclared) {
             let info = filesUndeclared[p];
             delete info[selector];
         }
     },
     markUndeclared(file, selector) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         let r = filesUndeclared[file];
         if (!r) {
             r = filesUndeclared[file] = Object.create(null);
@@ -197,7 +204,7 @@ module.exports = {
         r[selector] = 1;
     },
     markGlobal(file, name) {
-        if (!configs.checker.css) return;
+        if (!configs.checker.css || !configs.debug) return;
         //name = name.replace(rnReg, '');
         let info = fileGlobals[file];
         if (!info) {
@@ -253,6 +260,7 @@ module.exports = {
                     composeTagsAndSelectors[short] = '"' + keys.reverse().join('","') + '"';
                 }
             }
+            //console.log(filesToSelectors);
             for (p in filesToSelectors) {
                 keys = Object.keys(filesToSelectors[p]);
                 if (keys.length) {

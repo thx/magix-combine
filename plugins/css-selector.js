@@ -46,6 +46,9 @@ let genCssSelector = (selector, cssNameKey, reservedNames, key) => {
         }
     } else {
         mappedName = configs.projectName + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult', null, false, reservedNames);
+        if (configs.selectorDSEndReg.test(selector)) {
+            mappedName += '-';
+        }
     }
     return mappedName;
 };
@@ -94,7 +97,10 @@ let refProcessor = (relateFile, file, ext, name, e) => {
             return '.@' + sname;
         }
         checker.CSS.markUsed(file, name, relateFile);
-        return '.@' + genCssSelector(name, genCssNamesKey(file));
+        let p = name.replace(configs.selectorKeepNameReg, '$1');
+        let t = name.replace(p, '');
+        let id = genCssSelector(p, genCssNamesKey(file), e && e.globalReservedMap) + t;
+        return '.@' + id;
     }
 };
 /**
@@ -104,15 +110,9 @@ let refProcessor = (relateFile, file, ext, name, e) => {
  * @param  {number} guid 目前仅标记是否全局的标识
  * @param  {boolean} lazyGlobal 是否在文件中标记全局的
  * @param  {string} file 所在文件
- * @param  {object} namesMap 名称映射对象
  * @param  {object} namesToFiles 名称到文件映射对象
  */
-let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesMap, namesToFiles) => {
-    //记录重名的
-    if (configs.log && namesMap[name] && namesToFiles[name] && !namesToFiles[name][file]) {
-        checker.CSS.markExists('.' + name, file, Object.keys(namesToFiles[name]) + '');
-    }
-    namesMap[name] = transformSelector;
+let addGlobal = (name, transformSelector, guid, lazyGlobal, file, namesToFiles) => {
     if (!namesToFiles[name]) { //不存在
         namesToFiles[name] = Object.create(null);
         namesToFiles[name + '!s'] = Object.create(null);
@@ -168,9 +168,27 @@ let cssNameNewProcessor = (css, ctx) => {
         } else if (token.type == 'class') {
             let result = id;
             if (!token.isGlobal) {
-                result = (ctx.cNamesMap[id] = genCssSelector(id, ctx.namesKey));
+                let p = id.replace(configs.selectorKeepNameReg, '$1');
+                let t = id.replace(p, '');
+                let i = genCssSelector(p, ctx.namesKey, ctx.globalReservedMap);
+                if (t) {
+                    result = i + t;
+                } else {
+                    result = i;
+                }
+                ctx.cNamesMap[id] = result;
                 if (ctx.addToGlobalCSS) {
-                    addGlobal(id, result, 0, 0, ctx.file, ctx.namesMap, ctx.namesToFiles);
+                    //记录重名的
+                    if (configs.log &&
+                        ctx.namesMap[id] &&
+                        ctx.namesToFiles[id] &&
+                        !ctx.namesToFiles[id][ctx.file]) {
+                        checker.CSS.markExists('.' + id, ctx.file, Object.keys(ctx.namesToFiles[id]) + '');
+                    }
+                    ctx.namesMap[id] = result;
+                    ctx.namesMap[p] = i;
+                    addGlobal(id, result, 0, 0, ctx.file, ctx.namesToFiles);
+                    addGlobal(p, i, 0, 0, ctx.file, ctx.namesToFiles);
                 }
                 ctx.cNamesToFiles[id + '!r'] = [ctx.file];
             }
@@ -179,7 +197,12 @@ let cssNameNewProcessor = (css, ctx) => {
                 end: token.end,
                 content: result
             });
-            //css = css.slice(0, token.start) + result + css.slice(token.end);
+        } else if (token.type == 'global') {
+            modifiers.push({
+                start: token.start,
+                end: token.end,
+                content: token.content
+            });
         }
     }
     for (let i = modifiers.length; i--;) {
@@ -210,7 +233,15 @@ let cssNameGlobalProcessor = (css, ctx) => {
             }
         } else if (token.type == 'class') {
             ctx.cNamesMap[id] = id;
-            addGlobal(id, id, ctx.globalGuid, ctx.lazyGlobal, ctx.file, ctx.namesMap, ctx.namesToFiles);
+            //记录重名的
+            if (configs.log &&
+                ctx.namesMap[id] &&
+                ctx.namesToFiles[id] &&
+                !ctx.namesToFiles[id][ctx.file]) {
+                checker.CSS.markExists('.' + id, ctx.file, Object.keys(ctx.namesToFiles[id]) + '');
+            }
+            ctx.namesMap[id] = id;
+            addGlobal(id, id, ctx.globalGuid, ctx.lazyGlobal, ctx.file, ctx.namesToFiles);
             if (ctx.cNamesToFiles) {
                 ctx.cNamesToFiles[id + '!r'] = ctx.namesToFiles[id + '!r'];
             }
@@ -222,7 +253,6 @@ module.exports = {
     refProcessor,
     genCssNamesKey,
     genCssSelector,
-    addGlobal,
     cssNameNewProcessor,
     cssNameGlobalProcessor
 };

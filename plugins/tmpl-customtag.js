@@ -364,14 +364,6 @@ module.exports = {
                                 n.contentEnd += offset;
                             }
                         }
-                        for (let r of n.childrenRange) {
-                            if (r.start > pos) {
-                                r.start += offset;
-                            }
-                            if (r.end > pos) {
-                                r.end += offset;
-                            }
-                        }
                     }
                 }
             };
@@ -388,9 +380,11 @@ module.exports = {
             if (n.hasContent) {
                 content = tmpl.substring(n.contentStart, n.contentEnd);
             }
-            if (n.childrenRange) {
-                for (let r of n.childrenRange) {
-                    children.push(tmpl.substring(r.start, r.end));
+            if (n.children) {
+                for (let r of n.children) {
+                    let i = Object.assign({}, r);
+                    i.html = tmpl.substring(i.start, i.end);
+                    children.push(i);
                 }
             }
             let tag = n.tag;
@@ -676,7 +670,10 @@ module.exports = {
             if (nodes) {
                 if (!map) map = nodes.__map;
                 for (let n of nodes) {
-                    if (e.checker.checkTmplDuplicateAttr && n.attrs && n.attrs.length) {
+                    if (configs.debug &&
+                        e.checker.checkTmplDuplicateAttr &&
+                        n.attrs &&
+                        n.attrs.length) {
                         duAttrChecker(n, e, cmdCache, tmpl.substring(n.attrsStart, n.attrsEnd));
                     }
                     walk(n.children, map);

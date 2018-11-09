@@ -3,13 +3,14 @@
 //let chalk = require('chalk');
 //let slog = require('./util-log');
 let configs = require('./util-config');
+let htmlParser = require('./html-parser');
 //let tmplCmd = require('./tmpl-cmd');
 let commentReg = /<!--[\s\S]*?-->/g;
 let tagRemovedReg = /<(style|script)[^>]*>[\s\S]*?<\/\1>/g;
-let tagReg = /<(\/)?([a-z0-9\-.:_\x11]+)[^>]*>?/ig;
+let tagReg = /<(\/)?([a-z0-9\-.:_\x11]+)/ig;
 let brReg = /(?:\r\n|\r|\n)/;
 let consts = require('./util-const');
-let selfCloseTags = require('./html-selfclose-tags');
+//let selfCloseTags = require('./html-selfclose-tags');
 let hdreg = /\x1f\d+\s*\x1f/g;
 let brPlaceholder = (m, store) => {
     let count = m.split(brReg).length;
@@ -23,16 +24,6 @@ let cleanHTML = (tmpl, store) => {
     }).replace(tagRemovedReg, m => {
         return brPlaceholder(m, store);
     });
-    //let store = Object.create(null);
-    //tmpl = tmplCmd.store(tmpl, store);
-    //tmpl = tmpl.replace(/(?:>[\s\S]+?<|^[\s\S]+?<|>[\s\S]+?$)/g, m => tmplCmd.recover(m, store));
-    /*tmpl = tmpl.replace(consts.artCtrlsReg, (m, key) => {
-        let closed = key.startsWith('/');
-        if (closed) {
-            key = key.substring(1);
-        }
-        return `<${closed ? '/' : ''}art\x11${key.trim()}>`;
-    })*/
     tmpl = tmpl.replace(consts.microTmplCommand, m => {
         return brPlaceholder(m, store);
     });
@@ -44,14 +35,62 @@ let cleanHTML = (tmpl, store) => {
     return tmpl;
 };
 
+let markLine = tmpl => {
+    tmpl = tmpl.replace(tagReg, (m, close, name) => {
+        return `<${close || ''}${name} mc:line`;
+    });
+    return tmpl;
+};
+let lineReg = /mc:line/g;
+let setLineNo = (tmpl, no) => {
+    return tmpl.replace(lineReg, 'mc:line=' + no);
+};
+let lineNoReg = /\smc:line=(\d+)/;
+let lineNoGReg = /\smc:line=\d+/g;
+let readLineNo = tmpl => {
+    let m = tmpl.match(lineNoReg);
+    if (m) {
+        return m[1];
+    }
+    return 'unknown';
+};
+
 module.exports = (tmpl, e) => {
     let store = Object.create(null);
     store.__idx = 0;
     tmpl = cleanHTML(tmpl, store);
+    tmpl = markLine(tmpl);
     let tags = [];
     let lines = tmpl.split(brReg);
     let lineCount = 1;
-    let isClosed = (currentLine, offset) => {
+    let newLines = [];
+    for (let line of lines) {
+        newLines.push(setLineNo(line, lineCount++));
+    }
+    tmpl = newLines.join('');
+    htmlParser(tmpl, {
+        start(tag, attrs, unary, { attrsMap, start, end }) {
+            let a = tmpl.slice(start, end);
+            if (!unary) {
+                tags.push({
+                    line: attrsMap['mc:line'],
+                    match: a,
+                    name: tag
+                });
+            }
+        },
+        end(tag, start, end) {
+            let m = tmpl.slice(start, end);
+            let no = readLineNo(m);
+            tags.push({
+                line: no,
+                close: true,
+                match: m,
+                name: tag
+            });
+        }
+    });
+    /*let isClosed = (currentLine, offset) => {
         let i = currentLine.indexOf('>', offset),
             closed = false, results = [];
         if (i == -1) {
@@ -84,6 +123,7 @@ module.exports = (tmpl, e) => {
         }
         return closed;
     };
+    console.log(lines);
     for (let line of lines) {
         line.replace(tagReg, (m, close, name, offset) => {
             if (selfCloseTags.hasOwnProperty(name)) {
@@ -110,13 +150,13 @@ module.exports = (tmpl, e) => {
             }
         });
         lineCount++;
-    }
+    }*/
     let tagsStack = [];
-    let recover = str => str.replace(hdreg, m => store[m]);
+    let recover = str => str.replace(lineNoGReg, '').replace(hdreg, m => store[m]);
     for (let tag of tags) {
         if (tag.close) {
             if (!tagsStack.length) {
-                throw new Error(`[MXC Error(checker-tmpl-unmatch)] "${recover(tag.match)}" doesn't have corresponding open tag at line  ${tag.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] "${recover(tag.match)}" doesn't have corresponding open tag at line ${tag.line}`);
             }
             let last = tagsStack.pop();
             if (tag.name != last.name) {
@@ -128,7 +168,7 @@ module.exports = (tmpl, e) => {
                 if (tag.name.startsWith('art\x11')) {
                     current = `art "${tag.close ? '/' : ''}${tag.name.substring(4)}"`;
                 }
-                throw new Error(`[MXC Error(checker-tmpl-unmatch)] "${current}" at line ${tag.line} doesn't match "${before}" at line ${last.line}`);
+                throw new Error(`[MXC Error(checker-tmpl-unmatch)] "${current}" at line ${tag.line} doesn't match ${before} at line ${last.line}`);
             }
         } else {
             tagsStack.push(tag);

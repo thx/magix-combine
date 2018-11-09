@@ -242,7 +242,7 @@ declare module "magix-combine" {
         /**
          * 是否输出css sourcemap，默认false
          */
-        sourceMapCss?: boolean
+        //sourceMapCss?: boolean
 
         /**
          * 是否支持类似 import 'style.css'　导入样式的语法，默认false

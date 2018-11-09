@@ -1,4 +1,5 @@
 let checker = require('./checker');
+let configs = require('./util-config');
 let numReg = /^\d+$/;
 let selfCssReg = /@[\$:]\(([\w\-]+)\)/g;
 module.exports = (tmpl, e, locker = Object.create(null)) => {

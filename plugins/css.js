@@ -86,7 +86,7 @@ module.exports = (e, inwatch) => {
                                 m = m.slice(1, -1);
                             }
                             checker.CSS.markUnexists(m, e.from);
-                            return q + 'unfound:' + name + ext + q;
+                            return ['\'$throw_' + name + ext + '\'', q + 'unfound:' + name + ext + q];
                         }
                         let fileContent = r.css;
                         let store = cmtStores[file];
@@ -115,6 +115,7 @@ module.exports = (e, inwatch) => {
                                         fileContent = cssNameNewProcessor(fileContent, {
                                             shortFile: shortCssFile,
                                             namesMap: gCSSNamesMap,
+                                            globalReservedMap: gInfo.globalReservedMap,
                                             namesToFiles: gCSSNamesToFiles,
                                             namesKey: cssNamesKey,
                                             cNamesMap: cssNamesMap,
