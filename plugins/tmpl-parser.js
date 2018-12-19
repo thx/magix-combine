@@ -44,6 +44,7 @@ module.exports = (input, htmlFile) => {
                 attrs,
                 attrsMap,
                 attrsKV,
+                childrenRange: [],
                 hasContent: true,
                 start: pos
             };
@@ -53,6 +54,13 @@ module.exports = (input, htmlFile) => {
                 if (!parent.children) {
                     parent.children = [];
                 }
+                if (parent.children.length) {
+                    let prev = parent.children[parent.children.length - 1];
+                    prev.lastElement = false;
+                } else {
+                    token.firstElement = true;
+                }
+                token.lastElement = true;
                 parent.children.push(token);
                 token.isChild = true;
                 token.pId = parent.id;
@@ -88,14 +96,6 @@ module.exports = (input, htmlFile) => {
                     token.userStaticKey = a.value || true;
                 } else if (temp == 'mx-static-attr' || temp == 'mxa') {
                     token.userStaticAttrKey = a.value || true;
-                } else if (temp == 'mx-diff') {
-                    let diff = true;
-                    if (a.value != null &&
-                        (a.value != '' ||
-                            a.value != 'true')) {
-                        diff = false;
-                    }
-                    token.forceDiff = diff;
                 } else if (temp.startsWith('@')) {
                     token.atAttr = true;
                 } else if (a.quote && a.value && a.value.indexOf('@') > -1) {
@@ -128,29 +128,44 @@ module.exports = (input, htmlFile) => {
             if (unary) {
                 ctrls.pop();
                 token.end = pos;
+                let parent = ctrls[ctrls.length - 1];
+                if (parent) {
+                    parent.childrenRange.push({
+                        start: token.start,
+                        end: token.end
+                    });
+                }
                 delete token.contentStart;
                 delete token.hasContent;
             }
         },
         end(tag) {
             let token = ctrls.pop();
-            if (!token || token.tag !== tag) {
-                let msg = '[MXC-Error(tmpl-parser)] ';
-                if (!token) {
-                    msg += `unopened "</${tag}>"`;
-                } else {
-                    msg += `"</${tag}>" unmatched tag "${token.tag}"`;
-                }
-                throw new Error(msg);
+            if (token.tag !== tag) {
+                throw new Error(`[MXC-Error(tmpl-parser)] "</${tag}>" unmatched tag "${token.tag}"`);
             }
             token.contentEnd = pos;
             let temp = '</' + tag + '>';
             pos = input.indexOf(temp, pos) + temp.length;
             token.end = pos;
+            let parent = ctrls[ctrls.length - 1];
+            if (parent) {
+                parent.childrenRange.push({
+                    start: token.start,
+                    end: token.end
+                });
+            }
         },
         chars(text) {
+            let parent = ctrls[ctrls.length - 1];
             let p = input.indexOf(text, pos);
             pos = p + text.length;
+            if (parent && text.trim()) {
+                parent.childrenRange.push({
+                    start: p,
+                    end: pos
+                });
+            }
         },
         comment(text) {
             pos = input.indexOf(text, pos) + text.length;
@@ -186,5 +201,9 @@ module.exports = (input, htmlFile) => {
         }
     };
     walk(tokens);
+    if (tokens.length) {
+        tokens[0].firstElement = true;
+        tokens[tokens.length - 1].lastElement = true;
+    }
     return tokens;
 };
