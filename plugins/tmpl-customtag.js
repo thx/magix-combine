@@ -369,7 +369,7 @@ module.exports = {
             };
             l(tokens);
         };
-        let getTagInfo = n => {
+        let getTagInfo = (n, map) => {
             let content = '',
                 attrs = '',
                 children = [];
@@ -398,6 +398,7 @@ module.exports = {
             let subTags = tags.length ? tags : ['index'];
             let result = {
                 id: n.id,
+                pId: n.pId,
                 prefix: n.pfx,
                 group: n.group,
                 unary: !n.hasContent,
@@ -405,6 +406,9 @@ module.exports = {
                 mainTag,
                 subTags,
                 attrs,
+                nodesMap: map,
+                firstElement: n.firstElement,
+                lastElement: n.lastElement,
                 attrsKV: n.attrsKV,
                 attrsMap: n.attrsMap,
                 content,
@@ -415,7 +419,7 @@ module.exports = {
         };
 
         let processCustomTag = (n, map) => {
-            let result = getTagInfo(n);
+            let result = getTagInfo(n, map);
             let content = result.content;
             let fn = galleriesMap[result.tag] || configs.customTagProcessor;
             let customContent = fn(result, map, extInfo, e);
@@ -431,7 +435,7 @@ module.exports = {
             }
         };
         let processGalleryTag = (n, map) => {
-            let result = getTagInfo(n);
+            let result = getTagInfo(n, map);
             let content = result.content;
             let hasGallery = galleriesMap.hasOwnProperty(n.pfx + 'Root');
             let gRoot = galleriesMap[n.pfx + 'Root'] || '';
