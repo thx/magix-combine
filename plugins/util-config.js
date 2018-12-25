@@ -1,17 +1,17 @@
-let classReg = /\bclass\s*=\s*"[^"]+/;
-let compound = defaultTag => {
-    return i => {
-        let a = i.seprateAttrs(defaultTag);
-        let host = `<${a.tag} ${a.attrs}`;
-        if (a.unaryTag) {
-            host += '/>';
-        } else {
-            host += `>${i.content}</${a.tag}>`;
-        }
-        //console.log(a);
-        return `${host}<div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
-    };
-};
+// let classReg = /\bclass\s*=\s*"[^"]+/;
+// let compound = defaultTag => {
+//     return i => {
+//         let a = i.seprateAttrs(defaultTag);
+//         let host = `<${a.tag} ${a.attrs}`;
+//         if (a.unaryTag) {
+//             host += '/>';
+//         } else {
+//             host += `>${i.content}</${a.tag}>`;
+//         }
+//         //console.log(a);
+//         return `${host}<div mx-view="${i.mxView}" ${a.viewAttrs} class="pa none"></div>`;
+//     };
+// };
 module.exports = {
     loaderType: 'cmd', //加载器类型
     commonFolder: 'tmpl', //模板文件夹，该文件夹下的js无法直接运行
@@ -126,19 +126,19 @@ module.exports = {
         glRoot: 'app/gallery-local/',
         wRoot: 'app/widget/',
         mxMap: {
-            //'mx-popover': compound('span'),
-            //'mx-popover.index': compound('span'),
-            'mx-number': {
-                _class: ' input pr'
-            },
-            'mx-loading'() {
-                return `<div class="loading">
-                            <span class="loading-anim"></span>
-                        </div>`;
-            },
-            'mx-dropdown.item'(i) {
-                return `<i ${i.attrs} class="none">${i.content}</i>`;
-            }
+            // //'mx-popover': compound('span'),
+            // //'mx-popover.index': compound('span'),
+            // 'mx-number': {
+            //     _class: ' input pr'
+            // },
+            // 'mx-loading'() {
+            //     return `<div class="loading">
+            //                 <span class="loading-anim"></span>
+            //             </div>`;
+            // },
+            // 'mx-dropdown.item'(i) {
+            //     return `<i ${i.attrs} class="none">${i.content}</i>`;
+            // }
         }
     },
     customTagProcessor() {
