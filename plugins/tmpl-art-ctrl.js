@@ -4,7 +4,7 @@ let eventLeftReg = /\(\s*\{/g;
 let eventRightReg = /\}\s*\)/g;
 let brReg = /(?:\r\n|\r|\n)/;
 let openTag = '{{';
-let mxEventHolderReg = /\x12([^\x12]+?)\x12/g;
+let mxEventHolderReg = /\x12([^\x12]*?)\x12/g;
 let lineNoReg = /^\x1e(\d+)([\s\S]+)/;
 let removeLineNoReg = /^\{\{\x1e\d+([\s\S]+)\}\}$/;
 let extractAsExpr = expr => {

@@ -101,6 +101,12 @@ module.exports = (input, htmlFile) => {
                 } else if (a.quote && a.value && a.value.indexOf('@') > -1) {
                     token.atAttrContent = true;
                 }
+                if (!a.unary && a.value) {
+                    if (a.value.indexOf('>') > -1 ||
+                        a.value.indexOf('<') > -1) {
+                        token.needEncodeAttr = true;
+                    }
+                }
                 if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;
                     if (!tmplCommandAnchorReg.test(a.name)) {

@@ -23,27 +23,29 @@ module.exports = e => {
         let readFile = (key, file, ctrl) => {
             count++;
             let to = path.resolve(configs.compiledFolder + file.replace(configs.moduleIdRemovedPath, ''));
-            if (fs.existsSync(file)) {
-                let ctrls = ctrl.split(',');
-                let c = {};
-                for (let r of ctrls) {
-                    c[r] = true;
-                }
-                e.processContent(file, to, '', false, c).then(info => {
-                    contentCache[key] = info.content;
+            fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
+                if (err) {
+                    checker.CSS.markUnexists(file, e.from);
+                    contentCache[key] = '(()=>{throw new Error("unfound:' + file + '")})()';
                     count--;
                     if (!count) {
                         resume();
                     }
-                }).catch(reject);
-            } else {
-                checker.CSS.markUnexists(file, e.from);
-                contentCache[key] = '(()=>{throw new Error("unfound:' + file + '")})()';
-                count--;
-                if (!count) {
-                    resume();
+                } else {
+                    let ctrls = ctrl.split(',');
+                    let c = {};
+                    for (let r of ctrls) {
+                        c[r] = true;
+                    }
+                    e.processContent(file, to, '', false, c).then(info => {
+                        contentCache[key] = info.content;
+                        count--;
+                        if (!count) {
+                            resume();
+                        }
+                    }).catch(reject);
                 }
-            }
+            });
         };
         let tasks = [];
         e.content.replace(fileReg, (m, q, ctrl, name, ext) => {

@@ -65,8 +65,12 @@ module.exports = (content) => {
         loader = type;
         return '\r\n';
     });
-    let exRequires = [];
+    let exRequires = [],
+        noRequires = false;
     content = content.replace(exRequiresReg, (m, q, reqs) => {
+        if (reqs == 'true') {
+            noRequires = true;
+        }
         exRequires = reqs.split(',').map(i => {
             i = i.trim();
             if (i.startsWith('\'') && i.endsWith('\'')) {
@@ -86,6 +90,7 @@ module.exports = (content) => {
         checkerCfg,
         loader,
         exRequires,
+        noRequires,
         //thisAlias,
         ignoreAllProcessor,
         execBeforeProcessor,

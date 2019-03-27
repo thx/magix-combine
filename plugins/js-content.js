@@ -91,6 +91,7 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
         loader: headers.loader || configs.loaderType,
         isSnippet: headers.isSnippet,
         exRequires: headers.exRequires,
+        noRequires: headers.noRequires,
         processContent
     };
     psychic.exRequires.push(`"${moduleId}"`);
@@ -112,6 +113,38 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
             psychic.content = content;
         }
         return jsDeps.process(psychic);
+    }).then(e => {
+        let newRequires = [];
+        if (!e.noRequires) {
+            for (let i = e.requires.length; i--;) {
+                let req = e.requires[i];
+                if (req.charAt(1) == '@' && req.indexOf('/') > 0) {
+                    if (req.charAt(2) == '@' && req.lastIndexOf('@') == 2) {
+                        e.requires[i] = req.substring(0, 1) + req.substring(2);
+                    } else if (req.lastIndexOf('@') == 1) {
+                        e.requires[i] = atpath.resolvePath(req, e.moduleId);
+                    }
+                }
+                req = e.requires[i];
+                req = req.substring(1, req.length - 1);
+                let idx = req.indexOf('/');
+                let mName = idx === -1 ? null : req.substring(0, idx);
+                let p, full;
+                if (mName === e.pkgName) {
+                    p = atpath.resolvePath(`"@${req}"`, e.moduleId);
+                } else {
+                    p = `"${req}"`;
+                }
+                full = atpath.resolvePath('"@' + p.slice(1, -1) + '"', e.moduleId);
+                if (e.exRequires.indexOf(p) == -1 &&
+                    e.exRequires.indexOf(full) == -1) {
+                    newRequires.push(`"${req}"`);
+                }
+            }
+        }
+        e.requires.length = 0;
+        e.requires.push(...newRequires);
+        return Promise.resolve(e);
     }).then(e => {
         if (headers.ignoreAllProcessor) {
             return Promise.resolve(e);

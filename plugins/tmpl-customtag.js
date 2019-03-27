@@ -624,6 +624,30 @@ module.exports = {
             tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
             updateOffset(n.start, content.length - (n.end - n.start));
         };
+        let processEncodeAttr = n => {
+            let result = getTagInfo(n);
+            let content = '';
+            let tag = result.tag;
+            let attrs = result.attrs;
+            let entities = {
+                '>': '&gt;',
+                '<': '&lt;'
+            };
+            let encodeEntities = m => m.replace(/[<>]/g, _ => entities[_]);
+            attrs = attrs.replace(attrNameValueReg, encodeEntities);
+            let html = `<${tag} ${attrs}`;
+            let unary = selfClose.hasOwnProperty(tag);
+            if (unary) {
+                html += `/`;
+            }
+            html += `>${result.content}`;
+            if (!unary) {
+                html += `</${tag}>`;
+            }
+            content = html;
+            tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
+            updateOffset(n.start, content.length - (n.end - n.start));
+        };
         let processMxView = n => {
             let result = getTagInfo(n);
             let content = '';
@@ -681,7 +705,9 @@ module.exports = {
                         duAttrChecker(n, e, cmdCache, tmpl.substring(n.attrsStart, n.attrsEnd));
                     }
                     walk(n.children, map);
-                    if (n.customTag) {
+                    if (n.needEncodeAttr) {
+                        processEncodeAttr(n, map);
+                    } else if (n.customTag) {
                         //console.log(configs.galleryPrefixes, n.pfx);
                         if (configs.galleryPrefixes[n.pfx] === 1) {
                             processGalleryTag(n, map);
@@ -705,6 +731,7 @@ module.exports = {
                 n = map[n];
                 if (!badTags[n.tag] &&
                     n.customTag ||
+                    n.needEncodeAttr ||
                     n.atAttr ||
                     n.atAttrContent ||
                     n.hasMxView) {
