@@ -143,7 +143,7 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
             }
         }
         e.requires.length = 0;
-        e.requires.push(...newRequires);
+        e.requires.push(...newRequires.reverse());
         return Promise.resolve(e);
     }).then(e => {
         if (headers.ignoreAllProcessor) {
