@@ -45,7 +45,9 @@ let genCssSelector = (selector, cssNameKey, reservedNames, key) => {
             mappedName = cssNameKey + '-' + mappedName;
         }
     } else {
-        mappedName = configs.projectName + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult', null, false, reservedNames);
+        let spliter = cssNameKey.endsWith('-') ? '' : '-';
+        //mappedName = configs.projectName + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult', null, false, reservedNames);
+        mappedName = cssNameKey + spliter + md5(selector + '\x00' + cssNameKey, key || 'md5CssSelectorResult', null, false, reservedNames);
         if (configs.selectorDSEndReg.test(selector)) {
             mappedName += '-';
         }
