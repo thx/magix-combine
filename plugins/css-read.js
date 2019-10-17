@@ -5,7 +5,6 @@ let fs = require('fs');
 let path = require('path');
 
 let less = require('less');
-let sass = require('node-sass');
 let chalk = require('chalk');
 let util = require('util');
 
@@ -33,37 +32,7 @@ let compileContent = (file, content, ext, resolve, reject, shortFile) => {
         before = Promise.resolve(cfg);
     }
     before.then(e => {
-        if (e.ext == '.scss' || e.ext == '.sass') {
-            let cssCompileConfigs = {};
-            utils.cloneAssign(cssCompileConfigs, configs.sass);
-            if (configs.debug) {
-                cssCompileConfigs.file = e.file;
-                cssCompileConfigs.sourceComments = true;
-                cssCompileConfigs.sourceMapContents = true;
-            }
-            cssCompileConfigs.data = e.content;
-            if (e.ext == '.sass') {
-                cssCompileConfigs.indentedSyntax = true;
-            }
-            if (configs.debug && configs.sourceMapCss) {
-                cssCompileConfigs.sourceMap = e.file;
-            }
-            sass.render(cssCompileConfigs, (err, result) => {
-                if (err) {
-                    slog.ever(chalk.red('[MXC Error(css-read)]'), 'compile sass error:', chalk.red(err + ''), 'at', chalk.grey(e.shortFile));
-                    return reject(err);
-                }
-                let map = sourceMap(result.map ? result.map.toString() : '', e.file, {
-                    rebuildSources: true
-                });
-                resolve({
-                    exists: true,
-                    map,
-                    file: e.file,
-                    content: result.css.toString()
-                });
-            });
-        } else if (e.ext == '.less') {
+        if (e.ext == '.less') {
             let cssCompileConfigs = {};
             utils.cloneAssign(cssCompileConfigs, configs.less);
             cssCompileConfigs.paths = [path.dirname(e.file)];

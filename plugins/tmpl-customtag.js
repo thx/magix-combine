@@ -336,7 +336,9 @@ module.exports = {
     process(tmpl, extInfo, e) {
         let badTags = Object.create(null);
         let cmdCache = Object.create(null);
+        let tempSkipTags = Object.create(null);
         let galleriesMap = configs.galleries;
+        e.tmplComponents = [];
         let updateOffset = (pos, offset) => {
             let l = nodes => {
                 if (nodes) {
@@ -420,18 +422,24 @@ module.exports = {
 
         let processCustomTag = (n, map) => {
             let result = getTagInfo(n, map);
-            let content = result.content;
-            let fn = galleriesMap[result.tag] || configs.customTagProcessor;
-            let customContent = fn(result, map, extInfo, e);
-            if (!customContent) {
-                let tagName = result.tag;
-                customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
-                badTags[tagName] = 1;
-            }
-            if (content != customContent) {
-                content = customContent;
-                tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
-                updateOffset(n.start, content.length - (n.end - n.start));
+            if (configs.components[n.pfx + 'Root']) {
+                tempSkipTags[result.tag] = 1;
+                let jsFile = configs.components[n.pfx + 'Root'] + result.tag;
+                e.tmplComponents.push(jsFile);
+            } else {
+                let content = result.content;
+                let fn = galleriesMap[result.tag] || configs.customTagProcessor;
+                let customContent = fn(result, map, extInfo, e);
+                if (!customContent) {
+                    let tagName = result.tag;
+                    customContent = `<${tagName} ${result.attrs}>${content}</${tagName}>`;
+                    badTags[tagName] = 1;
+                }
+                if (content != customContent) {
+                    content = customContent;
+                    tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
+                    updateOffset(n.start, content.length - (n.end - n.start));
+                }
             }
         };
         let processGalleryTag = (n, map) => {
@@ -730,12 +738,14 @@ module.exports = {
             for (let n in map) {
                 n = map[n];
                 if (!badTags[n.tag] &&
-                    n.customTag ||
-                    n.needEncodeAttr ||
-                    n.atAttr ||
-                    n.atAttrContent ||
-                    n.hasMxView) {
-                    return true;
+                    !tempSkipTags[n.tag]) {
+                    if (n.customTag ||
+                        n.needEncodeAttr ||
+                        n.atAttr ||
+                        n.atAttrContent ||
+                        n.hasMxView) {
+                        return true;
+                    }
                 }
             }
             return false;

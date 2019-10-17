@@ -98,7 +98,7 @@ module.exports = (tmpl, file, globalVars) => {
     if (configs.magixTmplFnInside) {
         fns = `if(!$$ref)$$ref=$$;${encode}${encodeURIMore}${encodeQuote}${atRule};`;
     }
-    source = `${fns}let $g='\x1e',$_temp,$p=''${vars};${source}return $p`;
+    source = `${fns}var $g='\x1e',$_temp,$p=''${vars};${source}return $p`;
 
     source = configs.compileTmplCommand(`($$,$viewId,$$ref,$e,$n,$eu,$i,$eq)=>{${source}}`, configs);
     if (source.startsWith('(function')) {

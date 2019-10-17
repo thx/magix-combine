@@ -23,7 +23,6 @@ module.exports = {
         minifyFontValues: false
     },
     less: {}, //less编译选项
-    sass: {}, //sass编译选项
     autoprefixer: {},
     concurrentTask: 1,//并发任务数量
     checkOldTempalte: false,
@@ -140,6 +139,9 @@ module.exports = {
             //     return `<i ${i.attrs} class="none">${i.content}</i>`;
             // }
         }
+    },
+    components: {
+        xyRoot: 'app/components/'
     },
     customTagProcessor() {
         return '';

@@ -30,7 +30,7 @@ let stringReg = /^['"]/;
 //文件内容处理，主要是把各个处理模块串起来
 let moduleIdReg = /@(?:moduleId|id)/;
 let bareFileInc = /bare@([\w\.\-\/\\]+)/;
-let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|scss|sass|mx|style)/;
+let cssFileReg = /@(?:[\w\.\-\/\\]+?)\.(?:css|less|mx|style)/;
 let cssFileGlobalReg = new RegExp(cssFileReg, 'g');
 let othersFileReg = /([a-z,&]+)?@([\w\.\-\/\\]+\.[a-z]{2,})/;
 let doubleAtReg = /@@/g;
@@ -378,42 +378,43 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
             let mxViews = e.tmplMxViewsArray || [];
             let reqs = [],
                 vars = [];
-            if (configs.tmplAddViewsToDependencies) {
-                for (let v of mxViews) {
-                    let i = v.indexOf('/');
-                    let mName = i === -1 ? null : v.substring(0, i);
-                    let p, full;
-                    if (mName === e.pkgName) {
-                        p = atpath.resolvePath('"@' + v + '"', e.moduleId);
+
+            if (!configs.tmplAddViewsToDependencies) mxViews = [];
+            mxViews = mxViews.concat(e.tmplComponents || []);
+            for (let v of mxViews) {
+                let i = v.indexOf('/');
+                let mName = i === -1 ? null : v.substring(0, i);
+                let p, full;
+                if (mName === e.pkgName) {
+                    p = atpath.resolvePath('"@' + v + '"', e.moduleId);
+                } else {
+                    p = `"${v}"`;
+                }
+                full = atpath.resolvePath('"@' + p.slice(1, -1) + '"', e.moduleId);
+                let reqInfo = {
+                    prefix: '',
+                    tail: ';',
+                    vId: '',
+                    mId: p.slice(1, -1),
+                    full: full,
+                    from: 'view',
+                    raw: 'mx-view="' + v + '"'
+                };
+                if (e.deps.indexOf(p) === -1 &&
+                    e.deps.indexOf(reqInfo.full) === -1 &&
+                    e.exRequires.indexOf(p) === -1 &&
+                    e.exRequires.indexOf(reqInfo.full) == -1) {
+                    if (e.loader == 'module') {
+                        reqInfo.prefix = 'import ';
+                        reqInfo.type = 'import';
                     } else {
-                        p = `"${v}"`;
+                        reqInfo.type = 'require';
                     }
-                    full = atpath.resolvePath('"@' + p.slice(1, -1) + '"', e.moduleId);
-                    let reqInfo = {
-                        prefix: '',
-                        tail: ';',
-                        vId: '',
-                        mId: p.slice(1, -1),
-                        full: full,
-                        from: 'view',
-                        raw: 'mx-view="' + v + '"'
-                    };
-                    if (e.deps.indexOf(p) === -1 &&
-                        e.deps.indexOf(reqInfo.full) === -1 &&
-                        e.exRequires.indexOf(p) === -1 &&
-                        e.exRequires.indexOf(reqInfo.full) == -1) {
-                        if (e.loader == 'module') {
-                            reqInfo.prefix = 'import ';
-                            reqInfo.type = 'import';
-                        } else {
-                            reqInfo.type = 'require';
-                        }
-                        let replacement = jsDeps.getReqReplacement(reqInfo, e);
-                        vars.push(replacement);
-                        if (reqInfo.mId) {
-                            let dId = JSON.stringify(reqInfo.mId);
-                            reqs.push(dId);
-                        }
+                    let replacement = jsDeps.getReqReplacement(reqInfo, e);
+                    vars.push(replacement);
+                    if (reqInfo.mId) {
+                        let dId = JSON.stringify(reqInfo.mId);
+                        reqs.push(dId);
                     }
                 }
             }

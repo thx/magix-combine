@@ -16,7 +16,7 @@
     "offline"
   ],
   "dependencies": {
-    "acorn": "7.0.x",
+    "acorn": "7.1.x",
     "acorn-walk": "7.0.x",
     "autoprefixer": "9.6.x",
     "chalk": "2.4.x",
@@ -24,7 +24,6 @@
     "html-entities-decoder": "1.0.x",
     "html-minifier": "4.0.x",
     "less": "3.10.x",
-    "node-sass": "4.12.x",
     "postcss": "7.0.x",
     "string-width": "4.1.x"
   },

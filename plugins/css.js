@@ -29,7 +29,7 @@ let {
 //[ref="@../default.css:inmain"] .open{
 //    color:red
 //}
-let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.scss|\.sass|\.mx|\.mmx|\.style)(?::?\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
+let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.mx|\.mmx|\.style)(?::?\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
 let sep = path.sep;
 
 

@@ -498,7 +498,7 @@ module.exports = {
                     fns.push('){}');
                 }
                 if (e.checker.tmplCmdFnOrForOf && configs.debug) {
-                    slog.ever(chalk.red('[MXC Tip(tmpl-vars)] avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中使用function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
+                    slog.ever(chalk.red('[MXC Tip(tmpl-vars)] avoid use Function: ' + fns.join('')), 'at', chalk.grey(sourceFile), 'more info:', chalk.magenta('https://github.com/thx/magix/issues/37')); //尽量不要在模板中声明function，因为一个function就是一个独立的上下文，对于后续的绑定及其它变量的获取会很难搞定
                 }
                 let params = Object.create(null);
                 let pVarsMap = Object.create(null);
