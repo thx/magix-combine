@@ -265,5 +265,8 @@ module.exports = {
             globalPromise = null;
             cssAtRule.reset();
         }
+    },
+    clear() {
+        globalPromise = null;
     }
 };

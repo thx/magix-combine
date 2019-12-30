@@ -47,4 +47,8 @@ let md5 = (text, configKey, prefix, withNumber, reserved) => {
     return rstr;
 };
 md5.byNum = variable;
+md5.clear = () => {
+    counter = Object.create(null);
+    cache = Object.create(null);
+};
 module.exports = md5;

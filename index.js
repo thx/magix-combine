@@ -10,6 +10,7 @@ let checker = require('./plugins/checker');
 let cssGlobal = require('./plugins/css-global');
 let jsFileCache = require('./plugins/js-fcache');
 let tmplNaked = require('./plugins/tmpl-naked');
+let md5 = require('./plugins/util-md5');
 let slog = require('./plugins/util-log');
 let chalk = require('chalk');
 let util = require('util');
@@ -271,5 +272,7 @@ module.exports = {
     },
     clearConfig() {
         delete configs.$inited;
+        cssGlobal.clear();
+        md5.clear();
     }
 };
