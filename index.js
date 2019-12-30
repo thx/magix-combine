@@ -268,5 +268,8 @@ module.exports = {
     },
     getFileDependents(file) {
         return deps.getDependents(file);
+    },
+    clearConfig() {
+        delete configs.$inited;
     }
 };
