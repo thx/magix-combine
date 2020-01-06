@@ -141,7 +141,8 @@ module.exports = {
         }
     },
     components: {
-        xyRoot: 'app/components/'
+        xyRoot: 'app/components/',
+        mxpRoot: 'magix-ports/component/'
     },
     customTagProcessor() {
         return '';

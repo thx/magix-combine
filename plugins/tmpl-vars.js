@@ -1144,7 +1144,7 @@ module.exports = {
                     if (syncPaths.length) {
                         mxe += '_' + syncPaths.join('_');
                     }
-                    bindExpr = ` mxe="${mxe}"`;
+                    bindExpr = ` mxo="\x1f" mxe="${mxe}"`;
                 }
                 attrs = bindExpr + ' mxc="[' + mxeInfo.join(',') + ']" ' + attrs;
                 mxeCount++;
