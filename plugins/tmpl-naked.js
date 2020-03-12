@@ -75,11 +75,10 @@ module.exports = {
                 configs.jsFileExtNamesReg.test(from)) {
                 let content = fd.read(from);
                 let ast;
-                let content = fd.read(from);
-                let ast;
                 try {
                     ast = ts.createSourceFile(from, content);
                 } catch (ex) {
+                    console.log(from);
                     console.error(ex);
                     return reject(ex);
                 }
