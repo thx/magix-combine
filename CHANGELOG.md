@@ -1,3 +1,6 @@
+## 3.11.35
+1. 增加`tmplSnippetInScript`选项，埋点时遍历`script`代码查找里面的`html`片断
+
 ## 3.11.34
 1. 生成`mxe`时带上`mxo`当前`view`的`id`
 2. 配置`mxp`前缀的`web components`

@@ -243,13 +243,13 @@ module.exports = {
                 if (tks.length) {
                     ps = [];
                     tks.forEach(from => {
-                        if (configs.tmplFileExtNamesReg.test(from)) {
+                        //if (configs.tmplFileExtNamesReg.test(from)) {
                             ps.push(tmplNaked.process(from).then(() => {
                                 if (!errorOccured && configs.log) {
                                     slog.log(genMsg(++completed, total));
                                 }
                             }));
-                        }
+                        //}
                     });
                     Promise.all(ps).then(run).catch(ex => {
                         errorOccured = true;

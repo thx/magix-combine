@@ -104,6 +104,7 @@ module.exports = {
     tmplCompressVariable: true, //是否压缩模板中的变量
     tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplStaticAnalyze: true,//模板静态节点分析
+    tmplSnippetInScript: false,
     disableMagixUpdater: false,
     magixVframeHost: false,
     magixUpdaterIncrement: false,

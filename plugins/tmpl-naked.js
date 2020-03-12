@@ -7,6 +7,7 @@ let fd = require('./util-fd');
 let tmplCmd = require('./tmpl-cmd');
 let attrType = require('./tmpl-attr-type');
 let consts = require('./util-const');
+let acorn = require('./js-acorn');
 let mxTailReg = /\.m?mx$/;
 let templateReg = /<template([^>]*)>([\s\S]+?)<\/template>/i;
 let pureTagReg = /<[\w-]+[^>]*>/g;
@@ -70,6 +71,51 @@ module.exports = {
                     }
                     resolve();
                 }
+            } else if (configs.tmplSnippetInScript &&
+                configs.jsFileExtNamesReg.test(from)) {
+                let content = fd.read(from);
+                let ast;
+                try {
+                    ast = acorn.parse(content, null, from);
+                } catch (ex) {
+                    throw ex;
+                }
+                let modifiers = [];
+                acorn.walk(ast, {
+                    Literal(node) {
+                        if (node.raw.startsWith('\'') ||
+                            node.raw.startsWith('"')) {
+                            let newContent = processTmpl(node.raw, from);
+                            if (node.raw != newContent) {
+                                modifiers.push({
+                                    start: node.start,
+                                    end: node.end,
+                                    content: newContent
+                                });
+                            }
+                        }
+                    },
+                    TemplateLiteral(node) {
+                        let raw = content.slice(node.start, node.end);
+                        let newContent = processTmpl(raw, from);
+                        if (raw != newContent) {
+                            modifiers.push({
+                                start: node.start,
+                                end: node.end,
+                                content: newContent
+                            });
+                        }
+                    }
+                });
+                modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
+                    return a.start - b.start;
+                });
+                for (let i = modifiers.length - 1, m; i >= 0; i--) {
+                    m = modifiers[i];
+                    content = content.substring(0, m.start) + m.content + content.substring(m.end);
+                }
+                fd.write(from, content);
+                resolve();
             } else {
                 resolve();
             }
