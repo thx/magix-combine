@@ -1,3 +1,7 @@
+## 3.11.36
+1. 切换语法解析到`typescript`
+2. 更新依赖
+
 ## 3.11.35
 1. 增加`tmplSnippetInScript`选项，埋点时遍历`script`代码查找里面的`html`片断
 

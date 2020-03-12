@@ -7,7 +7,7 @@ let fd = require('./util-fd');
 let tmplCmd = require('./tmpl-cmd');
 let attrType = require('./tmpl-attr-type');
 let consts = require('./util-const');
-let acorn = require('./js-acorn');
+let ts = require('typescript');
 let mxTailReg = /\.m?mx$/;
 let templateReg = /<template([^>]*)>([\s\S]+?)<\/template>/i;
 let pureTagReg = /<[\w-]+[^>]*>/g;
@@ -75,38 +75,31 @@ module.exports = {
                 configs.jsFileExtNamesReg.test(from)) {
                 let content = fd.read(from);
                 let ast;
+                let content = fd.read(from);
+                let ast;
                 try {
-                    ast = acorn.parse(content, null, from);
+                    ast = ts.createSourceFile(from, content);
                 } catch (ex) {
-                    throw ex;
+                    console.error(ex);
+                    return reject(ex);
                 }
                 let modifiers = [];
-                acorn.walk(ast, {
-                    Literal(node) {
-                        if (node.raw.startsWith('\'') ||
-                            node.raw.startsWith('"')) {
-                            let newContent = processTmpl(node.raw, from);
-                            if (node.raw != newContent) {
-                                modifiers.push({
-                                    start: node.start,
-                                    end: node.end,
-                                    content: newContent
-                                });
-                            }
-                        }
-                    },
-                    TemplateLiteral(node) {
-                        let raw = content.slice(node.start, node.end);
+                let walk = node => {
+                    ts.forEachChild(node, walk);
+                    if (node.kind == ts.SyntaxKind.StringLiteral ||
+                        node.kind == ts.SyntaxKind.TemplateExpression) {
+                        let raw = content.slice(node.pos, node.end);
                         let newContent = processTmpl(raw, from);
-                        if (raw != newContent) {
+                        if (newContent != raw) {
                             modifiers.push({
-                                start: node.start,
+                                start: node.pos,
                                 end: node.end,
                                 content: newContent
                             });
                         }
                     }
-                });
+                };
+                walk(ast);
                 modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
                     return a.start - b.start;
                 });
