@@ -54,9 +54,9 @@ let processMx = (content, shortFrom) => {
 module.exports = {
     process(from) {
         return new Promise(resolve => {
+            let shortFrom = from.replace(configs.moduleIdRemovedPath, '');
             if (configs.tmplFileExtNamesReg.test(from)) {
                 let content = fd.read(from);
-                let shortFrom = from.replace(configs.moduleIdRemovedPath, '');
                 if (mxTailReg.test(from)) {
                     let mxContent = processMx(content, shortFrom);
                     if (content != mxContent) {
@@ -91,7 +91,7 @@ module.exports = {
                         node.kind == ts.SyntaxKind.TemplateExpression ||
                         node.kind == ts.SyntaxKind.NoSubstitutionTemplateLiteral) {
                         let raw = content.slice(node.pos, node.end);
-                        let newContent = processTmpl(raw, from);
+                        let newContent = processTmpl(raw, shortFrom);
                         if (newContent != raw) {
                             modifiers.push({
                                 start: node.pos,

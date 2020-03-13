@@ -1,3 +1,7 @@
+## 3.11.39
+1. 修复`js-module-parser`出错时未抛出文件路径的问题
+2. 修复处理`script`中`html`片断时，提示路径是绝对而非相对路径的问题
+
 ## 3.11.38
 1. 修复模板字符串嵌套的情况下重复处理的`bug`
 2. 修复`typescript`对于`<div id="${id}"></div>`和`<div></div>`，在typescript中分别叫`TemplateExpression`和`NoSubstitutionTemplateLiteral`，而我只处理了`TemplateExpression`的`bug`
