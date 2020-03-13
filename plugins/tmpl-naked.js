@@ -84,9 +84,12 @@ module.exports = {
                 }
                 let modifiers = [];
                 let walk = node => {
-                    ts.forEachChild(node, walk);
+                    if (node.kind != ts.SyntaxKind.TemplateExpression) {
+                        ts.forEachChild(node, walk);
+                    }
                     if (node.kind == ts.SyntaxKind.StringLiteral ||
-                        node.kind == ts.SyntaxKind.TemplateExpression) {
+                        node.kind == ts.SyntaxKind.TemplateExpression ||
+                        node.kind == ts.SyntaxKind.NoSubstitutionTemplateLiteral) {
                         let raw = content.slice(node.pos, node.end);
                         let newContent = processTmpl(raw, from);
                         if (newContent != raw) {
