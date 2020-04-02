@@ -30,7 +30,7 @@ let ifForReg = /\s*(?:if|for|for_declare)\s*=\s*"[^"]+"/g;
 
 module.exports = (tmpl, file) => {
     let g = 0;
-    let prefix = '';// configs.projectName + md5(file, 'tmplFiles', '', true) + ':';
+    let prefix = configs.projectName + md5(file, 'tmplFiles', '', true) + ':';
     tmpl = tmpl.replace(tagReg, (match, tag, attrs, close, tKey) => {
         tKey = ' _mxv="' + g++ + '"';
         tKey += ' _mxs="' + g++ + '"';
@@ -194,22 +194,22 @@ module.exports = (tmpl, file) => {
             let r = userKeysMap[m];
             if (r === 'false') return '';
             //console.log(keysMap, m);
-            //if (!r || r === true) {
-            r = keysMap[m];
-            r = md5(r, file + ':key', prefix, true);
-            //} else {
-            //r = md5(m, file + ':key', prefix, true) + ':' + r;
-            //}
+            if (!r || r === true) {
+                r = keysMap[m];
+                r = md5(r, file + ':key', prefix, true);
+            } else {
+                r = md5(m, file + ':key', prefix, true) + ':' + r;
+            }
             return ' mxs="' + r + '"';
         }).replace(attrKeyReg, m => {
             let r = userAttrKeysMap[m];
             if (r === 'false') return '';
-            //if (!r || r === true) {
-            r = keysMap[m];
-            r = md5(m, file + ':akey', prefix, true);
-            // } else {
-            //     r = md5(m, file + ':akey', prefix, true) + ':' + r;
-            // }
+            if (!r || r === true) {
+                r = keysMap[m];
+                r = md5(m, file + ':akey', prefix, true);
+            } else {
+                r = md5(m, file + ':akey', prefix, true) + ':' + r;
+            }
             return ' mxa="' + r + '"';
         }).replace(mxvKeyReg, ' mxv')
             .replace(forceStaticKey, '')
