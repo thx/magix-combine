@@ -76,6 +76,7 @@ module.exports = {
         Math: 1,
         Number: 1,
         isNaN: 1,
+        typeof: 1,
         isFinite: 1,
         parseInt: 1,
         parseFloat: 1,

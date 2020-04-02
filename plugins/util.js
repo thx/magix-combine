@@ -48,7 +48,18 @@ let uId = (fix, str, withoutSuffix) => {
     } while (~str.indexOf(id));
     return (fix || '') + id + (withoutSuffix ? '' : (fix || ''));
 };
+let hash = str => {
+    str = str + '';
+    let hash = 5381,
+        i = str.length;
+
+    while (i) {
+        hash = (hash * 33) ^ str.charCodeAt(--i);
+    }
+    return hash >>> 0;
+};
 module.exports = {
+    hash,
     clone,
     uId,
     cloneAssign,

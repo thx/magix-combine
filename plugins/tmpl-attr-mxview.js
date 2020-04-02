@@ -6,7 +6,7 @@ let attrUri = require('./tmpl-attr-uri');
 //let tmplCmd = require('./tmpl-cmd');
 
 let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]*?)\1/;
-let viewAttrReg = /\s(?:view-|\*)([\w\-@]+)=(["'])([\s\S]*?)\2/g;
+let viewAttrReg = /\s(?:view-|\*)([\w\-@]*)=(["'])([\s\S]*?)\2/g;
 //let mxViewParamsReg = /\bmx-params\s*=\s*(['"])([^'"]+?)\1/;
 let cmdReg = /\u0007\d+\u0007/g;
 module.exports = (e, match, refTmplCommands, toSrc) => {

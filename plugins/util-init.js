@@ -4,6 +4,8 @@
 let path = require('path');
 let configs = require('./util-config');
 let crypto = require('crypto');
+let utils = require('./util');
+let md5 = require('./util-md5');
 module.exports = () => {
     if (!configs.$inited) {
         configs.$inited = 1;
@@ -22,6 +24,14 @@ module.exports = () => {
                 .update(configs.commonFolder, 'ascii')
                 .digest('hex');
             configs.projectName = 'x' + str.substring(0, 2);
+        } else {
+            let srcName = configs.projectName;
+            let name = md5.byNum(utils.hash(srcName), false);
+            let now = md5.byNum(new Date().getMilliseconds(), false);
+            if (!configs.debug) {
+                srcName = '';
+            }
+            configs.projectName = srcName + name + now;
         }
 
         let tmplExtNames = configs.tmplFileExtNames;

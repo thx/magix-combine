@@ -31,6 +31,7 @@ module.exports = (match, e, prefix, paramsReg, refTmplCommands, toSrc, baseAttrR
     let classLocker = Object.create(null);
     match = match.replace(paramsReg, (m, name, q, content) => {
         //let oName = name;
+        if (!name) name = '\x1e';
         let cmdTemp = []; //处理属性中带命令的情况
         name = tmplChecker.checkMxViewParams(name, e, prefix);
         content.replace(cmdReg, cm => {
