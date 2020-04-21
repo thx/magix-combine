@@ -341,6 +341,7 @@ module.exports = {
         e.tmplComponents = [];
         let updateOffset = (pos, offset) => {
             let l = nodes => {
+                //debugger;
                 if (nodes) {
                     for (let n of nodes) {
                         l(n.children);
@@ -750,12 +751,14 @@ module.exports = {
             }
             return false;
         };
+        //debugger;
         tmpl = tmplCmd.store(tmpl, cmdCache);
         tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 2;
         while (hasSpecialTags(tokens) && --checkTimes) {
             walk(tokens);
+            //debugger;
             tmpl = tmplCmd.store(tmpl, cmdCache);
             tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
             tokens = tmplParser(tmpl, e.shortHTMLFile);

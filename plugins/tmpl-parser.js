@@ -11,6 +11,7 @@ module.exports = (input, htmlFile) => {
     let id = 0;
     let tokensMap = Object.create(null);
     tokens.__map = tokensMap;
+    //console.log(input);
     htmlParser(input, {
         //html5: true,
         start(tag, attrs, unary) {
@@ -69,6 +70,7 @@ module.exports = (input, htmlFile) => {
             tokens.push(token);
             let temp = '<' + tag;
             pos = input.indexOf(temp, pos) + temp.length;
+            //debugger;
             for (let i = 0, len = attrs.length, a; i < len; i++) {
                 if (i === 0) {
                     token.attrsStart = pos + (input.charAt(pos + 1) ? 0 : 1);
@@ -148,11 +150,13 @@ module.exports = (input, htmlFile) => {
         end(tag) {
             let token = ctrls.pop();
             if (token.tag !== tag) {
+                //debugger;
                 throw new Error(`[MXC-Error(tmpl-parser)] "</${tag}>" unmatched tag "${token.tag}"`);
             }
             token.contentEnd = pos;
-            let temp = '</' + tag + '>';
+            let temp = '</' + tag;
             pos = input.indexOf(temp, pos) + temp.length;
+            pos = input.indexOf('>', pos) + 1;
             token.end = pos;
             let parent = ctrls[ctrls.length - 1];
             if (parent) {

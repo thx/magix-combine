@@ -44,9 +44,6 @@ let parseStartTag = (input, pos) => {
             }
         }
         if (end) {
-            if (start[1] == 'mx-table.scrollbar') {
-                //console.log(end,input.slice(pos-20,-1));
-            }
             match.unarySlash = end[1];
             match.rest = input.slice(end[0].length);
             pos += end[0].length;

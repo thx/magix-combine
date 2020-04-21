@@ -43,7 +43,7 @@ let markLine = tmpl => {
 };
 let lineReg = /mc:line/g;
 let setLineNo = (tmpl, no) => {
-    return tmpl.replace(lineReg, 'mc:line=' + no);
+    return tmpl.replace(lineReg, 'mc:line="' + no + '" ');
 };
 let lineNoReg = /\smc:line=(\d+)/;
 let lineNoGReg = /\smc:line=\d+/g;
