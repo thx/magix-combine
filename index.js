@@ -14,6 +14,7 @@ let md5 = require('./plugins/util-md5');
 let slog = require('./plugins/util-log');
 let chalk = require('chalk');
 let util = require('util');
+let cssSelector = require('./plugins/css-selector');
 
 if (!Object.values) {
     Object.values = object => {
@@ -271,6 +272,9 @@ module.exports = {
     },
     getFileDependents(file) {
         return deps.getDependents(file);
+    },
+    getStyleFileUniqueKey(file, ignoreProjectName) {
+        return cssSelector.genCssNamesKey(file, ignoreProjectName);
     },
     clearConfig() {
         delete configs.$inited;

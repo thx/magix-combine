@@ -359,7 +359,7 @@ module.exports = {
                 let key = '\x04' + (stringIndex++) + '\x04';
                 if (consts.revisableReg.test(node.raw) && !configs.debug) {
                     node.raw = node.raw.replace(consts.revisableReg, m => {
-                        return md5(m, 'revisableString', '_');
+                        return md5(m, 'revisableString', configs.revisableStringPrefix);
                     });
                 }
                 stringStore[key] = node.raw;

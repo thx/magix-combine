@@ -8,6 +8,7 @@ module.exports = {
         return acorn.parse(tmpl, {
             sourceType: 'module',
             sourceFile,
+            ecmaVersion: 'latest',
             onComment(block, text, start, end) {
                 if (comments) {
                     comments[start] = {

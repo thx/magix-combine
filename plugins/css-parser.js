@@ -20,6 +20,7 @@ let atRuleSearchContent = {
 let atRuleIgnoreContent = {
     page: 1,
     global: 1,
+    property: 1,
     '-webkit-keyframes': 1,
     '-moz-keyframes': 1,
     '-ms-keyframes': 1,

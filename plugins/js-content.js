@@ -426,7 +426,64 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
             e.content = e.content.replace(e.varsAnchorKey, vars.join('\r\n'));
         }
         return e;
-    }).then(e => {
+    })/*.then(e => {
+        let tmpl = e.content;
+        let modifiers = [];
+        try {
+            ast = acorn.parse(tmpl, null, e.from);
+        } catch (ex) {
+            let msg = [chalk.red(`[MXC Error(js-content)]`), 'Parse js ast error:', chalk.red(ex.message), tmpl];
+            let arr = tmpl.split(lineBreakReg);
+            let line = ex.loc.line - 1;
+            if (arr[line]) {
+                msg.push('near code:', chalk.green(arr[line]));
+            }
+            msg.push(chalk.red('js file: ' + e.from));
+            slog.ever.apply(slog, msg);
+            return Promise.reject(ex);
+        }
+        let processString = node => {
+            let raw = node.raw,
+                add = false;
+            raw = raw.replace(/@css:.?([\w\-:]+)/g, (_, key) => {
+                return e.cssNamesMap[key] || 'unfound-[' + key + ']';
+            });
+            if (raw != node.raw) {
+                node.raw = raw;
+                add = true;
+            }
+            if (add) {
+                modifiers.push({
+                    start: node.start,
+                    end: node.end,
+                    content: raw
+                });
+            }
+        };
+        acorn.walk(ast, {
+            Property(node) {
+                if (node.key.type == 'Literal') {
+                    processString(node.key);
+                }
+            },
+            Literal: processString,
+            TemplateLiteral(node) {
+                for (let q of node.quasis) {
+                    q.raw = q.value.raw;
+                    processString(q, true);
+                }
+            }
+        });
+        modifiers.sort((a, b) => { //根据start大小排序，这样修改后的fn才是正确的
+            return a.start - b.start;
+        });
+        for (let i = modifiers.length - 1, m; i >= 0; i--) {
+            m = modifiers[i];
+            tmpl = tmpl.substring(0, m.start) + m.content + tmpl.substring(m.end);
+        }
+        e.content = tmpl;
+        return e;
+    })*/.then(e => {
         let after = Promise.resolve(e);
         if (headers.execAfterProcessor) {
             let processor = configs.compileAfterProcessor || configs.compileJSEnd;
