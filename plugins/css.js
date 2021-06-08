@@ -334,7 +334,7 @@ module.exports = (e, inwatch) => {
                                 cssContentCache[file].map = info.map;
                                 cssContentCache[file].styles = info.styles;
                                 if (!configs.debug) {
-                                    cssnano.process(info.content,
+                                    cssnano().process(info.content,
                                         Object.assign({}, configs.cssnano)
                                     ).then(r => {
                                         setFileCSS(file, shortCssFile, r.css);
