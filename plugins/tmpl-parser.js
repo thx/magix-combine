@@ -4,6 +4,8 @@ let chalk = require('chalk');
 let slog = require('./util-log');
 let tmplCommandAnchorReg = /\u0007\d+\u0007/;
 let upperCaseReg = /[A-Z]/g;
+let valuableReg = /^\s*(?:\x07\d+\x07)+\s*\?\?\s*/;
+let booleanReg = /^\s*(?:\x07\d+\x07)+\s*\?\s*/;
 module.exports = (input, htmlFile) => {
     let ctrls = [];
     let pos = 0;
@@ -107,6 +109,10 @@ module.exports = (input, htmlFile) => {
                     if (a.value.indexOf('>') > -1 ||
                         a.value.indexOf('<') > -1) {
                         token.needEncodeAttr = true;
+                    }
+                    if (valuableReg.test(a.value) ||
+                        booleanReg.test(a.value)) {
+                        token.condAttr = true;
                     }
                 }
                 if (a.quote && a.value !== undefined) {

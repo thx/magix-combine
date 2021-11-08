@@ -15,7 +15,7 @@ let fontfaceReg = /(?:^|[\s\}])@\s*font-face\s*\{([^\{\}]*)\}/g;
 let keyframesReg = /(^|[\s\}])(@(?:-webkit-|-moz-|-o-|-ms-)?keyframes)\s+(['"])?([\w\-]+)\3/g;
 //let fontFalilyReg = /font-family\s*:\s*(['"])?([\w\-\s$]+)\1/;
 let genCssContentReg = key => {
-    return regexp.get('\\b(font-family|animation|animation-name)\\s*:([^\\{\\}:\\r\\n\\(\\)]*?)([\'"])?' + regexp.escape(key) + '\\3(?=[,\\s;])', 'g');
+    return regexp.get('\\b(font-family|animation|animation-name)\\s*:([^\\{\\}:\\r\\n\\(\\)]*?)([\'"])?' + regexp.escape(key) + '\\3(?=[,\\s;}])', 'g');
 };
 let globalContents = {};
 let extractRules = fileContent => {

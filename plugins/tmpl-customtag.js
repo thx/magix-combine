@@ -45,6 +45,9 @@ let mxViewAttrReg = /\bmx-view\s*=\s*(['"])([^'"]*?)\1/;
 let fileCache = Object.create(null);
 let processedGalleryInfo = Symbol('gallery.info.processed');
 
+let valuableAttrReg = /\x07\d+\x07\s*\?\?\s*/;
+let booleanAttrReg = /\x07\d+\x07\s*\?\s*/;
+
 let isReservedAttr = key => {
     return key.startsWith('mx-') ||
         key.startsWith('data-') ||
@@ -703,6 +706,69 @@ module.exports = {
             tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
             updateOffset(n.start, content.length - (n.end - n.start));
         };
+        let processCondAttrs = n => {
+            let result = getTagInfo(n);
+            let update = false;
+            let content = '';
+            let tag = result.tag;
+            let attrs = result.attrs;
+            attrs = attrs.replace(attrNameValueReg, (m, prefix, key, q, content) => {
+                prefix = prefix || '';
+                let valuable = valuableAttrReg.test(content);
+                let boolean = !valuable && booleanAttrReg.test(content);
+                if (valuable || boolean) {
+                    let cs = content.split(valuable ? '??' : '?');
+                    let [cond, ext] = cs;
+                    //console.log(cond,ext,tmplCmd.recover(content,cmdCache));
+                    update = true;
+                    cond = cond.trim();
+                    ext = ext.trim();
+                    let extract = tmplCmd.extractCmdContent(cond.trim(), cmdCache);
+                    if (extract.operate == '@' &&
+                        !key.startsWith(htmlAttrParamPrefix)) {
+                        console.log(chalk.red('[MXC Tip(tmpl-custom)] ? or ?? only support "=" at attr ' + key), 'at', chalk.magenta(e.shortHTMLFile));
+                    }
+                    if (!extract.succeed) {
+                        console.log(chalk.red('[MXC Tip(tmpl-custom)] check condition ' + tmplCmd.recover(cond, cmdCache)), 'at', chalk.magenta(e.shortHTMLFile));
+                    }
+                    let trimedKey = key.trim();
+                    if (trimedKey.startsWith('*') ||
+                        trimedKey.startsWith('view-')) {
+                        if (trimedKey.startsWith('*')) {
+                            trimedKey = 'view-' + trimedKey.substring(1);
+                        }
+                        let ifCond = '';
+                        if (ext) {
+                            ifCond = `<%if((${extract.content})${valuable ? '!=null' : ''}){%>${ext}<%}%>`;
+                        } else {
+                            ifCond = `<%if((${extract.content})${valuable ? '!=null' : ''}){%>${cond}<%}%>`;
+                        }
+                        return ` ${trimedKey}="${ifCond}"`;
+                    } else {
+                        if (ext) {
+                            return `<%if((${extract.content})${valuable ? '!=null' : ''}){%> ${key}="${ext}"<%}%>`;
+                        } else {
+                            return `<%if((${extract.content})${valuable ? '!=null' : ''}){%> ${key}<%}%>`;
+                        }
+                    }
+                }
+                return m;
+            });
+            if (update) {
+                let html = `<${tag} ${attrs}`;
+                let unary = result.unary;
+                if (unary) {
+                    html += `/`;
+                }
+                html += `>${result.content}`;
+                if (!unary) {
+                    html += `</${tag}>`;
+                }
+                content = html;
+                tmpl = tmpl.substring(0, n.start) + content + tmpl.substring(n.end);
+                updateOffset(n.start, content.length - (n.end - n.start));
+            }
+        };
         let walk = (nodes, map) => {
             if (nodes) {
                 if (!map) map = nodes.__map;
@@ -717,15 +783,15 @@ module.exports = {
                     if (n.needEncodeAttr) {
                         processEncodeAttr(n, map);
                     } else if (n.customTag) {
-                        //console.log(configs.galleryPrefixes, n.pfx);
                         if (configs.galleryPrefixes[n.pfx] === 1) {
                             processGalleryTag(n, map);
                         } else {
-                            //slog.ever(chalk.red('can not process custom tag:' + n.tag), 'at', chalk.magenta(extInfo.shortHTMLFile));
                             processCustomTag(n, map);
                         }
                     } else if (n.atAttr) {
                         processAtAttrs(n);
+                    } else if (n.condAttr) {
+                        processCondAttrs(n);
                     } else if (n.atAttrContent) {
                         processAtAttrContents(n);
                     } else if (n.hasMxView) {
@@ -744,6 +810,7 @@ module.exports = {
                         n.needEncodeAttr ||
                         n.atAttr ||
                         n.atAttrContent ||
+                        n.condAttr ||
                         n.hasMxView) {
                         return true;
                     }
@@ -756,9 +823,9 @@ module.exports = {
         tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 2;
-        while (hasSpecialTags(tokens) && --checkTimes) {
+        while (hasSpecialTags(tokens) &&
+            --checkTimes) {
             walk(tokens);
-            //debugger;
             tmpl = tmplCmd.store(tmpl, cmdCache);
             tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
             tokens = tmplParser(tmpl, e.shortHTMLFile);
@@ -766,6 +833,7 @@ module.exports = {
         tmpl = tmplCmd.recover(tmpl, cmdCache);
         tmpl = tmpl.replace(attrAtStartContentHolderReg, '@');
         tmpl = tmpl.replace(mxViewAttrHolderReg, 'mx-view');
+        //console.log('out', tmpl);
         return tmpl;
     }
 };
