@@ -146,6 +146,7 @@ module.exports = {
         xyRoot: 'app/components/',
         mxpRoot: 'magix-ports/component/'
     },
+    unstable_performanceOptimization: false,
     customTagProcessor() {
         return '';
     },

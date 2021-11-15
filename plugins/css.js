@@ -21,6 +21,7 @@ let {
     cssRefReg,
     refProcessor
 } = require('./css-selector');
+const CleanCss = require('clean-css');
 //处理css文件
 //另外一个思路是：解析出js中的字符串，然后在字符串中做替换就会更保险，目前先不这样做。
 //https://github.com/Automattic/xgettext-js
@@ -32,6 +33,7 @@ let {
 let cssTmplReg = /(['"]?)\(?(global|ref|names)?\u0012@([\w\.\-\/\\]+?)(\.css|\.less|\.mx|\.mmx|\.style)(?::?\[([\w-,]+)\]|:\.?([\w\-]+))?\)?\1(;?)/g;
 let sep = path.sep;
 
+const cleanCss = new CleanCss();
 
 module.exports = (e, inwatch) => {
     if (inwatch) {
@@ -334,9 +336,15 @@ module.exports = (e, inwatch) => {
                                 cssContentCache[file].map = info.map;
                                 cssContentCache[file].styles = info.styles;
                                 if (!configs.debug) {
-                                    cssnano().process(info.content,
-                                        Object.assign({}, configs.cssnano)
-                                    ).then(r => {
+                                    const result = configs.unstable_performanceOptimization
+                                        ? Promise.resolve({
+                                            css: cleanCss.minify(info.content).styles,
+                                        })
+                                        : cssnano().process(info.content,
+                                            Object.assign({}, configs.cssnano)
+                                        )
+
+                                    result.then(r => {
                                         setFileCSS(file, shortCssFile, r.css);
                                     }, error => {
                                         if (e.contentInfo) {

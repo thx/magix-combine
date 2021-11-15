@@ -7,15 +7,16 @@ let path = require('path');
 let less = require('less');
 let chalk = require('chalk');
 let util = require('util');
+const fse = require('fs-extra');
 
 let utils = require('./util');
 let slog = require('./util-log');
 let configs = require('./util-config');
 let fd = require('./util-fd');
-
 let jsMx = require('./js-mx');
 let sourceMap = require('./css-sourcemap');
 let cssAutoprefixer = require('./css-autoprefixer');
+const cssCacher = require('./css-cacher');
 
 let compileContent = (file, content, ext, resolve, reject, shortFile) => {
     let cfg = {
@@ -90,6 +91,7 @@ module.exports = (file, e, source, ext, refInnerStyle) => {
                     return Promise.resolve(css);
                 }).then(css => {
                     info.content = css;
+                    cssCacher.set(info.file, info);
                     done(info);
                 }).catch(reject);
             } else {
@@ -105,18 +107,41 @@ module.exports = (file, e, source, ext, refInnerStyle) => {
             }
             compileContent(file, info.style, ext, resolve, reject, shortFile);
         } else {
-            fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
-                if (err) {
-                    resolve({
-                        exists: false,
-                        file: file,
+            const unstable_cssRead = () => {
+                let fileContent = null;
+                try {
+                    fileContent = fse.readFileSync(file, 'utf8');
+                } catch (error) {
+                    return resolve({
+                        exist: false,
+                        file,
                         content: ''
                     });
+                }
+                const cache = cssCacher.get(file);
+                if (cache) {
+                    done(cache);
                 } else {
-                    let fileContent = fd.read(file);
                     compileContent(file, fileContent, ext, resolve, reject, shortFile);
                 }
-            });
+            }
+            const cssRead = () => {
+                fs.access(file, (fs.constants ? fs.constants.R_OK : fs.R_OK), err => {
+                    if (err) {
+                        resolve({
+                            exists: false,
+                            file: file,
+                            content: ''
+                        });
+                    } else {
+                        let fileContent = fd.read(file);
+                        compileContent(file, fileContent, ext, resolve, reject, shortFile);
+                    }
+                });
+            }
+            configs.unstable_performanceOptimization
+                ? unstable_cssRead()
+                : cssRead()
         }
     });
 };
