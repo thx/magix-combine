@@ -33,5 +33,9 @@
   "bugs": {
     "url": "https://github.com/thx/magix-combine/issues"
   },
-  "homepage": "https://github.com/thx/magix-combine#readme"
+  "homepage": "https://github.com/thx/magix-combine#readme",
+  "devDependencies": {
+    "clean-css": "^5.2.2",
+    "fs-extra": "^10.0.0"
+  }
 }
