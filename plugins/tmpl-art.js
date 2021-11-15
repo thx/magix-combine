@@ -254,7 +254,7 @@ let syntax = (code, stack, e, lineNo) => {
         let fi = artExpr.extractForExpr(expr);
         return `${src}<%for(${fi.expr}){%>`;
     } else if (key == 'set') {
-        return `${src}<%var ${ctrls.join(' ')};%>`;
+        return `${src}<%let ${ctrls.join(' ')};%>`;
     } else if (key == '/if' ||
         key == '/each' ||
         key == '/forin' ||

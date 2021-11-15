@@ -717,6 +717,9 @@ module.exports = {
                 let valuable = valuableAttrReg.test(content);
                 let boolean = !valuable && booleanAttrReg.test(content);
                 if (valuable || boolean) {
+                    if (key == 'mx-view') {
+                        return m;
+                    }
                     let cs = content.split(valuable ? '??' : '?');
                     let [cond, ext] = cs;
                     //console.log(cond,ext,tmplCmd.recover(content,cmdCache));

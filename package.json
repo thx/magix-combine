@@ -1,6 +1,6 @@
 {
   "name": "magix-combine",
-  "version": "3.11.52",
+  "version": "3.11.54",
   "description": "合并Magix View的html,js,css成一个js文件，并检测html,js,css中可能存在的问题",
   "main": "index.js",
   "types": "index.d.ts",
@@ -23,7 +23,7 @@
     "cssnano": "5.0.x",
     "html-entities-decoder": "1.0.x",
     "html-minifier": "4.0.x",
-    "less": "4.1.x",
+    "less": "3.11.x",
     "postcss": "8.3.x",
     "string-width": "4.2.x",
     "typescript": "4.4.x"
