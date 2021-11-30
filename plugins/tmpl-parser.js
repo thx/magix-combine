@@ -110,10 +110,10 @@ module.exports = (input, htmlFile) => {
                         a.value.indexOf('<') > -1) {
                         token.needEncodeAttr = true;
                     }
-                    if (valuableReg.test(a.value) ||
-                        booleanReg.test(a.value)) {
-                        token.condAttr = true;
-                    }
+                    // if (valuableReg.test(a.value) ||
+                    //     booleanReg.test(a.value)) {
+                    //     token.condAttr = true;
+                    // }
                 }
                 if (a.quote && a.value !== undefined) {
                     temp += '=' + a.quote + a.value + a.quote;
