@@ -9,8 +9,6 @@
  */
 let fs = require('fs');
 let path = require('path');
-let url = require('url');
-let qs = require('querystring');
 let configs = require('./util-config');
 let tmplCmd = require('./tmpl-cmd');
 let slog = require('./util-log');
@@ -667,28 +665,26 @@ module.exports = {
             let attrs = result.attrs;
             if (configs.useAtPathConverter) { //如果启用@路径转换规则
                 attrs = attrs.replace(mxViewAttrReg, (m, q, c) => {
-                    let { pathname, query } = url.parse(c);
+                    //let { pathname, query } = url.parse(c);
+                    let [pathname, searchParams] = c.split('?');
                     pathname = pathname || '';
                     pathname = addAtIfNeed(pathname);
                     pathname = atpath.resolveContent(pathname, e.moduleId);
-                    let params = [];
-                    query = qs.parse(query, '&', '=', {
-                        decodeURIComponent(v) {
-                            return v;
-                        }
-                    });
-                    for (let p in query) {
-                        let v = query[p];
+                    let params = new URLSearchParams(searchParams || '');
+                    let ps = [];
+                    //console.log(Object.fromEntries(params.entries()));
+                    for (let [k, v] of params) {
+                        //console.log(k,v);
                         v = addAtIfNeed(v);
-                        params.push(`${p}=${v}`);
+                        ps.push(k + '=' + v);
                     }
                     pathname = configs.mxViewProcessor({
                         path: pathname,
                         pkgName: e.pkgName
                     }, e) || pathname;
                     let view = pathname;
-                    if (params.length) {
-                        view += `?${params.join('&')}`;
+                    if (ps.length) {
+                        view += `?${ps.join('&')}`;
                     }
                     return `\x02="${view}"`;
                 });
@@ -826,11 +822,14 @@ module.exports = {
         tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
         let tokens = tmplParser(tmpl, e.shortHTMLFile);
         let checkTimes = 2 << 2;
+        //console.log(JSON.stringify(tmpl));
         while (hasSpecialTags(tokens) &&
             --checkTimes) {
+            //debugger;
             walk(tokens);
             tmpl = tmplCmd.store(tmpl, cmdCache);
             tmpl = tmplCmd.store(tmpl, cmdCache, consts.artCommandReg);
+            //console.log(JSON.stringify(tmpl));
             tokens = tmplParser(tmpl, e.shortHTMLFile);
         }
         tmpl = tmplCmd.recover(tmpl, cmdCache);
