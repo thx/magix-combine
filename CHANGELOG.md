@@ -1,3 +1,7 @@
+## 3.11.59
+1. 更新依赖
+2. 修改部分提示的颜色，增加文件路径的提示
+
 ## 3.11.58
 1. 更新依赖
 2. 修正`node`升级处理`url`去除末尾字符的问题 https://github.com/nodejs/node/pull/42196 https://en.wikipedia.org/wiki/C0_and_C1_control_codes

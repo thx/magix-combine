@@ -59,9 +59,10 @@ let encodeParams = (params, refTmplCommands, mxEvent, e, toSrc) => {
     try {
         ast = acorn.parse(params);
     } catch (ex) {
+        //console.log(e);
         let origin = params.substring(1, params.length - 1).replace(cmdPHReg, m => store[m]).replace(cmdReg, m => refTmplCommands[m]);
         let src = toSrc(origin);
-        slog.ever(chalk.red('[MXC Error(tmpl-attr-mxevent)] encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'), 'e.g.', chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'));
+        slog.ever(chalk.red('[MXC Error(tmpl-attr-mxevent)] encode mx-event params error'), 'origin', chalk.magenta(src), (src != origin ? 'translate to ' + chalk.magenta(origin) : ''), chalk.red('mx-event params with template syntax must be a legal object literal'), 'e.g.', chalk.magenta('{id:{{=id}},name:\'{{if gender==\'male\'}}David{{else}}Lily{{/if}}\'}'), 'at', chalk.red(e.shortHTMLFile));
         throw ex;
     }
     let modifiers = [];
