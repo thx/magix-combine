@@ -106,6 +106,7 @@ module.exports = {
     tmplArtEngine: true,//类mustach模板引擎，因代码多参考artTempalte，因此以art命名
     tmplStaticAnalyze: true,//模板静态节点分析
     tmplSnippetInScript: false,
+    tmplOptionalChainingSupport: false,//?.模板中的支持
     disableMagixUpdater: false,
     magixVframeHost: false,
     magixUpdaterIncrement: false,

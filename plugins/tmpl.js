@@ -122,7 +122,20 @@ let processTmpl = (fileContent, cache, cssNamesMap, magixTmpl, e, reject, file, 
         cache[key] = temp;
 
         fileContent = fileContent.replace(htmlCommentCelanReg, '').trim();
+        let gId;
+        if (configs.tmplOptionalChainingSupport) {
+            gId = utils.uId('\x00', fileContent);
+            fileContent = gId + fileContent;
+        }
         fileContent = tmplCmd.compile(fileContent);
+        if (configs.tmplOptionalChainingSupport) {
+            let i = fileContent.indexOf(gId);
+            let prefix = fileContent.substring(0, i);
+            fileContent = fileContent.substring(i + gId.length);
+            if (prefix) {
+                fileContent = `<%${prefix}%>` + fileContent;
+            }
+        }
         let refTmplCommands = Object.create(null);
         e.refLeakGlobal = {
             reassigns: []
