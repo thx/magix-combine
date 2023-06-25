@@ -148,6 +148,7 @@ module.exports = {
         mxpRoot: 'magix-ports/component/'
     },
     unstable_performanceOptimization: false,
+    prerunDependencies: true,
     customTagProcessor() {
         return '';
     },
@@ -197,5 +198,8 @@ module.exports = {
         return id;
     },
     resolveRequire() { //处理rqeuire时的处理器
+    },
+    resolveViewDependencies(m) {
+        return true;
     }
 };

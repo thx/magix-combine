@@ -398,9 +398,13 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
                     mId: p.slice(1, -1),
                     full: full,
                     from: 'view',
+                    dependence: v,
+                    current: e.moduleId,
                     raw: 'mx-view="' + v + '"'
                 };
-                if (e.deps.indexOf(p) === -1 &&
+                let canAdd = configs.resolveViewDependencies(reqInfo);
+                if (canAdd &&
+                    e.deps.indexOf(p) === -1 &&
                     e.deps.indexOf(reqInfo.full) === -1 &&
                     e.exRequires.indexOf(p) === -1 &&
                     e.exRequires.indexOf(reqInfo.full) == -1) {
@@ -410,8 +414,10 @@ let processContent = (from, to, content, inwatch, parentCtrl) => {
                     } else {
                         reqInfo.type = 'require';
                     }
-                    let replacement = jsDeps.getReqReplacement(reqInfo, e);
-                    vars.push(replacement);
+                    if (configs.prerunDependencies) {
+                        let replacement = jsDeps.getReqReplacement(reqInfo, e);
+                        vars.push(replacement);
+                    }
                     if (reqInfo.mId) {
                         let dId = JSON.stringify(reqInfo.mId);
                         reqs.push(dId);
